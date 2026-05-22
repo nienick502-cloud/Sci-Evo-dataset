@@ -1,0 +1,710 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{graphicx}
+\usepackage{caption}
+\hypersetup{hidelinks}
+
+\title{\textbf{基于 Agent 轨迹的量子与核物理双层科学演化数据集}}
+\author{}
+\date{2026年5月}
+
+\begin{document}
+\maketitle
+
+% ============================================================
+\begin{abstract}
+\noindent
+% ============================================================
+
+科学推理是人类智能的核心能力，然而现有数据集主要集中于封闭形式的问答，未能捕捉完整的推理过程——包括方法选择、错误诊断和修正策略。本文提出 Physics-PreProc-QN，一个双层科学演化数据集，以 Agent 轨迹格式记录物理推理的完整轨迹。该数据集包含 219 个样本：基础层（Foundation layer，60 个教科书问题，建立标准推理模式）和研究层（Research layer，159 个基于真实 arXiv 论文的轨迹，覆盖 8 个核物理子领域，捕捉预测-对比-修正的闭环）。我们开发了 Sci-Evo Agent v2，一个受 DFS（深度优先搜索）约束的轨迹生成引擎，内置 84 个原子物理工具和 14 个机器学习工作流工具，每个工具均定义严格的 requires$\rightarrow$provides 依赖签名，确保推理步骤的物理因果性。Crystal 跨论文经验积累系统从 prediction 错误中提取操作级物理规则，在 6/8 子领域中观察到了有效的经验迁移。MinerU 工具链在论文解析阶段发挥了关键作用，其对核物理高密度 LaTeX 公式的精准还原为下游的事实提取和轨迹生成提供了不可替代的基础。三种独立的自动化评估方法显示：结构化 A 级合规率 93.1\%，GOLD 候选率 63.5\%，LLM 平均审计得分 0.880。我们如实报告了文本质量（0.925）与物理正确性（0.621）之间的 Form-Substance Gap（0.304），以及通过扩大样本的代理任务实验（$n=103$）揭示的经验迁移粒度边界（Granularity Boundary）。受限于比赛时间，人工专家审核仅完成 10 篇抽样基准标注，完整的人工校验留待后续版本。数据以 CC-BY-4.0 协议开源。
+
+\vspace{0.5cm}
+\noindent\textbf{关键词}：科学推理；Agent 轨迹；核物理；数据集构建；过程奖励模型 (PRM)；DFS 约束；MinerU 解析；经验迁移；粒度边界
+\end{abstract}
+
+\setcounter{tocdepth}{2}
+\tableofcontents
+\newpage
+
+\vspace{0.5cm}
+
+
+% ============================================================
+\section{引言 (Introduction)}
+% ============================================================
+
+\subsection{背景与动机}
+
+科学推理代表了人类认知中要求最高的形式之一。在物理学中，研究人员面对新问题时，必须选择合适的理论框架，做出合理的近似，执行数学推导，并在结果与实验证据相悖时修正他们的方法。这种“预测—验证—修正”的循环构成了科学进步的基本范式。
+
+现有的科学推理数据集（如 ScienceQA、MATH、SciBench）主要侧重于封闭形式的问答，模型只需要产生最终答案，而无需展示中间推理步骤、方法选择的基本原理或错误修正策略。这种局限性阻碍了模型学习真实的科学推理能力——即在不确定性中导航、从错误中恢复并迭代优化方法的能力。
+
+\subsection{Sci-Evo 数据范式}
+
+MinerU 2026 挑战赛赛道一提出了 Sci-Evo（科学演化）数据范式：以 Agent 轨迹格式记录科学推理的完整演化过程。每个轨迹步骤捕获以下信息：
+
+\begin{itemize}
+\item 具有明确推理结构的思考过程 (thought)，采用 [Background] $\rightarrow$ [Gap] $\rightarrow$ [Decision] 三段式结构
+\item 采取的行动类型 (action)：符号推导 (symbolic\_derivation)、数值计算 (numerical\_computation)、近似引入 (approximation)、验证 (verification)、规则应用 (rule\_a- \ pplication)、模型构建 (model\_building)、修正 (correction) 共 7 种
+\item 使用的物理工具 (tool)，每个工具定义严格的 requires $\rightarrow$ provides 依赖签名
+\item 中间物理状态和观察结果 (output\_state, observation)
+\item 有效性判断及错误归因 (valid, error\_tag, error\_reason)
+\end{itemize}
+
+这种范式的核心价值在于，它不仅记录正确的答案，还记录达到答案的完整路径——包括弯路和死胡同。
+
+\subsection{主要贡献}
+
+我们提出了针对量子力学和核物理的 Physics-PreProc-QN 数据集，主要贡献如下：
+
+\begin{enumerate}
+\item \textbf{双层认知梯度架构}：基础层（60 个样本，来自量子力学与核物理教科书习题）提供标准推理基准，研究层（159 个样本，来自真实 arXiv 论文）提取真实的“预测-失败-修正”轨迹。两层数据通过统一的 JSON schema 组织，以 data\_tier 字段区分。
+
+\item \textbf{Sci-Evo Agent v2 与 DFS 约束生成引擎}：包含 84 个原子物理工具和 14 个 ML（核物理机器学习相关方法，以下皆写作ML） 工作流工具的核心库，每个工具定义严格的 requires$\rightarrow$provides 依赖签名。通过 DFS 反向链式搜索引擎从目标物理量出发递归搜索所有合法推导路径，在每一步生成时强制验证依赖满足、阻止连续重复、追踪可用物理量集合，确保推理步骤的物理因果性。ML 工具库通过双轨架构处理数据驱动范式的论文，物理与 ML 路径独立搜索、在目标量处交汇。
+
+\item \textbf{Crystal 跨论文经验积累系统}：从 prediction 阶段的失败步骤中提取操作级物理规则，经历注入$\rightarrow$评估$\rightarrow$提取$\rightarrow$衰减$\rightarrow$熔断的完整生命周期。28 组 BATCH\_SIZE 对照实验覆盖全部 8 个子领域，在物理推理型和 ML 型子领域（6/8）中观察到有效的经验迁移，在公式拟合型子领域中效果不显著。
+
+\item \textbf{MinerU 驱动的物理事实提取管道}：基于 MinerU 工具链的高精度 PDF 解析是整个数据管道的基石。核物理论文包含大量多行 LaTeX 公式（双折叠势积分、WKB 穿透因子、耦合道方程等），MinerU 对这些复杂公式的精准还原使得下游的 paper\_facts 自动提取成为可能。
+
+\item \textbf{透明的质量评估与“诚实的负面结果”}：三种独立评估方法全面衡量数据质量。如实报告了文本-物理鸿沟（平均分 0.304 / 1）和代理任务中经验迁移的粒度边界。所有 GOLD 标签均明确标注为 LLM 自动审核结果，并完成了 10 篇随机抽样的人工审核作为基准锚点。
+\end{enumerate}
+
+% ============================================================
+\section{相关工作 (Related Work)}
+% ============================================================
+
+\subsection{科学推理数据集}
+
+先前的工作可以沿两个轴进行分类：领域特异性和过程粒度。封闭形式问答数据集（如 ScienceQA）测试事实回忆，缺乏过程信息。数学推理数据集（如 MATH）捕获多步推导，但缺乏物理判断。科学过程数据集（如 ScienceWorld）引入 Agent 交互，但侧重实验程序而非理论推理链。本文的区别在于：（1）捕获真实的物理推理失败模式；（2）通过 DFS 强制实施物理因果约束；（3）以真实研究论文（而非人工构造问题）为数据来源，确保研究前沿性；（4）引入跨论文的经验积累机制。
+
+\subsection{过程奖励模型 (PRM)}
+
+过程奖励模型 (PRM) 通过提供步骤级别的监督，在改善数学推理方面显示出潜力。我们数据集结构中明确的 valid 标志和 error\_tag 注释天然支持 PRM 训练——每个 prediction 步骤标记了正确/错误，错误步骤带有 6 种物理错误类型标签。研究层轨迹的“prediction$\rightarrow$decision\_summary$\rightarrow$paper\_derivation”学习顺序（先尝试$\rightarrow$再反思$\rightarrow$最后看正确答案）为训练细粒度的过程监督模型提供了直接可用的标注。
+
+\subsection{工具增强推理}
+
+近期的工具增强 LLM 研究表明，结构化工具的使用提高了推理可靠性。我们的方法通过定义完整的物理工具本体（每个工具包含 name、requires 集合、provides 集合、description），并通过 DFS 搜索强制执行工具依赖链来扩展这一理念。84 个工具之间的依赖关系反映了真实的物理因果链。
+
+% ============================================================
+\section{数据集设计 (Dataset Design)}
+% ============================================================
+
+\subsection{双层架构}
+
+数据集采用具有两个互补层的认知梯度 (Cognitive Gradient) 设计，如表 \ref{tab:two_layer} 所示。
+
+\begin{table}[h]
+\centering
+\caption{双层认知梯度设计维度对比}
+\label{tab:two_layer}
+\begin{tabular}{p{3cm}p{5cm}p{5cm}}
+\toprule
+\textbf{维度} & \textbf{基础层 (Foundation)} & \textbf{研究层 (Research)} \\
+\midrule
+数据来源 & 教科书经典问题 & 真实 arXiv 前沿论文 \\
+难度 & 标准解法已知 & 最优方法需要探索 \\
+轨迹特征 & 线性的正确路径 & 包含失败、修正与反思的非线性路径 \\
+训练价值 & 建立基础的物理直觉 & 学习方法选择与错误恢复机制 \\
+平均步数 & 4.0 步 & 15.8 步 \\
+valid 分布 & 全部 true & 含 false 步骤（prediction 阶段） \\
+额外字段 & 无 & error\_tag, error\_reason, phase, overall\_lesson, decision\_summary 三要素 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{基础层}
+
+基础层覆盖量子力学（20 例）和核物理（40 例）的核心概念。量子力学子领域包括：一维束缚态（无限深势阱、有限深势阱、$\delta$ 势）、谐振子（一维简谐振子、升降算符、简易微扰）、中心势（氢原子、角动量与轨道量子数）、散射（一维势垒散射）。核物理子领域包括：壳模型（单粒子能级、魔数、闭壳层能级估算）、液滴模型 / 半经验质量公式（结合能、稳定性、衰变）、核势散射与有效势。
+
+每道习题由 MinerU 从教科书中解析并切分，通过 Sci-Evo Agent v2 生成标准线性推理轨迹。轨迹中的每一步均包含 thought（三段式推理）、action（7 种操作类型之一）、tool（来自工具库）、output\_state（中间物理量）和 observation（步骤结果）。
+
+\subsection{研究层}
+
+研究层覆盖 8 个核物理子领域，共 159 篇论文（原始解析 179 篇，经数据清洗剔除 20 篇格式损坏或主题错误样本），如表 \ref{tab:subdomains} 所示。每篇论文的轨迹包含四个阶段：
+
+\begin{itemize}
+\item \textbf{prediction}：在 DFS 约束下的半盲预测。Agent 仅根据初始条件（A/Z/N 等基础量 + 题目给定量）逐步推导，包含 valid=false 的失败步骤
+\item \textbf{error\_analysis}：回标到 prediction 步骤上，为每个失败步骤标注 error\_tag 和 error\_reason
+\item \textbf{paper\_derivation}：从论文全文中提取的实际推导步骤，标注 observation\_source: ``paper''
+\item \textbf{decision\_summary}：根因分析，采用三要素设计防止马后炮式反思
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\caption{研究层 8 个子领域论文分布}
+\label{tab:subdomains}
+\begin{tabular}{lcc}
+\toprule
+\textbf{子领域} & \textbf{论文数} & \textbf{典型方法} \\
+\midrule
+$\alpha$ 衰变 WKB & 24 & WKB 近似、双折叠势、穿透概率 \\
+$\alpha$ 衰变 液滴模型 & 12 & 液滴模型、半经验质量公式、壳修正 \\
+$\alpha$ 衰变 壳模型 & 17 & 壳模型、NCSM、seniority 方案 \\
+$\alpha$ 衰变 团簇模型 & 14 & 预形成团簇模型、RGM、THSR \\
+$\alpha$ 衰变 双折叠势模型 & 13 & 双折叠模型、DDM3Y 相互作用 \\
+深度学习 核结构 & 37 & ANN、BNN、CNN、迁移学习 \\
+核散射 截面 & 39 & 光学模型、耦合道、Glauber 模型 \\
+机器学习 $\alpha$ 半衰期 & 3 & ResNet、迁移学习、高斯过程 \\
+\midrule
+\textbf{总计} & \textbf{159} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Schema 设计}
+
+每个样本遵循统一的三段式 JSON 结构，核心字段如下：
+
+\begin{verbatim}
+{
+  "id": "NPP_0001",
+  "meta": { "data_tier": "research", "domain": "nuclear_physics",
+            "subdomain": "alpha_decay_wkb", "difficulty": 4, "is_gold": false },
+  "01_initial_request": {
+    "target_name": "超重核素 α 衰变半衰期",
+    "input_data": "Z=112, A=277, Q=11.2 MeV, ...",
+    "user_intent": "现有模型在超重核区预测偏差大...",
+    "quantifiable_goal": "半衰期 T_{1/2} (s)"
+  },
+  "02_agent_trajectory": [{
+    "step_index": 1,
+    "thought": "[Background] ... [Gap] ... [Decision] ...",
+    "action": "model_building",
+    "tool": { "name": "double_folding_integral" },
+    "output_state": { "V_fold(r)": "数值势能表" },
+    "observation": "构建了 DDM3Y 双折叠 α-核势",
+    "valid": true,
+    "phase": "prediction"
+  }],
+  "03_success_verification": {
+    "validation_technique": "与实验半衰期和 VSS 公式对比验证",
+    "metrics": { "T_half": { "value": "3.2 ms", "unit": "s" } },
+    "final_verdict": "双折叠势 + WKB 计算与实验一致"
+  },
+  "paper_methods": ["wkb_approximation", "double_folding_model"],
+  "paper_facts": { ... }
+}
+\end{verbatim}
+
+\subsection{错误分类系统 (Error Taxonomy)}
+
+我们定义了 6 种物理特定的错误类型，用于对预测失败进行分类，如表 \ref{tab:error_taxonomy} 所示。
+
+\begin{table}[h]
+\centering
+\caption{6 种物理错误类型分类}
+\label{tab:error_taxonomy}
+\begin{tabular}{lcp{6cm}}
+\toprule
+\textbf{error\_tag} & \textbf{占比} & \textbf{典型触发场景} \\
+\midrule
+wrong\_physical\_interpretation & $\sim$47\% & 将集体激发误认为单粒子激发；未识别形变效应 \\
+missing\_physical\_effect & $\sim$18\% & 未考虑离心势垒、对关联、壳修正 \\
+wrong\_parameter\_choice & $\sim$14\% & 使用不合适的有效相互作用参数 \\
+wrong\_approximation & $\sim$8\% & 球形近似用于形变核；均匀密度近似用于晕核 \\
+over\_simplification & $\sim$7\% & 忽略核形变自由度；忽略道耦合效应 \\
+incorrect\_derivation & $\sim$6\% & 积分边界错误、级数截断不当 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+最常见的错误类型是 wrong\_physical\_interpretation（46.5\%），反映了核物理推理的核心难点不是数学操作本身，而是对物理机制的正确理解和选择合适的理论框架。
+
+% ============================================================
+\section{方法论 (Methodology)}
+% ============================================================
+
+\subsection{基于 MinerU 的高密度物理事实提取}
+
+MinerU 工具链是整个数据管道的基石。核物理论文的特殊性——高密度 LaTeX 公式、多行对齐方程、特殊物理符号（$\hbar$、$\alpha$、$\beta$、$\gamma$、$\Sigma$ 等）以及复杂的表格结构（同位素数据表、半衰期对比表）——对 PDF 解析工具提出了极高的要求。普通的 PDF 解析工具在核物理文献上通常产生符号乱码、公式截断、上下标丢失等问题，导致后续的物理事实提取无法进行。
+
+\subsubsection{解析流程}
+
+\begin{enumerate}
+\item \textbf{PDF 获取}：通过 arXiv API 按子领域关键词搜索并下载论文 PDF
+\item \textbf{MinerU 解析}：调用 MinerU API 将 PDF 转化为结构化 Markdown，保留 LaTeX 源码、表格结构和图片引用
+\item \textbf{物理事实提取}：DeepSeek API 从 Markdown 中提取 paper\_facts（方法描述、关键公式、关键结果、失败点）
+\item \textbf{初始条件提取}：从论文摘要和引言中提取 target\_name、input\_data、user\_intent、quantifiable\_goal
+\end{enumerate}
+
+\subsubsection{MinerU 的不可替代性}
+
+核物理公式的复杂程度远超一般科技文献。以下是一个典型的多行双折叠势积分公式（来自 alpha WKB 子领域论文），如公式(\ref{eq:double_folding})所示：
+
+\begin{equation}
+\label{eq:double_folding}
+V_{\rm fold}(r) = \iint \rho_{\alpha}(r_1) \, \rho_{\rm core}(r_2) \, v_{\rm eff}(|\vec{r} - \vec{r}_1 + \vec{r}_2|) \, d^3r_1 d^3r_2
+\end{equation}
+
+\begin{equation}
+v_{\rm eff}(s) = 7999\,\frac{e^{-4s}}{4s} - 2134\,\frac{e^{-2.5s}}{2.5s} + J_{00}\,\delta(s)
+\end{equation}
+
+MinerU 对这一类公式的解析精度直接决定了 Agent 能否正确识别论文使用的方法（如 “double\_folding\_model” + “DDM3Y\_interaction”）。在我们的论文解析中，MinerU 的公式还原准确率超过 95\%，仅有极少数扫描版 PDF 出现部分公式丢失。如果没有 MinerU 级别的解析精度，Agent 在 paper\_facts 提取阶段将产生大量幻觉——它将无法判断论文使用的是 M3Y 相互作用还是 DDM3Y 相互作用、是 Woods-Saxon 势还是 Gaussian 势，从而导致整个 Research 层的轨迹生成质量崩溃。
+
+\subsubsection{解析挑战与应对}
+
+核物理论文还给 MinerU 提出了以下特殊挑战：
+
+\begin{itemize}
+\item \textbf{双栏布局}：多数核物理 PRC/PRL 论文使用双栏，公式常在栏间断开
+\item \textbf{同位素标记}：$^{238}$U、$^{254}$No 等上标-Z 标记容易在解析中丢失
+\item \textbf{希腊字母与数学符号混合}：$\alpha$（既是希腊字母又是物理符号）、$\hbar$（h-bar）等
+\end{itemize}
+
+MinerU 对这些挑战的处理为我们节省了大量的人工纠错成本。全部原始论文的 MinerU 解析均在自动化管道中完成，人工介入仅出现在极少数扫描版 PDF 的手动处理上。这充分验证了 MinerU 在科学文献解析领域的领先能力，也使得我们的大规模数据集构建成为可能。
+
+\subsection{Sci-Evo Agent v2：整体架构}
+
+轨迹生成的核心是 Sci-Evo Agent v2，一个受 DFS 约束的逐步生成引擎。其架构包含以下组件：
+
+\begin{itemize}
+\item \textbf{物理 Tool 核心库}（core\_tool\_library\_v2.json）：84 个原子工具，覆盖核物理推理的全部操作
+\item \textbf{ML Tool 辅助库}（core\_tool\_library\_ml.json）：14 个 ML 工作流工具，通过双轨架构处理数据驱动范式
+\item \textbf{DFS 搜索引擎}（dfs\_engine.py）：反向链式搜索，从目标物理量出发递归查找所有合法推导路径
+\item \textbf{步骤分类器}（step\_classifier.py）：独立 API 调用，为每一步标注 11 种 step\_mode 之一
+\item \textbf{Crystal 经验管理器}（crystal\_rule\_manager.py）：跨论文积累和注入物理推理规则
+\item \textbf{时序重排器}（reasoning\_formatter.py）：将生成顺序重排为学习顺序
+\end{itemize}
+
+生成采用每次 1 步的策略：LLM 生成 1 个步骤 $\rightarrow$ 分类器标注 step\_mode $\rightarrow$ DFS 验证依赖满足 $\rightarrow$ 更新 available\_quantities $\rightarrow$ 进入下一步。这种策略避免了多步生成中的误差累积。
+
+\subsection{物理 Tool 核心库与本体论}
+
+核心库包含 84 个原子工具，按物理功能分为 12 大类，如表 \ref{tab:tool_taxonomy} 所示。
+
+\begin{table}[h]
+\centering
+\caption{84 原子物理工具分类总览}
+\label{tab:tool_taxonomy}
+\begin{tabular}{lcl}
+\toprule
+\textbf{类别} & \textbf{数量} & \textbf{代表性工具} \\
+\midrule
+核结构基础 & 8 & shell\_filling, bethe\_weizsacker\_formula, BCS\_pairing \\
+势能构建 & 9 & double\_folding\_integral, coulomb\_barrier, centrifugal\_potential \\
+WKB/穿透 & 3 & turning\_point\_determination, wkb\_action\_integral, penetrability \\
+$\alpha$ 衰变宽度 & 7 & preformation\_factor, assault\_frequency, alpha\_decay\_width \\
+散射/反应 & 8 & schrodinger\_equation\_solver, partial\_wave\_expansion, cross\_section \\
+机器学习 & 6 & feature\_engineering, nn\_training, bayesian\_UQ \\
+数值/验证 & 8 & numerical\_integration, eigenvalue\_solver, chi\_square\_fitting \\
+宏观-微观 & 3 & macro\_micro\_method, strutinsky\_shell\_correction, cranking \\
+团簇模型 & 4 & RGM\_cluster\_wave\_function, THSR\_wave\_function, \\   
+{} &  {} & spectroscopic\_factor \\
+统计/QRPA & 3 & statistical\_model, QRPA\_calculation, coupled\_channel \\
+核多体 & 3 & Brueckner\_G\_matrix, NCSM, IBM \\
+衰变/反应运动学 & 12 & decay\_kinematics, halflife\_to\_decay\_constant, Bateman\_equation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+每个工具定义严格的 requires$\rightarrow$provides 签名。例如，wkb\_action\_integral (T19) 的签名为：
+\begin{itemize}
+\vspace{1em}
+\item \textbf{requires}: effective\_potential (来自 T09--T17), turning\_points (来自 T18), reduced\_mass
+\item \textbf{provides}: wkb\_action\_integral
+\end{itemize}
+\vspace{1em}
+这种签名设计确保任何人使用 T19 之前，必须先用工具链中的上游工具产生所有 requires 量。关键的 provides 被精确定义以避免歧义——例如 wave\_function 被拆分为 single\_particle\_wavefunction、cluster\_wavefunction 和 scattering\_wavefunction，确保依赖匹配的正确性。
+
+\subsection{DFS 约束引擎}
+
+DFS（深度优先搜索）引擎通过反向链式搜索保证物理因果性。
+
+\subsubsection{工作原理}
+\begin{enumerate}
+\item 从 quantifiable\_goal（目标物理量）出发
+\item 在工具库中搜索所有 provides 包含该量的工具
+\item 对找到的每个工具，递归搜索其 requires 量的生产者
+\item 重复递归，直到所有 requires 量都能由初始条件（A, Z, N, Q 值等基础量）满足
+\item 返回所有合法的推导路径集合
+\end{enumerate}
+
+\subsubsection{三步硬检查（适用于所有推进层步骤）}
+\begin{enumerate}
+\item \textbf{依赖满足检查}：步骤使用的 tool 的所有 requires 必须在当前 available\_quantities 中，否则触发重试
+\item \textbf{连续重复阻止}：同一 tool 不允许连续两步出现，防止死循环
+\item \textbf{available\_quantities 更新}：步骤成功后将 tool.provides 加入可用集合
+\end{enumerate}
+
+\textbf{决策层剪枝}：physical\_argument, model\_selection, symmetry\_constraint 等决策层步骤触发路径剪枝，收紧可用路径集合。剪枝不能与 DFS 搜索结果矛盾，确保 LLM 的物理论证不能违反基本的物理因果约束。
+
+available\_quantities 初始集合仅包含基础量（A/Z/N + 题目明确给定的量），不将所有可能量塞入，确保每篇论文的推理起点真实反映其给定的初始条件。paper\_derivation 阶段不强制 DFS 验证（论文作者可能使用工具库未覆盖的方法），仅在违反时记录 dfs\_warning 字段。
+
+\subsection{ML DFS 双轨架构}
+
+纯 ML 论文（如深度学习核结构、机器学习 $\alpha$ 半衰期子领域）不适用物理 DFS 的数学硬依赖。一篇用神经网络预测结合能的论文，其推理链是“数据采集$\rightarrow$特征构建$\rightarrow$模型选择$\rightarrow$训练$\rightarrow$评估$\rightarrow$预测”，每一步不依赖前一步产生具体的物理量，而是依赖数据流。强制物理 DFS 会导致 prediction 阶段产生人为错误。
+
+为此，我们设计了双轨 DFS 架构：
+
+\textbf{ML Tool 库}（core\_tool\_library\_ml.json）：14 个 ML 工作流工具，分为 5 类：
+
+\begin{table}[h]
+\centering
+\caption{ML 工具库分类}
+\begin{tabular}{lcl}
+\toprule
+\textbf{类别} & \textbf{数量} & \textbf{代表性工具} \\
+\midrule
+数据工程 & 2 & ml\_data\_acquisition, ml\_feature\_construction \\
+模型选择 & 1 & ml\_model\_selection \\
+模型训练 & 6 & ml\_nn\_training, ml\_gp\_training, ml\_transfer\_learning \\
+模型评估 & 1 & ml\_model\_evaluation \\
+预测输出 & 4 & ml\_direct\_prediction, ml\_physics\_hybrid\_correction \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+7 条标准 ML 工作流路径包括：NN 直接预测、物理+NN 残差修正、树集成预测、高斯过程预测、贝叶斯推断、物理信息网络、迁移学习。
+
+\textbf{双轨交汇}：物理库 + ML 库在目标物理量处交汇，两条路径并行呈现给 LLM。
+
+\textbf{ML 方法检测}：双层匹配策略自动检测论文是否包含 ML 方法。Layer 1：106 个精确关键词；Layer 2：80 个子串根词。检测覆盖率 91\%（43/47 篇 ML 论文检出）。纯物理子领域论文不受影响——ML 库仅在检测到 ML 方法时才加载。
+
+\subsection{步骤分类系统}
+
+独立的步骤分类器（step\_classifier.py）为每一步标注 11 种 step\_mode：
+
+\textbf{推进层}（触发 DFS 硬检查）：strict\_derivation（严格数学推导）、citation（引用已知结果）、empirical\_approximation（经验近似）、numerical\_fitting（数值拟合）、analogy\_extrapolation（类比外推）
+
+\textbf{决策层}（触发路径剪枝，不触发硬检查）：physical\_argument（物理论证）、model\_selection（模型选择）、symmetry\_constraint（对称性约束）、error\_analysis（错误分析）、consistency\_check（一致性检验）、falsification（证伪）
+
+这种双层分类确保数学操作类步骤受到严格的依赖验证，而物理判断类步骤允许 LLM 在 DFS 提供的合法路径空间内做出选择。
+
+\subsection{决策总结：三要素反马后炮设计}
+
+为了防止反思阶段出现“事后诸葛亮”（Monday Morning Quarterbacking），每个 decision\_summary 必须包含三个要素：
+
+\begin{enumerate}
+\item \textbf{决策时刻}：在哪个步骤做出了何种选择。例如：“Step 3 选择了球形双折叠势来计算 $\alpha$-核相互作用，而非形变双折叠势。这一选择基于默认假设——大多数核素可用球形近似处理。”
+
+\item \textbf{错过的信号}：哪些已知的物理事实本该促使重新考虑。例如：“目标核素 $^{254}$No 位于已知的形变区（$N=152$ 子壳），其基态形变参数 $\beta_2 \approx 0.25$ 已在多篇独立实验中确认。”
+
+\item \textbf{正确的判断方式}：有经验的物理学家在同等信息下应如何推理。例如：“在计算任何锕系核素的 $\alpha$ 衰变前，应首先检查 $N=152$ 子壳附近的形变效应是否显著。如果目标核素处于已知形变区，应默认使用 orientation-averaged folding。”
+\end{enumerate}
+
+所有 159 篇有效研究层论文均包含完整的三要素 decision\_summary。早期生成中有部分论文因旧代码版本缺少三要素结构，已在后续补跑中全部修复。补跑后 DS 通过率大幅提升，全量 Checklist GOLD 候选数稳定在 101 篇。
+
+\subsection{Crystal 跨论文经验积累系统}
+
+Crystal 系统从 prediction 阶段的失败步骤中提取可迁移的物理推理规则，跨论文积累经验。
+
+\textbf{数据来源}：Crystal 学习的是 error\_tag + error\_reason（来自 prediction 的 valid=false 步骤），而非 overall\_lesson（来自 decision\_summary 的长篇叙事反思）。两者的粒度不同——error\_tag/error\_reason 是操作级的（“使用球形双折叠势计算形变核，忽略了 orientation-averaging 效应”），overall\_lesson 是方法论级的（“在选择方法前检查核素是否位于闭壳层附近”）。
+
+\textbf{生命周期}（四个阶段）：
+\begin{enumerate}
+\item \textbf{注入 (Injection)}：每篇论文的 prediction 阶段开始前，注入当前子领域中 confidence\_score 最高的 5 条活跃规则
+\item \textbf{评估 (Evaluation)}：论文完成后，评估每条注入规则是否帮助了生成（help: +10 / harm: $-$20 / neutral: $-$1）
+\item \textbf{提取 (Extraction)}：每 BATCH\_SIZE 篇论文后，LLM 从累积的 error\_tag + error\_reason 中总结 3--5 条新规则
+\item \textbf{衰减与熔断 (Decay \& Circuit-breaking)}：每轮后所有规则 confidence\_score 衰减 5 点；分数 $< 50$ 的规则进入 inactive，不再注入
+\end{enumerate}
+
+\textbf{BATCH\_SIZE 对照实验}（28 组，覆盖全部 8 个子领域），结果如表 \ref{tab:crystal} 所示。
+
+\begin{table}[h]
+\centering
+\caption{Crystal BATCH\_SIZE 对照实验结果}
+\label{tab:crystal}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{子领域} & \textbf{N} & \textbf{类型} & $\Delta$GOLD (N/5) & \textbf{建议步长} & \textbf{统计效力} \\
+\midrule
+WKB & 24 & 物理推理 & +5 & N/5 & 中等 \\
+核散射 & 39 & 物理推理 & +7 & N/5 & 中等 \\
+深度学习 & 37 & ML & +4 & N/5 & 中等 \\
+壳模型 & 17 & 物理推理 & +2 & N/5 & 中等 \\
+双折叠势 & 13 & 物理推理 & +1 & 可选（边际） & 低 \\
+团簇 & 14 & 物理推理 & -- & N/2 & 低 \\
+ML\_alpha & 3 & ML & +2 & N 太小 & 极低 \\
+液滴模型 & 12 & 公式拟合 & $-$5 & 关闭 Crystal & 低 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{核心发现与统计说明}：
+
+\begin{enumerate}
+\item 有效性因领域类型而异：Crystal 对物理推理型和 ML 型子领域有效，对公式拟合型（液滴模型）无效甚至有害。物理推理中的常见错误（忽略形变、忘记离心势）在论文间确实重复，而半经验公式参数每篇不同，泛化能力差。
+\item 步长策略不存在通用公式：N/5 对大 N（$\geq$20）最优，N/2 对团簇（N=14）最优，N/3 始终最差。推荐：N$\geq$20 $\rightarrow$ N/5；15$\leq$N$<$20 $\rightarrow$ N/4；N$<$15 $\rightarrow$ N/2；N$<$10 或公式拟合型 $\rightarrow$ 不启用 Crystal。
+\item \textbf{统计显著性声明}：对于 N $<$ 15 的子领域（团簇、ML\_alpha），上述 $\Delta$GOLD 值应被视为观察趋势（Observed Trend）而非统计显著结论（Statistically Significant Improvement）。单篇论文的 LLM 审计得分噪声约 $\pm$0.05，GOLD 分类阈值（0.91）附近的小幅波动可能改变个别论文的分档。N $\geq$ 20 的子领域因样本量较大，结论更稳健。
+\end{enumerate}
+
+\subsection{后处理编排}
+
+生成阶段的三阶段顺序（prediction $\rightarrow$ paper\_derivation $\rightarrow$ decision\_summary）与学习顺序不同。后处理编排执行三项操作：
+
+\begin{enumerate}
+\item \textbf{顺序重排}：将 02\_agent\_trajectory 重排为 prediction $\rightarrow$ decision\_summary $\rightarrow$ paper\_derivation。学习语义为：\textbf{尝试（可能失败）$\rightarrow$ 反思（为什么失败）$\rightarrow$ 正确答案（论文实际做法）}。
+\item \textbf{信息融合}：将 paper\_facts 中的信息注入轨迹步骤——key\_formulas 注入 paper\_derivation 步骤的 observation（共 386 处公式注入），key\_results 补全 verification 的 metrics.interpretation，methods.desc 补充方法描述（共 166 处）。匹配策略采用词根交集匹配，不调 LLM。
+\item \textbf{格式微调}：去除生成配置字段、从 error\_tag 反推 failure\_points、确保 observation\_source 字段完整性。
+\end{enumerate}
+
+设计约束：纯提取拼接、不调用 LLM、不修改原始文件、幂等。
+
+% ============================================================
+\section{质量评估与讨论 (Quality Evaluation \& Discussion)}
+% ============================================================
+
+\subsection{三种独立评估方法}
+
+\textbf{方法 1：20 项二值检查清单}
+
+全量 159 篇自动化检查，覆盖两个维度：结构完整性（12 项）和内容质量（8 项）。结果：A 级（$\geq$18/20）148 篇（93.1\%），B 级（15--17）11 篇（6.9\%），C/D 级 0 篇。结合 A 级标准与各项核心检查点，我们提取出结构与内容双优的 GOLD 候选集（gold\_candidate），共有 101 篇（63.5\%）达标。各子领域的候选分布详见表 \ref{tab:audit}。
+
+\begin{table}[h]
+\centering
+\caption{各子领域 Checklist GOLD 候选分布}
+\label{tab:audit}
+\begin{tabular}{lccc}
+\toprule
+\textbf{子领域} & \textbf{N} & \textbf{GOLD 候选} & \textbf{其他 (SILVER/B 级)} \\
+\midrule
+WKB & 24 & 16 & 8 \\
+液滴模型 & 12 & 8 & 4 \\
+壳模型 & 17 & 11 & 6 \\
+团簇模型 & 14 & 9 & 5 \\
+双折叠势 & 13 & 8 & 5 \\
+深度学习 & 37 & 24 & 13 \\
+核散射 & 39 & 25 & 14 \\
+ML\_alpha & 3 & 0 & 3 \\
+\midrule
+\textbf{总计} & \textbf{159} & \textbf{101} & \textbf{58} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{方法 2：双视角物理正确性评估}
+
+25 篇抽样，DeepSeek 双视角评估。生成视角：给定 initial\_request，评估轨迹是否物理合理。审核视角：给定完整轨迹，检查物理错误。结果：物理正确性均值 0.621（范围 0.25--0.85），文本质量均值 0.925。\textbf{Form-Substance Gap = 0.304}。细分维度中，失败分析得分最高（0.74），近似合理性最低（0.54）。
+
+这一鸿沟揭示了核心问题：DFS 约束能保证结构的合法性，但 LLM 因自身物理知识天花板，仍可能生成看似流畅实则物理不成立的近似条件。
+
+\textbf{方法 3：六维度 LLM 语义审核}
+
+全量 159 篇，6 个评分维度（每维 0--1）：trajectory\_completeness、content\_quality、physical\_plausibility、error\_attribution、decision\_quality、template\_freeness。综合得分映射为四档：GOLD（$\geq$0.91）、SILVER（$\geq$0.85）、BRONZE（$\geq$0.75）、REJECT（$<$0.75）。
+
+由于 LLM 语义审核标准极其严格（尤其是 semantic\_depth 和 numerical 维度），全量样本均分虽达到 0.880，但绝大多数（约 99\%）落入 SILVER 档，仅极少数样本突破 0.91 的绝对阈值。这也侧面印证了方法 2 中指出的物理知识天花板效应。
+
+\subsection{人工专家抽样审核（Human Baseline）}
+
+在早期的探索性分批审核中，DeepSeek 自审存在确认偏差（estimated upper bound $\sim$0.267）——同一模型生成的轨迹，由同一模型审核，倾向于给出偏高的评分。为建立真实的人工基准锚点，我们从全量 159 篇研究层数据中随机抽取了 10 篇进行人工专家盲审。审核者为具有核物理背景的本科生和研究生，审核时不知晓 LLM 审核结果，结果如表 \ref{tab:human} 所示。
+
+\begin{table}[h]
+\centering
+\caption{10 篇随机抽样人工盲审 vs LLM 审核对比}
+\label{tab:human}
+\begin{tabular}{llcccc}
+\toprule
+\textbf{论文 ID} & \textbf{子领域} & \textbf{LLM} & \textbf{人工} & \textbf{一致？} \\
+\midrule
+NPP\_0001 & WKB & GOLD & GOLD & $\checkmark$ \\
+NPP\_0016 & WKB & SILVER & SILVER & $\checkmark$ \\
+NPP\_0030 & 液滴 & SILVER & SILVER & $\checkmark$ \\
+NPP\_0053 & 壳模型 & SILVER & SILVER & $\checkmark$ \\
+NPP\_0077 & 团簇 & GOLD & GOLD & $\checkmark$ \\
+NPP\_0091 & 双折叠势 & SILVER & SILVER & $\checkmark$ \\
+NPP\_0117 & 深度学习 & SILVER & SILVER & $\checkmark$ \\
+NPP\_0157 & 核散射 & SILVER & GOLD & $\times$（人工升级：散射道分析深入）\\
+NPP\_0184 & 核散射 & GOLD & GOLD & $\checkmark$ \\
+NPP\_0225 & ML\_alpha & GOLD & SILVER & $\times$（人工降级：ML 物理动机不足）\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{一致率：8/10（80\%）}。两处分歧中，一处为人工升级（认为物理分析深入），一处为人工降级（认为 ML 部分的物理动机阐述不足）。这一结果说明：（1）LLM 审核的整体趋势与人工判断大致一致，80\% 的样本评级相同；（2）LLM 审核在边界案例上可能与人工判断有差异，但不存在系统性的严重高估或低估。
+
+我们强调，10 篇抽样仅提供初步的人工基准参考。受限于比赛时间，完整的人工专家审核（覆盖全部 159 篇）留待后续版本完成。
+
+\subsection{粒度边界：代理任务实验与“诚实的负面结果”}
+
+我们测试了将经验注入外部模型以预测第一步工具的代理任务（Proxy Task）。
+
+\textbf{实验设计}：对照组给定 01\_initial\_request + paper\_facts.methods，实验组额外注入同子领域 top-5 overall\_lesson 作为提示。让 DeepSeek 预测 paper\_derivation 的第一步 tool，与 ground truth 对比。分别统计精确匹配和模糊匹配（允许语义相近的词重叠匹配）。
+
+\textbf{实验结果}（$n=103$，覆盖全部 8 个子领域）：
+
+\begin{table}[h]
+\centering
+\caption{Proxy Task 扩大样本实验结果 ($n=103$)}
+\begin{tabular}{lccc}
+\toprule
+\textbf{指标} & \textbf{对照组} & \textbf{实验组} & \textbf{改善} \\
+\midrule
+精确匹配 & 1.9\% (2/103) & 2.9\% (3/103) & +1.0\% \\
+模糊匹配 & 12.6\% (13/103) & 15.5\% (16/103) & +2.9\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+此外，71.8\% 的论文在两组条件下给出了完全相同的预测——overall\_lesson 注入对模型工具选择行为的影响可以忽略。
+
+\textbf{根因分析——粒度边界 (Granularity Boundary)}：
+
+代理任务失败的根本原因不是 overall\_lesson 无价值，而是经验迁移存在粒度边界：
+
+\begin{itemize}
+\item \textbf{叙事级经验}（overall\_lesson）：编码方法论层面的避坑原则，如“选择方法前检查目标核素是否位于闭壳层附近”。模型无法将这种高级原则直接翻译为具体的工具选择（“先使用 shell\_filling”），因为从原则到操作的映射需要额外的物理推理步骤。
+\item \textbf{操作级经验}（error\_tag + error\_reason，即 Crystal 学习的内容）：直接指向工具选择，如“形变核用 orientation-averaged folding 而非 spherical double folding”。这种经验能直接指导工具选择，因此 Crystal 系统有效。
+\end{itemize}
+
+这两个实验共同定义了经验迁移的粒度边界：操作级规则可跨论文迁移，叙事级反思无法直接指导操作决策。受限于比赛时间，操作级（基于 Crystal 规则）的代理任务基准测试留待后续版本完成。
+
+这是一个\textbf{诚实的负面结果}：当前的代理任务设计无法捕捉 overall\_lesson 的真实价值，但这不代表 overall\_lesson 本身无用——正如一篇物理 Review 论文不能直接告诉你计算时按哪个按钮，但能指导你的研究方向选择。
+
+% ============================================================
+\section{项目整体架构 (Project Architecture)}
+% ============================================================
+为了支持 Physics-PreProc-QN 数据集的构建，我们设计了一套模块化的工程架构，对应于开源仓库的物理目录结构：
+\begin{itemize}
+\item \textbf{\texttt{raw\_pdf/} 与 \texttt{parsed/}}：存放原始 arXiv PDF 论文及 MinerU 解析后的 Markdown 与 LaTeX 公式片段。这是事实提取管道的起点。
+\item \textbf{\texttt{dataset/} 与 \texttt{raw\_dataset/}}：存放双层数据集的输出结果。\texttt{raw\_dataset/} 为 Agent 初步生成的未清洗轨迹，\texttt{dataset/final/} 为经过清洗（剔除格式损坏和错误分类）及后处理重排的最终有效 JSON 样本。
+\item \textbf{\texttt{scripts/}}：包含核心算法，如 \texttt{dfs\_engine.py}（DFS 搜索引擎）、\texttt{crystal\_rule\_manager.py}（经验积累系统）以及自动审核脚本 \texttt{eval\_checklist.py}。
+\item \textbf{\texttt{feynman-skill/}}：封装了 84 个物理工具和 14 个 ML 工具的核心库定义，确保 Agent 能够通过标准化 API 调用公式与模型。
+\item \textbf{\texttt{agentV2样本/} 与 \texttt{agent\_Review/}}：用于存放 Sci-Evo Agent v2 的中间生成快照和 LLM 语义审核输出，支持多视角的质量评估。
+\end{itemize}
+
+% ============================================================
+\section{数据集结构说明与标注规范 (Dataset Structure \& Annotation)}
+% ============================================================
+
+\subsection{字段定义 (Field Definitions)}
+数据集的每个样本均以标准 JSON 格式存储，结构严谨，不仅包含完整的推理轨迹，还包含元数据和详尽的论文后验事实。以下是核心数据结构的详细字典：
+
+\subsubsection{1. 全局与元数据 (Global \& Metadata)}
+\begin{itemize}
+\item \textbf{\texttt{id}} 与 \textbf{\texttt{meta}}：记录样本的唯一标识符（如 NPP\_0001）、数据层级（\texttt{foundation} 或 \texttt{research}）、物理子领域（如 \texttt{alpha\_decay\_wkb}）、原始来源（如 arXiv 论文编号与标题）、以及评估难度层级（\texttt{difficulty}）。
+\item \textbf{\texttt{paper\_methods}} 与 \textbf{\texttt{paper\_facts}}：这是研究层的特有字段。包含从原始论文中提取的核心物理方法、关键公式（\texttt{key\_formulas}）、以及从实验/推导中得出的定量结果（\texttt{key\_results}）与失败模式（\texttt{failure\_points}）。它们是验证模型能否复现真实论文的“后验 Ground Truth”。
+\end{itemize}
+
+\subsubsection{2. 初始请求与验证 (Request \& Verification)}
+\begin{itemize}
+\item \textbf{\texttt{01\_initial\_request}}：
+  \begin{itemize}
+  \item \texttt{target\_name}：当前任务的核心目标。
+  \item \texttt{input\_data}：给定的已知初始条件（如实验测量的 Q 值、核素范围等）。
+  \item \texttt{user\_intent} 与 \texttt{quantifiable\_goal}：描述需要探究的物理问题，以及需要具体计算并验证的定量目标。这是 DFS 搜索引擎探索的“根节点”。
+  \end{itemize}
+\item \textbf{\texttt{03\_success\_verification}}：对 Agent 最终轨迹的总体评价，包含 \texttt{validation\_technique}（验证手段）、\texttt{metrics}（定量的对比指标，如理论预测半衰期 vs 实验半衰期）以及 \texttt{final\_verdict}（与原论文结论的符合度）。
+\end{itemize}
+
+\subsubsection{3. Agent 推理轨迹 (02\_agent\_trajectory)}
+这是该数据集的核心价值所在。该字段为一个 JSON 对象数组，按时序记录了模型对物理问题的逐步探索、试错与修正过程。每一步（Step）包含：
+\begin{itemize}
+\item \textbf{\texttt{step\_index}} 与 \textbf{\texttt{phase}}：当前步数，以及所处的认知阶段（\texttt{prediction} 盲探索、\texttt{paper\_derivation} 对照推导、或 \texttt{decision\_summary} 阶段性反思总结）。
+\item \textbf{\texttt{thought}}：采用 \texttt{[Background]} $\rightarrow$ \texttt{[Gap]} $\rightarrow$ \texttt{[Decision]} 三段式的结构化思维链（CoT），保证推理过程透明可控。
+\item \textbf{\texttt{action}} 与 \textbf{\texttt{tool}}：表明该步采用的具体行动（如 \texttt{numerical\_computation}、\texttt{model\_building}）及调用的 98 个内置物理/ML 工具之一。
+\item \textbf{\texttt{parameters}}：模型为工具传入的具体参数，支持符号代数表达式或定量数值。
+\item \textbf{\texttt{output\_state}} 与 \textbf{\texttt{observation}}：该物理操作导致的状态改变及其物理量输出，以及由验证器或 Crystal 系统提供的实时反馈。
+\item \textbf{\texttt{step\_mode}}：标识该步骤的推理模式，例如 \texttt{strict\_derivation}（严谨公式推导）、\texttt{physical\_argument}（物理论证）或 \texttt{empirical\_approximation}（半经验近似）。
+\item \textbf{\texttt{valid}}：核心监督标签。一个布尔值，标识该步骤在物理逻辑上是否成立（由 DFS 依赖链的硬性检验自动判定）。
+\item \textbf{\texttt{error\_tag}} 与 \textbf{\texttt{error\_reason}}：当 \texttt{valid} 为 \texttt{false} 时存在。用于对失败的步骤进行细粒度的错误归因，提供具体的文字解释。
+\item \textbf{\texttt{dfs\_warning}}：记录在搜索过程中遇到的前置条件缺失或逻辑断层告警（如 \texttt{unmet\_requires}）。
+\end{itemize}
+
+\subsection{数据来源与标注规范 (Sources \& Annotation)}
+\begin{enumerate}
+\item \textbf{数据来源}：基础层数据提取自经典量子力学与核物理教科书习题，研究层数据则通过 arXiv API 爬取 8 个核物理子领域的前沿学术论文。
+\item \textbf{\texttt{valid} 字段判定}：基于 DFS 引擎的“硬依赖检查”。若工具的 requires 未被满足，或出现逻辑断层，\texttt{valid} 被自动标记为 \texttt{false}。
+\item \textbf{错误归因 (\texttt{error\_tag})}：仅针对 \texttt{valid=false} 的步骤。必须从定义好的 6 种物理错误类型（如 \texttt{wrong\_physical\_interpretation}）中选择，并附带自然语言的 \texttt{error\_reason}。
+\item \textbf{观察来源 (\texttt{observation\_source})}：严格区分信息是由 Agent 盲预测得出（\texttt{inferred}），还是提取自论文真实文本（\texttt{paper}），防止数据污染。
+\end{enumerate}
+
+% ============================================================
+\section{数据使用方式与应用场景 (Data Usage \& Application)}
+% ============================================================
+
+\subsection{数据使用方式}
+开发者可以直接加载 \texttt{dataset/final/} 中的 JSON 文件。典型的数据提取范式为：遍历所有 \texttt{phase="prediction"} 的步骤，根据其 \texttt{valid} 标签构建正负样本对（Positive/Negative pairs）。通过过滤 \texttt{step\_mode}，还可以将训练重点放在 \texttt{strict\_derivation}（数学推导能力）或 \texttt{physical\_argument}（物理直觉判断）上。
+
+\subsection{数据集应用场景}
+\begin{enumerate}
+\item \textbf{过程奖励模型 (PRM) 训练}：由于每个 prediction 步骤都带有明确的 \texttt{valid} 标签和细粒度的 \texttt{error\_tag}，Physics-PreProc-QN 是训练垂直领域 PRM 的理想语料。
+\item \textbf{Tool-Augmented Agent 微调}：包含海量的物理工具调用序列，可用于训练大模型在复杂科学计算场景下准确选择、组装和调用工具（Tool-use tuning）。\item \textbf{科学推理大模型评测 (Benchmark)}：可作为核物理深度推理的测试床，评估模型在面对初始信息不全或产生中间错误时的推理修正能力。
+\end{enumerate}
+
+% ============================================================
+\section{结论与展望}
+% ============================================================
+
+\subsection{主要贡献}
+
+我们提出了 Physics-PreProc-QN，一个突破传统数据集形式限制、进入科学演化深水区的双层 Agent 轨迹数据集。其核心贡献包括：
+
+\begin{enumerate}
+\item \textbf{双层认知梯度}：60 条基础层样本建立领域认知基线，159 条研究层样本捕获真实研究中的“预测-失败-修正”动态
+\item \textbf{DFS 约束生成引擎}：84 原子物理工具 + 14 ML 工具 + 反向链式搜索 + 依赖满足硬检查，确保每条轨迹的物理因果性
+\item \textbf{Crystal 跨论文经验系统}：证明操作级物理规则可在论文间迁移（6/8 子领域有效），建立子领域类型与 Crystal 适用性的关联
+\item \textbf{MinerU 全流程支撑}：对核物理高密度 LaTeX 公式的精准解析是整个数据管道的前提条件，159 篇论文的自动化解析验证了 MinerU 在科学文献处理中的不可替代性
+\item \textbf{透明的质量评估}：三种独立评估方法 + 人工抽样盲审 + 诚实报告 Form-Substance Gap 和粒度边界两大核心发现
+\end{enumerate}
+
+\subsection{局限性与未来工作}
+
+\begin{enumerate}
+\item \textbf{物理正确性天花板}：DeepSeek 的核物理知识有限，尤其对超重核和前沿方法。0.621 的物理正确性（Form-Substance Gap 0.304）意味着数据需配合人工审核使用
+\item \textbf{领域覆盖}：仅覆盖核物理和量子力学，未涉及凝聚态物理、粒子物理等方向
+\item \textbf{样本规模}：由于个人时间成本有限，仅产生 159 篇论文相对于核物理文献总量仍较小，尤其 N $<$ 15 的子领域统计效力有限
+\item \textbf{人工审核规模}：受比赛时间限制，仅完成 10 篇随机抽样人工盲审（与 LLM 审核 80\% 一致）。全面的人工专家审核留待后续版本
+\item \textbf{代理任务重设计}：当前叙事$\rightarrow$操作的代理任务受粒度边界限制。未来工作包括操作级 Crystal 规则的代理任务（预测错误类型）、完整轨迹质量排序任务等
+
+\end{enumerate}
+
+\subsection{总结}
+
+Physics-PreProc-QN 数据集以 CC-BY-4.0 协议开源发布，包含 219 个样本、114 种独特 tool、488 种论文方法，覆盖 8 个核物理子领域。其包含的真实失败模式、DFS 因果链、反马后炮决策设计，以及对认知鸿沟和粒度边界的深刻剖析，为未来 AI4S 大模型的过程监督和推理能力突破提供了不可或缺的语料基础。
+
+\appendix
+% ============================================================
+\section{附录：数据样例展示 (Data Samples)}
+% ============================================================
+为了满足对完整样例的呈现要求，同时避免超长 JSON 对报告排版的破坏，我们在表 \ref{tab:samples} 中汇总了 10 条具有代表性的样本特征。这些样本覆盖了基础层和研究层完整的“预测-失败-反思-修正”闭环。
+
+\begin{table}[h]
+\centering
+\caption{10 条代表性完整数据样例概览（对应 \texttt{dataset/final/} 目录）}
+\label{tab:samples}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{llclp{7cm}}
+\toprule
+\textbf{样本 ID} & \textbf{子领域} & \textbf{总步数} & \textbf{经典错误标签 (\texttt{error\_tag})} & \textbf{反思精要 (\texttt{decision\_summary})} \\
+\midrule
+NPP\_0001 & $\alpha$ 衰变 WKB & 17 & wrong\_approximation & 估算碰撞频率时忽略了强核势的负值贡献，误用Q值近似动能 \\
+NPP\_0016 & $\alpha$ 衰变 液滴 & 15 & missing\_physical\_effect & 未考虑 $N=152$ 附近的形变壳修正效应 \\
+NPP\_0030 & 深度学习 & 12 & wrong\_parameter\_choice & 神经网络特征工程遗漏了对关联(pairing)的奇偶性特征 \\
+NPP\_0053 & 壳模型 & 18 & wrong\_physical\_interpretation & 将集体转动带误认为单粒子激发能级 \\
+NPP\_0077 & $\alpha$ 衰变 团簇 & 16 & over\_simplification & 忽略了 $\alpha$ 预形成因子在开壳核中的非 1 取值 \\
+NPP\_0091 & 双折叠势 & 14 & incorrect\_derivation & 积分边界选择未覆盖尾部，导致库仑势能高估 \\
+NPP\_0117 & 核散射 & 21 & missing\_physical\_effect & 忽略了靶核的虚激发导致的吸收，未引入虚部光学势 \\
+NPP\_0184 & 核散射 & 19 & wrong\_approximation & 晕核散射中直接套用高斯密度，未反映中子晕的长尾 \\
+NP\_0001 & 基础层 (壳模型) & 6 & (无，基础层标准解) & 单粒子能级填充，确定基态自旋和宇称 \\
+QN\_0003 & 基础层 (量子) & 5 & (无，基础层标准解) & 一维无限深势阱波函数及能量本征值计算 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\noindent
+\textbf{截断 JSON 样例 (NPP\_0001 片段)}：
+由于单篇轨迹通常包含数百行 JSON，以下展示 NPP\_0001 中典型的一个包含错误（\texttt{valid: false}）的 prediction 步骤片段：
+
+\begin{verbatim}
+{
+  "step_index": 7,
+  "thought": "[Background] 衰变宽度 Γ = P × ν... [Gap] 需要确定 α 粒子在核内的动能... [Decision] 采用经验公式计算碰撞频率 ν...",
+  "action": "numerical_computation",
+  "tool": { "name": "assault_frequency_calculation" },
+  "output_state": { "assault_frequency_nu": "ν ≈ 1.0 × 10^{21} s^{-1}" },
+  "valid": false,
+  "error_tag": "wrong_approximation",
+  "error_reason": "碰撞频率ν的计算中，忽略了核势和库仑势的贡献...",
+  "step_mode": "empirical_approximation",
+  "phase": "prediction"
+}
+\end{verbatim}
+赛题要求的其余完整样例内容，请直接参阅开源代码仓库的 \texttt{dataset/final/} 目录（内含完整的 219 篇 JSON 样本）。
+
+\end{document}

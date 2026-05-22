@@ -1,0 +1,340 @@
+{
+  "id": "NPP_0188",
+  "meta": {
+    "id": "NPP_0188",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "nuclear_scattering",
+    "source": {
+      "type": "paper",
+      "title": "Global Examination of the 12C+12C Reaction Data at Low and Intermediate Energies",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_nucl-th_0605007"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "12C+12C弹性散射光学势与反应截面",
+    "input_data": "核反应系统：12C+12C；能量范围：实验室系32.0至70.7 MeV；实验数据：角分布、单角（50°至90°）激发函数、总反应截面数据、共振结构数据；现有势参数：UNAM势（线性与二次能量依赖形式）。",
+    "user_intent": "现有光学模型势无法在低能区（约每核子6 MeV及以下）同时描述角分布、激发函数、共振结构和总反应截面数据，且难以确定该能区核势的形状。需要一种能系统描述该宽能区所有实验数据的统一势模型。",
+    "quantifiable_goal": "确定12C+12C系统的光学势参数（单位：MeV与fm）；计算弹性散射微分截面 dσ/dΩ（单位：mb/sr）；计算总反应截面 σ_R（单位：mb）；预测共振能量 E_res（单位：MeV）与宽度 Γ（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是计算12C+12C系统的反应截面，需要构建光学势。根据前提层，UNAM势是唯象光学势，具有能量依赖形式，且现有UNAM势无法同时描述角分布、激发函数、共振结构和总反应截面，因此需要改进光学势的参数化形式。 [Gap] 目前尚未建立光学势的具体形式，需要从Woods-Saxon势出发，确定实部和虚部的参数化。 [Decision] 第一步应使用Woods-Saxon参数化构建光学势的实部和虚部，这是光学模型拟合的基础工具。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": ""
+      },
+      "parameters": {
+        "potential_type": "optical_potential",
+        "real_part_form": "V(r) = V0 * f(r, R0, a0) 其中 f(r,R,a) = 1/(1+exp((r-R)/a))",
+        "imaginary_part_form": "W(r) = W0 * f(r, R_w, a_w) 或体积型+表面型组合",
+        "energy_dependence": "待定，后续通过拟合确定"
+      },
+      "output_state": {
+        "optical_potential_form": "U(r;E) = V(r;E) + i W(r;E)，其中实部和虚部分别采用Woods-Saxon形状，半径和弥散度可能不同，且势深度随能量线性或二次变化"
+      },
+      "observation": "建立了光学势的Woods-Saxon参数化框架，实部V(r)和虚部W(r)分别由独立的Woods-Saxon函数描述，势参数（深度、半径、弥散度）可引入能量依赖。这为后续通过光学模型拟合角分布和激发函数提供了基础。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 我们已经建立了光学势的Woods-Saxon参数化框架，实部V(r)和虚部W(r)分别由独立的Woods-Saxon函数描述，势参数可引入能量依赖。为了计算反应截面，需要先求解径向薛定谔方程得到散射波函数，进而得到分波S矩阵和透射系数。[Gap] 目前只有势的形式，尚未将势与散射可观测量（如角分布、激发函数）联系起来。需要选择一种数值求解方法，将光学势转化为可计算的散射振幅。[Decision] 因此，下一步选择使用schrodinger_equation_solver工具，对给定的光学势进行分波求解，得到各分波的散射相移和S矩阵元素，这是计算角分布和反应截面的基础。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "schrodinger_equation_solver",
+        "version": "1.0"
+      },
+      "parameters": {
+        "potential_type": "Woods-Saxon optical potential",
+        "partial_waves": "l=0 to l_max (e.g., l_max=20 for 12C+12C at 32-70 MeV)",
+        "energy_range": "E_lab = 32.0 - 70.7 MeV",
+        "numerical_method": "Numerov integration with matching to Coulomb wave functions"
+      },
+      "output_state": {
+        "S_matrix_elements": "S_l(k) = exp(2iδ_l) for each partial wave l",
+        "phase_shifts": "δ_l(E) (real and imaginary parts from complex potential)",
+        "transmission_coefficient": "T_l(E) = 1 - |S_l|^2"
+      },
+      "observation": "通过求解径向薛定谔方程，得到了每个分波l在给定能量E下的复相移δ_l和S矩阵元S_l。透射系数T_l = 1 - |S_l|^2反映了该分波被吸收（反应）的概率。这些量是后续计算角分布（通过散射振幅）和总反应截面（通过求和T_l）的关键中间结果。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 目前已经建立了光学势的Woods-Saxon参数化框架（Step 1），并通过求解薛定谔方程得到了每个分波的S矩阵元和透射系数（Step 2）。接下来需要从这些分波信息出发，计算可观测的散射截面，包括角分布和总反应截面。根据合法推导路径，当前处于Path 1或Path 3的起始阶段，下一步应通过散射振幅计算截面。[Gap] 从S矩阵元到角分布和总截面的具体公式尚未应用。[Decision] 使用cross_section_from_amplitude工具，将分波S矩阵元组合成散射振幅，进而计算微分截面和总反应截面。",
+      "action": "rule_application",
+      "tool": {
+        "name": "cross_section_from_amplitude",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "scattering_amplitude": "f(θ) = (1/(2ik)) Σ_l (2l+1) (S_l - 1) P_l(cosθ)",
+        "differential_cross_section": "dσ/dΩ = |f(θ)|^2",
+        "total_reaction_cross_section": "σ_R = (π/k^2) Σ_l (2l+1) (1 - |S_l|^2)"
+      },
+      "observation": "通过分波展开，将S矩阵元组合成散射振幅f(θ)，微分截面由振幅模平方给出，总反应截面由透射系数求和得到。这些公式将用于后续拟合实验数据以确定光学势参数。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null,
+      "dfs_warning": "temporal_logic_break"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 目前已经建立了光学势的Woods-Saxon参数化框架，并推导了从S矩阵到微分截面和总反应截面的公式。下一步需要将理论计算与实验数据进行比较，通过拟合来优化光学势参数，特别是能量依赖的实部和虚部深度、半径和弥散度。[Gap] 现有UNAM势无法同时描述角分布、激发函数、共振结构和总反应截面，因此需要调整势参数形式，例如引入线性或二次能量依赖，并可能考虑耦合道效应。[Decision] 采用光学模型拟合（optical_model_fitting）工具，通过最小化χ²来优化势参数，同时利用已有的角分布和激发函数实验数据作为约束。",
+      "action": "model_building",
+      "tool": {
+        "name": "optical_model_fitting",
+        "version": ""
+      },
+      "parameters": {
+        "fitting_targets": [
+          "differential_cross_section",
+          "excitation_function",
+          "total_reaction_cross_section"
+        ],
+        "energy_range": "32.0-70.7 MeV (lab)",
+        "potential_form": "Woods-Saxon with energy-dependent depths V(E) and W(E), radii R_V, R_W, diffuseness a_V, a_W",
+        "optimization_method": "chi-squared minimization"
+      },
+      "output_state": {
+        "fitted_potential_parameters": "V(E) = V_0 + V_1*E + V_2*E^2, W(E) = W_0 + W_1*E + W_2*E^2, R_V, R_W, a_V, a_W (values to be determined by fit)",
+        "chi_squared_value": "χ² = Σ_i [(σ_th(E_i,θ_i) - σ_exp(E_i,θ_i))/Δσ_exp]² + similar for excitation function and total cross section"
+      },
+      "observation": "通过光学模型拟合，将理论计算的微分截面、激发函数和总反应截面与实验数据比较，优化了Woods-Saxon势参数。引入了能量依赖的实部和虚部深度（线性或二次形式），以描述宽能区内的共振结构和吸收行为。拟合得到的参数将用于后续验证和进一步分析。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 前四步已经建立了光学势的Woods-Saxon参数化框架，通过求解薛定谔方程得到了S矩阵元和相移，进而计算了微分截面和总反应截面，并通过光学模型拟合得到了能量依赖的势参数。但现有UNAM势无法同时描述角分布、激发函数、共振结构和总反应截面，说明纯光学模型可能不足以描述12C+12C系统中的共振结构，需要考虑耦合道效应。[Gap] 当前推导路径（Path 1: cross_section -> transmission_coefficient -> optical_potential -> nuclear_potential -> nuclear_radius）中，下一步应处理核势（nuclear_potential）与核半径（nuclear_radius）的关系，但耦合道计算需要引入形变或耦合机制，这涉及核势的形变修正。[Decision] 因此，选择使用deformation_potential_correction工具，将核势（Woods-Saxon势）与核形变参数耦合，构建耦合道计算所需的形变势修正，为后续计算核半径和形变参数做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "deformation_potential_correction",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "Woods-Saxon势，参数来自Step 4拟合结果",
+        "deformation_parameters": "β_2, β_4等（待定，需从实验共振结构提取）",
+        "coupling_scheme": "旋转模型或振动模型，考虑基态和第一激发态耦合"
+      },
+      "output_state": {
+        "deformed_potential": "U(r,θ;E) = V(r,θ;E) + iW(r,θ;E)，其中半径参数R(θ) = R_0 [1 + β_2 Y_{20}(θ) + β_4 Y_{40}(θ) + ...]",
+        "coupling_matrix_elements": "V_{if}(r) = ⟨I_i M_i | U(r,θ;E) | I_f M_f⟩，连接不同自旋道",
+        "coupled_channels_equations": "一组耦合的径向薛定谔方程，通过耦合矩阵元连接不同分波和激发态"
+      },
+      "observation": "对Woods-Saxon光学势引入了形变修正，将核半径参数化为角度依赖的形式，从而构建了耦合道计算所需的形变势。这允许在后续步骤中通过求解耦合道方程来再现12C+12C系统中的共振结构，同时保持对微分截面和总反应截面的描述。形变参数β_2, β_4等将作为额外拟合参数，通过拟合实验共振能量和宽度来确定。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "在12C+12C系统中，形变修正通常用于描述核的集体激发（如2+态），但预测中将其直接应用于光学势的Woods-Saxon参数化以构建耦合道势，这混淆了光学势与耦合道势的区别。光学势本身是唯象的，其虚部已包含吸收效应，而形变修正应针对核势的实部（如折叠势）或直接用于耦合道模型的基态-激发态耦合，而非对光学势的Woods-Saxon参数进行角度依赖修正。这种处理在物理上不合理，因为光学势的Woods-Saxon参数化不直接对应核的形变形状。论文实际步骤中并未在此处引入形变修正，而是先进行光学模型拟合。因此，该步骤的物理解释有误。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已通过光学模型拟合得到能量依赖的Woods-Saxon势参数，并通过形变修正构建了耦合道势。下一步需要实际求解耦合道方程组，以获得包含共振结构的散射矩阵和截面。[Gap] 目前仅有耦合道方程的形式，尚未进行数值求解，无法得到具体的S矩阵元和截面。[Decision] 使用coupled_channel_calculation工具求解耦合道径向方程，得到耦合后的S矩阵元，这是计算角分布和激发函数的关键中间量。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "coupled_channel_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "system": "12C+12C",
+        "energy_range": "32.0-70.7 MeV (lab)",
+        "deformation_parameters": "β2 from Step 5",
+        "optical_potential": "fitted U(r,θ;E) from Step 4 and Step 5",
+        "channels": "ground state and low-lying excited states of 12C (2+, 0+ etc.)"
+      },
+      "output_state": {
+        "coupled_S_matrix": "S_{l,l'}^{Jπ}(E) for each total angular momentum J and parity π, connecting incident channel l to outgoing channel l'",
+        "coupled_transmission_coefficient": "T_l^{Jπ}(E) = 1 - Σ_{l'} |S_{l,l'}^{Jπ}|^2",
+        "coupled_reaction_cross_section": "σ_R^{coupled}(E) = (π/k^2) Σ_{Jπ} (2J+1) T_l^{Jπ}(E)"
+      },
+      "observation": "通过求解耦合道方程组，得到了每个总角动量J和宇称π下的耦合S矩阵元。这些矩阵元包含了弹性道和非弹性道之间的耦合效应，能够再现12C+12C系统中的共振结构。耦合后的透射系数和反应截面将用于后续与实验数据的详细比较。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "missing_physical_effect",
+      "error_reason": "预测中在未完成光学模型拟合和参数优化的情况下直接进行耦合道计算，忽略了光学势参数需要先通过拟合实验数据（如角分布和总反应截面）确定这一关键步骤。耦合道计算需要基于已优化的光学势参数，否则无法正确描述共振结构。论文实际步骤中，光学模型拟合是独立于耦合道计算的，且耦合道计算通常需要额外的形变参数和耦合强度，这些在预测中未被合理引入。因此，预测跳过了必要的参数确定过程，导致物理逻辑不完整。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已通过耦合道计算得到了耦合S矩阵和反应截面，但尚未将理论结果与实验数据直接比较以验证光学势参数的合理性。论文目标是通过光学模型拟合实验数据（角分布、激发函数、共振结构、总反应截面）来优化UNAM势参数，因此需要将理论预测与实验数据进行系统比较，并评估拟合优度。[Gap] 目前仅有理论计算的耦合道结果，缺少与实验数据的定量对比，无法判断势参数是否合理或是否需要进一步调整。[Decision] 下一步应进行实验比较，将耦合道计算得到的微分截面、激发函数和总反应截面与实验测量值进行对比，计算χ²并分析系统偏差，从而验证或修正光学势参数。",
+      "action": "verification",
+      "tool": {
+        "name": "experimental_comparison",
+        "version": ""
+      },
+      "parameters": {
+        "theoretical_observables": "differential_cross_section, excitation_function, total_reaction_cross_section",
+        "experimental_data": "12C+12C系统在实验室系32.0-70.7 MeV范围内的角分布、激发函数和总反应截面数据",
+        "comparison_method": "χ²最小化，残差分析，系统趋势检查"
+      },
+      "output_state": {
+        "chi_squared_value": "χ²_total = χ²_angular + χ²_excitation + χ²_reaction",
+        "residual_analysis": "残差分布图，检查系统偏差",
+        "fitted_potential_parameters": "V(E) = V_0 + V_1*E + V_2*E^2, W(E) = W_0 + W_1*E + W_2*E^2 (优化后数值)",
+        "validation_status": "若χ²/自由度接近1且无系统偏差，则势参数合理；否则需调整势参数形式或耦合道设置"
+      },
+      "observation": "将耦合道计算的理论结果与实验数据进行比较，通过χ²最小化优化了UNAM势的能量依赖参数。残差分析显示，在32.0-70.7 MeV能区内，优化后的势参数能够同时较好地描述角分布、激发函数和总反应截面，共振结构的位置和宽度也与实验一致。这表明所构建的形变光学势和耦合道模型是合理的。 [DONE]",
+      "step_mode": "consistency_check",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：对Woods-Saxon光学势引入形变修正，构建耦合道势。已知条件：前四步已建立光学势的Woods-Saxon参数化框架，通过求解薛定谔方程得到S矩阵元和截面，但现有UNAM势无法同时描述角分布、激发函数、共振结构和总反应截面。。[Gap] 错过的信号：光学势的虚部已包含吸收效应，而形变修正通常针对核势的实部（如折叠势）或直接用于耦合道模型的基态-激发态耦合，而非对光学势的Woods-Saxon参数进行角度依赖修正。决策时已知因为：光学势是唯象的，其虚部已参数化吸收，而形变修正应描述核的集体激发，两者物理意义不同。。[Decision] 正确判断方式：面对光学势无法描述共振结构的问题，应首先检查是否已通过光学模型拟合确定了势参数，如果拟合仍不充分，则应考虑引入耦合道效应，但耦合道势应基于核势的实部（如折叠势）构建，而非直接修改光学势的Woods-Saxon参数。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了光学势与耦合道势的物理区分，错误地将形变修正应用于唯象光学势。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：在未完成光学模型拟合的情况下直接进行耦合道计算。已知条件：前一步已引入形变修正构建了耦合道势，但尚未通过拟合实验数据确定光学势参数。。[Gap] 错过的信号：耦合道计算需要基于已优化的光学势参数，否则无法正确描述共振结构。决策时已知因为：光学模型拟合是独立步骤，需要先通过拟合角分布和总反应截面确定势参数，而耦合道计算需要这些参数作为输入。。[Decision] 正确判断方式：面对需要耦合道计算的情况，应首先检查光学势参数是否已通过拟合实验数据确定，如果未确定，则应先完成光学模型拟合，再基于拟合参数进行耦合道计算。。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了光学模型拟合这一必要前置步骤，导致耦合道计算缺乏合理的势参数基础。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在核反应建模中，必须严格区分唯象光学势与微观耦合道势的物理角色，且任何多步计算都必须确保前置参数优化步骤已完成，否则后续计算将失去物理基础。"
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 7 分别使用 woods_saxon_parameterization -> schrodinger_equation_solver -> cross_section_from_amplitude -> optical_model_fitting -> experimental_comparison 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 7 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 论文旨在通过光学模型分析12C+12C系统的散射数据，包括角分布、激发函数和总反应截面。光学势U(r)包含实部V(r)和虚部W(r)，通常采用Woods-Saxon形式参数化。现有UNAM势无法同时描述所有观测数据，因此需要构建新的能量依赖光学势。[Gap] 尚未确定光学势的具体参数化形式和初始参数值。[Decision] 第一步应基于Woods-Saxon参数化构建光学势的实部和虚部，这是光学模型计算的基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": ""
+      },
+      "parameters": {
+        "real_well_depth": "V0",
+        "real_radius": "R0",
+        "real_diffuseness": "a0",
+        "imag_well_depth": "W0",
+        "imag_radius": "Rw",
+        "imag_diffuseness": "aw",
+        "energy_dependence": "linear or quadratic"
+      },
+      "output_state": {
+        "optical_potential": "U(r) = V(r) + iW(r) = V0 * f(r, R0, a0) + iW0 * f(r, Rw, aw)",
+        "woods_saxon_form_factor": "f(r, R, a) = 1 / (1 + exp((r - R)/a))",
+        "radius_parameter": "R = r0 * A^(1/3)"
+      },
+      "observation": "[方法说明] 采用Woods-Saxon形状参数化核势\n构建了Woods-Saxon形式的光学势，实部和虚部分别具有独立的深度、半径和弥散度参数，半径与质量数A的立方根成正比。后续步骤将引入能量依赖项并拟合实验数据。\n[论文公式] Eq.(1): U(r) = V(r) + iW(r) = -V_0 f(r, R_V, a_V) - iW_0 f(r, R_W, a_W)",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将计算得到的弹性散射微分截面与现有实验数据（如K. T. Lesko等人测量的12C+12C系统在E_cm=5-10 MeV的角分布）进行直接对比，验证衍射峰位置和共振结构的吻合度。其次，对总反应截面进行量纲分析，确认其量级（mb）与核反应典型值一致，并检查在低能极限下是否趋近于零。最后，采用独立的光学势参数化方法（如双折叠势）重新计算，若结果在10%偏差内一致，则增强可信度；若耦合道计算中忽略的通道（如转移反应）显著影响共振宽度，则可能失效。",
+    "metrics": {
+      "result_1": {
+        "value": "约800-1200 mb",
+        "unit": "12C+12C系统，实验室系能量32.0-70.7 MeV",
+        "interpretation": "反应截面"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：u_nam_potential；phenomenological_potential。"
+  },
+  "paper_methods": [
+    "optical_model",
+    "phenomenological_potential",
+    "woods_saxon_potential",
+    "coupled_channels_calculation"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "optical_model",
+        "desc": "使用光学模型计算弹性散射角分布和反应截面"
+      },
+      {
+        "name": "phenomenological_potential",
+        "desc": "构建具有能量依赖形式的唯象光学势"
+      },
+      {
+        "name": "woods_saxon_potential",
+        "desc": "采用Woods-Saxon形状参数化核势"
+      },
+      {
+        "name": "coupled_channels_calculation",
+        "desc": "考虑通道耦合效应以描述共振结构"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "U(r) = V(r) + iW(r) = -V_0 f(r, R_V, a_V) - iW_0 f(r, R_W, a_W)"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "f(r, R, a) = \\frac{1}{1 + \\exp\\left(\\frac{r - R}{a}\\right)}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "反应截面",
+        "value": "约800-1200 mb",
+        "condition": "12C+12C系统，实验室系能量32.0-70.7 MeV"
+      },
+      {
+        "quantity": "弹性散射角分布",
+        "value": "呈现衍射峰和共振结构",
+        "condition": "12C+12C系统，实验室系能量32.0-70.7 MeV，角度范围0°-90°"
+      }
+    ],
+    "failure_points": [
+      "u_nam_potential",
+      "phenomenological_potential"
+    ]
+  }
+}

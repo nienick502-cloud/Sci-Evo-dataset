@@ -1,0 +1,429 @@
+{
+  "id": "NPP_0149",
+  "meta": {
+    "id": "NPP_0149",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear mass systematics by complementing the Finite Range Droplet Model with neural networks",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_nucl-th_0511088"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "原子核质量过剩的系统学",
+    "input_data": "已知条件：实验核质量过剩数据（AME03评估，共1654个核素，筛选后使用1620个）；FRDM模型的理论质量过剩值；用于神经网络建模的三个数据集M1（1276个核素，学习集）、M2（344个核素，验证集）、M3（529个核素，测试集，主要为远离稳定线的核素）。",
+    "user_intent": "研究动机：现有全局质量模型（如FRDM、HFB2）虽然基于物理原理，但可能尚未完全捕捉核结构的微妙规律性。需要确定FRDM模型的剩余物理修正究竟是源于大量随Z和N强烈波动、难以系统量化的小效应，还是部分可归因于理论中尚未体现的核结构规律性。",
+    "quantifiable_goal": "预测原子核质量过剩差值 ΔM^{exp} - ΔM^{FRDM}（单位：MeV），并由此构建一个改进的全局质量模型来预测原子核质量过剩 ΔM（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是根据质量数A、电荷数Z、中子数N预测原子核的质量过剩（prediction_output）。论文采用混合模型，结合FRDM（有限程液滴模型）的理论质量过剩与神经网络对残差的修正。初始条件已给出核素的基本量子数，需要先获取FRDM模型对该核素的理论预测值，作为后续神经网络修正的基础。[Gap] 当前没有FRDM模型的理论质量过剩值，无法直接进行神经网络预测。需要先计算或引用FRDM模型的结果。[Decision] 第一步应使用FRDM模型（即宏观-微观方法中的有限程液滴模型）计算给定核素的理论质量过剩。这属于核结构中的宏观-微观方法，因此选择工具'macroscopic_microscopic_method'。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": "FRDM"
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "model_type": "finite_range_droplet_model"
+      },
+      "output_state": {
+        "FRDM_mass_excess": "M_FRDM(A,Z,N) [MeV]"
+      },
+      "observation": "利用宏观-微观方法中的有限程液滴模型（FRDM），根据输入的A、Z、N计算理论质量过剩值M_FRDM。该值包含了宏观液滴项和微观壳修正、对修正等贡献，是后续神经网络残差修正的基准。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在核物理中，质量过剩的理论预测通常包含系统性的偏差，这些偏差来源于模型近似（如液滴项的曲率修正、壳修正的Strutinsky平滑参数等）以及对关联、形变等微观效应的不完全描述。FRDM模型虽然精度较高，但其残差（实验值减去理论值）往往呈现出与核结构（如幻数、形变区域、对能）相关的规律性。\n[Gap] 当前步骤需要从FRDM质量过剩出发，构建用于神经网络训练的残差目标。但直接使用原始残差可能引入噪声，且神经网络需要合适的特征输入。因此，需要先明确残差定义，并考虑如何将核结构信息（如壳效应、对关联）转化为可学习的特征。\n[Decision] 为了后续神经网络能够有效学习FRDM残差中的核结构规律，我决定先定义残差目标，并构建一组基础特征向量，包括质子数Z、中子数N、质量数A以及从FRDM模型中提取的壳修正能、对能等。这样，神经网络输入特征就包含了宏观趋势和微观涨落的信息，符合论文中混合模型的思想。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "residual_definition": "delta_M_exp = M_AME03 - M_FRDM",
+        "feature_list": [
+          "Z",
+          "N",
+          "A",
+          "shell_correction_FRDM",
+          "pairing_energy_FRDM",
+          "deformation_parameters_beta2_beta4"
+        ]
+      },
+      "output_state": {
+        "target_residual": "delta_M = M_AME03 - M_FRDM [MeV]",
+        "feature_vector": "X = [Z, N, A, E_shell_FRDM, E_pair_FRDM, beta2, beta4]"
+      },
+      "observation": "定义了神经网络训练的残差目标为实验质量过剩与FRDM理论值之差，并构建了包含核结构信息的特征向量。该特征向量将作为后续神经网络模型的输入，用于学习残差中的系统规律。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 当前已通过宏观-微观方法获得FRDM理论质量过剩值M_FRDM，并定义了神经网络训练的残差目标delta_M以及包含核结构信息的特征向量X。下一步需要利用这些特征和残差目标来训练神经网络模型，以学习FRDM残差中的系统规律。论文采用混合模型方法，即用神经网络修正FRDM的预测。 [Gap] 目前尚未建立神经网络模型，需要选择合适的网络架构并进行训练，从而得到能够预测残差的模型。 [Decision] 因此，下一步应进行神经网络模型的训练，使用特征向量X作为输入，残差delta_M作为输出，通过优化损失函数来拟合训练数据。选择工具neural_network_training，它属于机器学习类别，能够实现这一目标。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "feature_vector X = [Z, N, A, E_shell_FRDM, E_pair_FRDM, beta2, beta4]",
+        "target": "target_residual delta_M = M_AME03 - M_FRDM [MeV]",
+        "training_data": "1620 nuclei from AME03 after screening",
+        "network_architecture": "multi-layer perceptron (MLP) with hidden layers, activation functions, regularization",
+        "loss_function": "mean squared error (MSE)"
+      },
+      "output_state": {
+        "trained_neural_network_model": "NN_model(X) -> delta_M_pred [MeV]",
+        "model_weights": "W_optimal (learned parameters after training)"
+      },
+      "observation": "使用1620个核素的特征向量和残差目标，训练了一个多层感知机神经网络。网络通过反向传播算法最小化均方误差损失函数，学习从核结构特征到FRDM残差的映射。训练完成后得到最优权重W_optimal，使得神经网络能够预测给定核素的残差delta_M_pred。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 根据合法推导路径，在神经网络训练完成后，下一步应使用训练好的模型对目标核素进行预测，得到预测输出。当前已获得训练好的神经网络模型NN_model及其最优权重W_optimal，特征向量X已构建。 [Gap] 需要将训练好的模型应用于具体核素（A, Z, N），计算其预测的FRDM残差，并与FRDM理论值相加得到最终的质量过剩预测值。 [Decision] 因此，下一步应执行模型预测步骤，使用训练好的神经网络对给定核素的特征向量进行前向传播，得到残差预测，进而得到最终预测输出。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {
+        "model": "trained_neural_network_model",
+        "input_features": "X = [Z, N, A, E_shell_FRDM, E_pair_FRDM, beta2, beta4]",
+        "target_nucleus": "specific (A, Z, N) from the 1620 dataset or new prediction"
+      },
+      "output_state": {
+        "prediction_output": "M_pred(A,Z,N) = M_FRDM(A,Z,N) + delta_M_pred(A,Z,N) [MeV]",
+        "delta_M_pred": "NN_model(X) [MeV]"
+      },
+      "observation": "对于给定核素，将特征向量X输入训练好的神经网络，前向传播得到残差预测值delta_M_pred。最终质量过剩预测值M_pred由FRDM理论值M_FRDM加上神经网络预测的残差得到。该步骤实现了混合模型的核心预测功能，将宏观-微观模型与机器学习修正相结合。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经通过混合模型（FRDM + 神经网络）得到了质量过剩的预测值 M_pred。论文中通常会对模型预测的不确定性进行量化，以评估预测的可靠性。贝叶斯不确定性量化（Bayesian Uncertainty Quantification）是一种常见方法，可以通过模型权重的后验分布来估计预测的不确定性。当前路径上，从 prediction_output 可以连接到 model_uncertainty，进而评估模型预测的置信区间。 [Gap] 目前我们只有点预测值 M_pred，缺乏对预测不确定性的估计。 [Decision] 因此，下一步应使用贝叶斯不确定性量化工具，基于训练好的神经网络模型权重分布，计算预测值的标准差或置信区间，从而得到 model_uncertainty。",
+      "action": "model_building",
+      "tool": {
+        "name": "bayesian_uncertainty_quantification",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "model_uncertainty": "sigma_pred(A,Z,N) = sqrt( Var[ M_pred(A,Z,N) ] ) [MeV]"
+      },
+      "observation": "采用贝叶斯方法，将神经网络权重视为随机变量，通过训练数据的似然和先验分布得到后验分布。对于每个输入核素，通过蒙特卡洛采样或拉普拉斯近似，计算预测值 M_pred 的后验方差 sigma_pred^2，从而得到预测不确定性（标准差）。该不确定性反映了模型在特征空间不同区域的置信度，可用于后续的模型评估和物理分析。",
+      "valid": false,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测步骤5在神经网络训练完成后才进行贝叶斯不确定性量化，但论文中贝叶斯神经网络是在训练过程中同时获得权重后验和不确定性，而非在点估计训练之后额外添加。预测将不确定性量化视为独立的后处理步骤，忽略了贝叶斯框架中不确定性来源于训练时对权重分布的学习，这混淆了贝叶斯推断与点估计的物理逻辑顺序，导致不确定性量化缺乏物理一致性。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 根据合法推导路径，在得到预测输出和模型不确定性后，下一步应推导模型权重。当前状态已有训练好的神经网络模型权重W_optimal，但为了进行贝叶斯不确定性量化，需要获得权重的后验分布，而不仅仅是点估计。 [Gap] 当前步骤需要从贝叶斯后验推断中提取模型权重的分布信息，以便后续计算损失函数值和评估模型性能。 [Decision] 使用ml_bayesian_inference工具，通过变分推断或马尔可夫链蒙特卡洛方法，从训练数据中学习权重后验分布，输出权重样本或后验均值和协方差。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_bayesian_inference",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "model_weights": "W_posterior = {W_samples: [W_1, W_2, ..., W_S], W_mean: E[W|D], W_cov: Cov[W|D]}"
+      },
+      "observation": "通过贝叶斯推断，从训练数据D={X_i, delta_M_i}和先验分布p(W)出发，计算权重后验分布p(W|D)。采用变分推断近似后验，得到权重样本集合W_samples（S=1000个样本）以及后验均值W_mean和后验协方差矩阵W_cov。这些权重分布信息将用于后续计算预测不确定性（已在第5步完成）和损失函数值。",
+      "valid": false,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": "incorrect_derivation",
+      "error_reason": "预测步骤6在步骤5之后才进行贝叶斯推断以获取权重分布，但步骤5已经声称使用了贝叶斯不确定性量化并得到了后验方差，这依赖于权重后验分布。步骤6的贝叶斯推断实际上应在步骤5之前或同时进行，因为不确定性量化需要权重分布作为输入。这种顺序颠倒导致逻辑循环：步骤5使用了尚未获得的权重分布信息，步骤6又重复了本应在步骤5之前完成的工作，在物理推理上不成立。"
+    },
+    {
+      "step_index": 7,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：使用贝叶斯不确定性量化工具计算预测标准差，当时已知的条件包括：已有训练好的神经网络模型权重W_optimal（点估计），以及特征向量和训练数据集。。[Gap] 错过的信号：贝叶斯不确定性量化需要权重后验分布而非点估计，决策时已知因为点估计W_optimal不包含分布信息，本应触发警觉：在点估计模型上直接做贝叶斯不确定性量化在逻辑上不可行，因为后验方差需要从权重分布中采样或近似得到，而点估计无法提供分布信息。。[Decision] 正确判断方式：面对已有的是点估计权重W_optimal，应首先检查是否已获得权重后验分布（如变分参数或MCMC样本），如果尚未获得，则不能直接进行贝叶斯不确定性量化，而应重新审视模型训练过程，确保在训练阶段就采用贝叶斯框架（如变分推断）同时学习权重分布和不确定性。。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对贝叶斯不确定性量化前提条件的检查：点估计模型无法直接导出后验方差，需要权重分布作为输入。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：使用ml_bayesian_inference工具从训练数据中学习权重后验分布，当时已知的条件包括：步骤5已经声称得到了后验方差sigma_pred^2，且已有训练数据集和先验分布。。[Gap] 错过的信号：步骤5的输出（后验方差）依赖于权重后验分布，而步骤6才去获取该分布，决策时已知因为步骤5的观测中明确提到“通过蒙特卡洛采样或拉普拉斯近似计算后验方差”，这暗示了权重分布已经存在，本应触发警觉：步骤6的贝叶斯推断与步骤5的不确定性量化在逻辑上顺序颠倒，导致循环依赖——步骤5使用了尚未获得的权重分布信息。。[Decision] 正确判断方式：面对步骤5已声称得到后验方差但步骤6才进行贝叶斯推断的情况，应首先检查步骤5的输入是否包含权重分布信息，如果步骤5的输入中不包含权重分布，则步骤5的结果不可信，应重新规划顺序：先进行贝叶斯推断获得权重后验分布，再基于该分布计算预测不确定性。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对步骤间依赖关系的检查：贝叶斯推断（获取权重分布）必须在不确定性量化之前完成，否则会导致逻辑循环。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在涉及贝叶斯框架的推理中，必须严格遵循因果顺序：先通过贝叶斯推断获得权重后验分布，再基于该分布计算预测不确定性；不能将不确定性量化视为独立的后处理步骤，也不能在点估计模型上直接套用贝叶斯不确定性量化方法。"
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4 分别使用 macroscopic_microscopic_method -> feature_engineering -> neural_network_training -> ml_direct_prediction 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 本论文的目标是利用神经网络对FRDM模型的质量过剩预测进行修正，从而得到更精确的预测输出。初始条件包括质量数A、电荷数Z和中子数N。第一步需要构建用于训练神经网络的特征向量，这些特征应包含核结构的关键信息，如壳效应、对关联、形变等，以便网络能够学习FRDM残差中的规律。 [Gap] 从初始条件到特征向量，需要从基本的核素标识符（A, Z, N）出发，构造出具有物理意义的特征。 [Decision] 因此，第一步应使用feature_engineering工具，基于A, Z, N构造一组基础特征，例如质子数、中子数、奇偶性、壳层填充数等，作为后续模型训练的输入。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_variables": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "constructed_features": [
+          "Z",
+          "N",
+          "A",
+          "Z_mod_2",
+          "N_mod_2",
+          "A_mod_2",
+          "magic_indicator_Z",
+          "magic_indicator_N",
+          "deformation_beta2_guess"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "由A, Z, N及其衍生特征构成的向量，包括质子数、中子数、质量数、奇偶性、幻数指示符、形变参数等"
+      },
+      "observation": "基于初始条件A, Z, N，通过特征工程构建了包含核结构信息的特征向量，为后续神经网络训练提供输入。\n[论文公式] Eq.(1): M_{\\text{pred}} = M_{\\text{FRDM}} + \\Delta M_{\\text{NN}}",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在核物理质量预测中，特征工程完成后，需要准备训练数据集。论文使用AME03实验质量过剩数据作为目标值，FRDM模型预测值作为基准，两者之差（残差）作为神经网络的学习目标。 [Gap] 当前已构建特征向量，但尚未将特征与目标值配对形成训练数据集，无法直接进行模型训练。 [Decision] 因此，下一步应进行训练数据准备，将特征向量与对应的实验质量过剩值、FRDM预测值组合，计算残差，并划分训练集和验证集。",
+      "action": "model_building",
+      "tool": {
+        "name": "training_data_preparation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "data_source": "AME03",
+        "target_variable": "mass_excess_experimental",
+        "base_model": "FRDM",
+        "residual_definition": "delta_M = M_exp - M_FRDM",
+        "sample_size": 1620,
+        "feature_input": "feature_vector"
+      },
+      "output_state": {
+        "training_dataset": "包含1620个样本，每个样本由特征向量x_i和残差目标y_i = delta_M_i组成",
+        "data_split": "训练集与验证集按比例划分（如80%/20%）"
+      },
+      "observation": "成功构建了训练数据集，将特征向量与FRDM残差配对，为后续神经网络训练奠定基础。\n[论文公式] Eq.(2): \\Delta M_{\\text{NN}} = f(Z, N, A; \\mathbf{w})",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 我们已经构建了特征向量和训练数据集，其中目标变量是FRDM模型残差delta_M_i = M_exp_i - M_FRDM_i。为了学习这个残差中的核结构规律，需要选择合适的机器学习模型。论文中采用神经网络模型来捕捉残差中的非线性模式。 [Gap] 需要确定具体的神经网络架构和训练策略，以便有效学习残差分布。 [Decision] 根据论文方法，选择多层感知机（MLP）作为基础模型，并采用贝叶斯神经网络（BNN）框架来量化预测不确定性，这与后续的模型不确定性评估路径一致。因此，使用ml_model_selection工具选择神经网络模型。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": "1.0"
+      },
+      "parameters": {
+        "model_type": "Bayesian Neural Network (BNN)",
+        "architecture": "多层感知机，输入层维度等于特征向量维度，隐藏层数及节点数待定（如2层，每层128节点），输出层为1个节点（残差预测）",
+        "activation_function": "ReLU",
+        "loss_function": "负对数似然（用于BNN变分推断）",
+        "uncertainty_quantification": "通过变分dropout或概率权重分布实现"
+      },
+      "output_state": {
+        "model_weights": "待训练初始化的神经网络权重和偏置（随机初始化）",
+        "model_uncertainty": "待通过贝叶斯推断获得的预测不确定性分布"
+      },
+      "observation": "选择了贝叶斯神经网络模型，该模型能够学习FRDM残差并同时提供预测不确定性，为后续的model_uncertainty和model_weights步骤奠定基础。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 在完成了特征工程、训练数据准备和模型选择后，下一步需要实际训练贝叶斯神经网络模型，以学习FRDM残差并确定模型权重。训练过程涉及优化损失函数，该损失函数通常包含数据拟合项和正则化项（如KL散度），以平衡模型复杂度和预测精度。同时，贝叶斯框架允许通过变分推断或蒙特卡洛dropout等方法获得模型不确定性。 [Gap] 当前状态已有初始化的模型权重和待确定的不确定性，但尚未执行训练步骤，因此模型权重和不确定性仍是未确定的。需要执行训练过程来更新权重并量化不确定性。 [Decision] 因此，下一步应执行神经网络训练，使用准备好的训练数据集，通过优化损失函数来更新模型权重，并同时获得模型不确定性。这对应于路径中的 model_weights 和 model_uncertainty 步骤，但根据路径顺序，先进行训练以获得权重，再通过贝叶斯推断获得不确定性。由于路径允许从 model_weights 到 loss_function_value，这里先执行训练以获得权重。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "training_data": "training_dataset (1620 samples with feature vectors x_i and targets y_i = delta_M_i)",
+        "model_architecture": "Bayesian neural network with variational inference",
+        "loss_function": "Evidence Lower Bound (ELBO) = data_likelihood - KL_divergence(approximate_posterior || prior)",
+        "optimization_method": "Adam optimizer with learning rate scheduling",
+        "epochs": "500 (with early stopping based on validation loss)",
+        "batch_size": "32"
+      },
+      "output_state": {
+        "model_weights": "训练后的贝叶斯神经网络权重和偏置（后验分布参数，如均值mu和标准差sigma）",
+        "loss_function_value": "训练过程中最小化的ELBO损失函数值（最终收敛值）",
+        "model_uncertainty": "通过贝叶斯推断获得的预测不确定性分布，包括aleatoric uncertainty和epistemic uncertainty"
+      },
+      "observation": "[方法说明] 使用三层前馈神经网络，以Z、N、A为输入，学习FRDM模型残差，输出修正后的质量过剩预测值\n成功训练了贝叶斯神经网络，模型权重从随机初始化更新为后验分布参数，损失函数收敛至较低值。训练过程中同时获得了模型不确定性，为后续预测输出提供了置信区间。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 根据合法推导路径 Path 1: prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector，当前已到达 model_uncertainty 状态（第4步输出），下一步应生成 prediction_output。论文目标是通过训练好的贝叶斯神经网络，对给定核素（A, Z, N）输出质量过剩的预测值及其不确定性。 [Gap] 当前已有训练好的模型权重（后验分布参数）和不确定性分布，但尚未生成最终的预测输出。需要将模型应用于输入特征向量，计算预测均值（即质量过剩的修正值）和预测标准差（不确定性）。 [Decision] 因此，下一步应使用训练好的贝叶斯神经网络进行直接预测，生成 prediction_output 状态，包含预测均值、预测标准差以及最终的质量过剩值（FRDM预测值 + 神经网络修正值）。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_features": "feature_vector (由A, Z, N及其衍生特征构成)",
+        "model_weights": "训练后的贝叶斯神经网络权重后验分布参数 (均值mu, 标准差sigma)",
+        "model_uncertainty": "贝叶斯推断获得的预测不确定性分布",
+        "prediction_type": "质量过剩修正值 delta_M_pred 及其标准差 sigma_pred"
+      },
+      "output_state": {
+        "prediction_output": "delta_M_pred = f_NN(x; mu_weights) 为神经网络预测的FRDM残差修正值；sigma_pred = sqrt(sigma_aleatoric^2 + sigma_epistemic^2) 为总预测标准差；最终质量过剩 M_excess_pred = M_FRDM + delta_M_pred，其中 M_FRDM 为FRDM模型预测的质量过剩值"
+      },
+      "observation": "通过训练好的贝叶斯神经网络对输入特征向量进行前向传播，得到预测均值 delta_M_pred 和预测标准差 sigma_pred。将神经网络修正值加到FRDM预测值上，得到最终的质量过剩预测值 M_excess_pred。该步骤完成了从模型不确定性到预测输出的转换，符合合法推导路径 Path 1 的要求。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 当前已通过贝叶斯神经网络预测得到FRDM残差修正值 delta_M_pred 及其不确定性 sigma_pred，并已得到最终的质量过剩预测值 M_excess_pred = M_FRDM + delta_M_pred。论文的目标是输出最终的质量过剩预测结果（prediction_output），并验证其合理性。 [Gap] 目前尚未将预测结果与实验数据（AME03）进行系统比较，也未评估模型的预测精度和可靠性。需要执行验证步骤，通过实验比较来确认预测输出的有效性。 [Decision] 因此，下一步应使用实验数据对预测输出进行系统比较，计算残差分布、均方根误差等统计量，并可视化预测值与实验值的偏差，以验证模型性能并完成prediction_output的最终确认。",
+      "action": "verification",
+      "tool": {
+        "name": "experimental_comparison",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "prediction_output": "最终质量过剩预测值 M_excess_pred = M_FRDM + delta_M_pred，附带预测不确定性 sigma_pred；与AME03实验值比较后的残差统计量（如RMSD、平均偏差）"
+      },
+      "observation": "将1620个核素的预测质量过剩值与AME03实验值逐点比较，计算残差 delta_res = M_excess_pred - M_excess_AME03。统计结果显示：均方根偏差（RMSD）约为0.15 MeV，平均偏差接近0，表明模型预测无系统偏差。预测不确定性 sigma_pred 覆盖了约68%的实验值落在1倍标准差内，验证了贝叶斯神经网络不确定性量化的合理性。至此，prediction_output 已通过实验验证，推导路径完整。 [DONE]",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将混合模型预测的质量过剩与AME2020实验数据在Z=20-82、N=28-126范围内对比，计算均方根偏差是否稳定在0.15 MeV附近；其次，对远离β稳定线的极端丰中子核（如N>150）进行极限情况检验，观察模型是否出现发散或非物理负值；最后，与Hartree-Fock-Bogoliubov方法独立交叉验证，若偏差在0.3 MeV内则确认可靠性，但需注意神经网络在训练数据稀疏区域可能过拟合。",
+    "metrics": {
+      "result_1": {
+        "value": "0.23 MeV",
+        "unit": "测试集M3（529个远离稳定线核素）",
+        "interpretation": "质量过剩预测均方根偏差"
+      },
+      "result_2": {
+        "value": "0.15 MeV",
+        "unit": "验证集M2（344个核素）",
+        "interpretation": "质量过剩预测均方根偏差"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：finite_range_droplet_model。"
+  },
+  "paper_methods": [
+    "neural_network_model",
+    "finite_range_droplet_model",
+    "hybrid_model"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "neural_network_model",
+        "desc": "使用三层前馈神经网络，以Z、N、A为输入，学习FRDM模型残差，输出修正后的质量过剩预测值"
+      },
+      {
+        "name": "finite_range_droplet_model",
+        "desc": "FRDM模型，基于宏观液滴模型和微观壳修正，提供理论质量过剩基准值"
+      },
+      {
+        "name": "hybrid_model",
+        "desc": "将FRDM理论值与神经网络修正项相加，形成最终的质量过剩预测模型"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "M_{\\text{pred}} = M_{\\text{FRDM}} + \\Delta M_{\\text{NN}}"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "\\Delta M_{\\text{NN}} = f(Z, N, A; \\mathbf{w})"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "质量过剩预测均方根偏差",
+        "value": "0.23 MeV",
+        "condition": "测试集M3（529个远离稳定线核素）"
+      },
+      {
+        "quantity": "质量过剩预测均方根偏差",
+        "value": "0.15 MeV",
+        "condition": "验证集M2（344个核素）"
+      }
+    ],
+    "failure_points": [
+      "finite_range_droplet_model"
+    ]
+  }
+}

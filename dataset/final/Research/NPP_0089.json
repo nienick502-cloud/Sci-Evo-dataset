@@ -1,0 +1,392 @@
+{
+  "id": "NPP_0089",
+  "meta": {
+    "id": "NPP_0089",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_cluster_model",
+    "source": {
+      "type": "paper",
+      "title": "Lifetimes of the $\\alpha$ decay chains of superheavy element 115",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_nucl-th_0404007"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "超重核素115的α衰变链寿命",
+    "input_data": "实验合成的核素：^287115 和 ^288115；实验测量的α衰变能和半衰期数据；M3Y有效相互作用参数；α粒子密度分布为高斯形式（式2）；子核密度分布为球对称费米分布（式3），参数c、r_ρ、a由式4给出。",
+    "user_intent": "现有基于Viola-Seaborg公式（VSS）的半衰期估计值与大多数实验测量值不一致（理论值偏高），需要更精确的理论计算来理解超重核素115的α衰变链寿命。",
+    "quantifiable_goal": "计算α衰变半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是计算α衰变半衰期，需要从核的基态性质出发构建衰变势垒。论文采用双折叠模型构建α-子核相互作用势，其中α粒子密度取高斯形式，子核密度取费米分布，有效相互作用采用密度依赖的M3Y力。\n[Gap] 当前只有质量数A、电荷数Z、中子数N和Q值，尚未获得任何核结构参数。第一步需要确定子核的核半径参数，这是构建费米密度分布的基础。\n[Decision] 使用核半径估计工具，根据质量数A和电荷数Z计算子核的等效半径，为后续费米分布参数c、a提供依据。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "nuclear_radius_estimation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number": "A - 4",
+        "charge_number": "Z - 2",
+        "formula": "R = r0 * A^(1/3), with r0 = 1.2 fm"
+      },
+      "output_state": {
+        "daughter_nucleus_mass_number": "A - 4",
+        "daughter_nucleus_charge_number": "Z - 2",
+        "nuclear_radius_R": "1.2 * (A-4)^(1/3) fm"
+      },
+      "observation": "子核半径估计完成，R = 1.2*(A-4)^(1/3) fm。该半径将用于费米分布参数c的初始设定（c ≈ R）。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 根据论文方法，子核密度分布采用球对称费米分布，其参数c（半径参数）与核半径R相关，通常取c ≈ R。上一步已估计出子核半径R = 1.2*(A-4)^(1/3) fm。此外，费米分布还需要表面弥散参数a和密度归一化常数ρ0。论文中参数c、r_ρ、a由式4给出，但具体数值未知，需要根据典型值或系统学设定。 [Gap] 需要确定费米分布的具体参数，以便后续构建双折叠势。 [Decision] 采用典型核物质费米分布参数：表面弥散参数a ≈ 0.55 fm，密度归一化常数ρ0由核子数守恒确定。半径参数c取为核半径R的近似值，即c = R。同时，根据论文式4，可能引入一个与质量数相关的修正因子r_ρ，但此处先采用标准形式。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "density_type": "Fermi",
+        "radius_parameter_c": "1.2 * (A-4)^(1/3) fm",
+        "surface_diffuseness_a": "0.55 fm",
+        "normalization": "by nucleon number"
+      },
+      "output_state": {
+        "daughter_density_distribution": "ρ_d(r) = ρ0 / [1 + exp((r - c)/a)]",
+        "c": "1.2 * (A-4)^(1/3) fm",
+        "a": "0.55 fm",
+        "ρ0": "由 ∫ ρ_d(r) d^3r = A-4 确定"
+      },
+      "observation": "子核密度分布采用球对称费米分布，参数c取核半径估计值，a取典型值0.55 fm，ρ0由归一化条件确定。该分布将用于后续双折叠势计算。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 根据论文方法，α衰变势垒由核势、库仑势和离心势组成，其中核势采用双折叠模型计算，需要α粒子的密度分布和子核的密度分布。α粒子密度分布已假设为高斯形式（式2），子核密度分布已在第2步中确定为球对称费米分布。双折叠积分需要将这两个密度分布与有效核子-核子相互作用（M3Y）进行卷积。 [Gap] 当前已有了子核密度分布，但尚未定义α粒子的密度分布形式和M3Y相互作用的参数化形式。需要先明确α粒子的高斯密度参数（如宽度参数）以及M3Y相互作用的显式表达式，才能进行后续的双折叠积分计算。 [Decision] 因此，本步选择定义α粒子的高斯密度分布，并给出M3Y有效相互作用的参数化形式（包括零程赝势的修正项），为下一步的双折叠积分做准备。工具选择为NN_effective_interaction，因为它专门用于定义核子-核子有效相互作用，包括M3Y类型。",
+      "action": "model_building",
+      "tool": {
+        "name": "NN_effective_interaction",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "alpha_density_distribution": "ρ_α(r) = (4 / (π b^2)^(3/2)) * exp(-r^2 / b^2), b = 0.702 fm (或由核子均方根半径导出)",
+        "M3Y_interaction": "v_NN(s) = 7999 * exp(-4s)/(4s) - 2134 * exp(-2.5s)/(2.5s) + J00 * δ(s), 其中 J00 = -276 MeV·fm^3 (零程赝势强度)"
+      },
+      "observation": "定义了α粒子高斯密度分布（宽度参数b=0.702 fm）和M3Y有效相互作用（包括直接项和零程赝势修正项）。这些将用于下一步双折叠积分计算核势。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 当前已获得子核密度分布 ρ_d(r)（费米分布）和 α 粒子密度分布 ρ_α(r)（高斯分布），以及 M3Y 有效相互作用 v_NN(s)。下一步需要计算 α-子核之间的核势 V_N(R)，这是通过双折叠积分将密度分布与有效相互作用卷积得到的。双折叠模型是论文中构建核势的核心方法。 [Gap] 目前尚未执行双折叠积分，需要选择合适的工具进行数值计算或解析近似。 [Decision] 使用 double_folding_integral 工具，将 α 密度、子核密度和 M3Y 相互作用代入，计算核势 V_N(R) 作为两核质心距离 R 的函数。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "projectile_density": "ρ_α(r) = (4 / (π b^2)^(3/2)) * exp(-r^2 / b^2), b=0.702 fm",
+        "target_density": "ρ_d(r) = ρ0 / [1 + exp((r - c)/a)], c=1.2*(A-4)^(1/3) fm, a=0.55 fm, ρ0 from normalization",
+        "effective_interaction": "v_NN(s) = 7999 * exp(-4s)/(4s) - 2134 * exp(-2.5s)/(2.5s) + J00 * δ(s), J00 = -276 MeV·fm^3"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(R) = ∫∫ ρ_α(r1) ρ_d(r2) v_NN(|R + r1 - r2|) d^3r1 d^3r2"
+      },
+      "observation": "双折叠积分已设定，将 α 粒子和子核的密度分布与 M3Y 有效相互作用卷积，得到核势 V_N(R)。该势能是 R 的函数，后续将用于构建总有效势。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 根据论文方法，核势 V_N(R) 由双折叠积分给出，但实际计算中 M3Y 相互作用包含零程赝势修正项（通常为 J00 δ(s) 形式），且密度依赖效应需通过引入密度依赖因子 F(ρ) 来考虑。目前已完成双折叠积分的设定，但尚未具体化密度依赖修正和零程项的处理。[Gap] 需要引入密度依赖的 M3Y 相互作用（DDM3Y）形式，并明确零程赝势的贡献，以便后续数值积分得到具体的核势函数。[Decision] 选择 NN_effective_interaction 工具，在已有 M3Y 相互作用基础上添加密度依赖因子和零程赝势项，完善有效相互作用的表达式。",
+      "action": "model_building",
+      "tool": {
+        "name": "NN_effective_interaction",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "effective_interaction": "v_eff(s, ρ) = F(ρ) * [7999 * exp(-4s)/(4s) - 2134 * exp(-2.5s)/(2.5s) + J00 * δ(s)]",
+        "density_dependence_factor": "F(ρ) = C * [1 + α * exp(-β * ρ) - γ * ρ]",
+        "zero_range_pseudo_potential_strength": "J00 = -276 MeV·fm^3"
+      },
+      "observation": "引入了密度依赖的 M3Y 有效相互作用（DDM3Y），其中密度依赖因子 F(ρ) 采用典型参数（C=0.296, α=3.723, β=0.0104 fm^3, γ=0.0），零程赝势强度 J00 取 -276 MeV·fm^3。该相互作用将用于下一步数值计算双折叠核势 V_N(R)。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已构建了α粒子和子核的密度分布（高斯和费米形式），并选定了密度依赖的M3Y有效相互作用（DDM3Y），包括零程赝势修正项。下一步需要将这些元素组合，通过双折叠积分计算核势V_N(R)。[Gap] 虽然双折叠积分的形式已在Step 4中设定，但尚未将密度依赖因子F(ρ)和零程赝势修正项纳入具体表达式，需要更新核势的计算公式以包含DDM3Y相互作用。[Decision] 因此，本步将明确写出包含密度依赖和零程赝势修正的双折叠核势表达式，为后续数值积分做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "alpha_density": "ρ_α(r1) = (4 / (π b^2)^(3/2)) * exp(-r1^2 / b^2), b=0.702 fm",
+        "daughter_density": "ρ_d(r2) = ρ0 / [1 + exp((r2 - c)/a)], c=1.2*(A-4)^(1/3) fm, a=0.55 fm",
+        "effective_interaction": "v_eff(s, ρ) = F(ρ) * [7999 * exp(-4s)/(4s) - 2134 * exp(-2.5s)/(2.5s)] + J00 * δ(s), 其中F(ρ)=C[1+α exp(-βρ)-γρ], C=0.296, α=3.723, β=0.0104 fm^3, γ=0.0, J00=-276 MeV·fm^3",
+        "integration_variable": "s = |R + r1 - r2|",
+        "density_dependence": "ρ = ρ_α(r1) + ρ_d(r2)  (冻结密度近似)"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(R) = ∫∫ ρ_α(r1) ρ_d(r2) v_eff(|R + r1 - r2|, ρ_α(r1)+ρ_d(r2)) d^3r1 d^3r2"
+      },
+      "observation": "核势V_N(R)的双折叠积分表达式已更新，采用DDM3Y有效相互作用（含密度依赖因子F(ρ)和零程赝势修正J00 δ(s)）。密度依赖采用冻结密度近似，即ρ取两核子密度之和。该势能是R的函数，后续将用于构建总有效势（包含库仑势和离心势）。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已通过双折叠积分构建了核势 V_N(R) 的表达式，该势能依赖于 α 粒子和子核的密度分布以及 DDM3Y 有效相互作用。下一步需要构建总有效势，包括核势、库仑势和离心势，以用于后续的 WKB 隧穿计算。[Gap] 目前只有核势的积分形式，尚未显式写出库仑势和离心势的表达式，也未组装成总有效势。[Decision] 因此，第7步选择使用 effective_potential_assembly 工具，将核势 V_N(R)、库仑势 V_C(R) 和离心势 V_l(R) 组合成总有效势 V_eff(R)，并明确各分量的形式。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(R) = ∫∫ ρ_α(r1) ρ_d(r2) v_eff(|R + r1 - r2|, ρ_α(r1)+ρ_d(r2)) d^3r1 d^3r2",
+        "coulomb_potential": "V_C(R) = (Z_α Z_d e^2) / R, for R > R_c; 内部区域需考虑有限大小电荷分布修正",
+        "centrifugal_potential": "V_l(R) = (\\hbar^2 l(l+1)) / (2μ R^2)",
+        "reduced_mass": "μ = (m_α m_d) / (m_α + m_d)"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)",
+        "coulomb_potential": "V_C(R) = (Z_α Z_d e^2) / R",
+        "centrifugal_potential": "V_l(R) = (\\hbar^2 l(l+1)) / (2μ R^2)",
+        "reduced_mass": "μ = (m_α m_d) / (m_α + m_d)"
+      },
+      "observation": "总有效势 V_eff(R) 已构建为核势、库仑势和离心势之和。库仑势采用点电荷近似（外部区域），离心势依赖于轨道角动量量子数 l 和约化质量 μ。该势能是 R 的函数，将用于后续求解转折点和 WKB 作用量积分。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 根据合法推导路径 Path 1，在构建有效势之后，下一步需要求解转折点（turning_points），这是计算 WKB 作用积分和穿透概率的前提。转折点由方程 V_eff(R) = Q_value 确定，通常存在三个转折点：内转折点 R_in（核势内部）、外转折点 R_out（库仑势垒外部）和中间转折点（势垒峰值附近）。[Gap] 当前已构建有效势 V_eff(R) 和 Q_value，但尚未计算具体的转折点位置。[Decision] 因此，下一步应使用 turning_point_solver 工具，基于有效势和 Q_value 数值求解转折点，为后续 WKB 作用积分做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)",
+        "Q_value": "Q_value (已知实验值或理论计算值)",
+        "reduced_mass": "μ = (m_α m_d) / (m_α + m_d)",
+        "angular_momentum": "l (由自旋宇称确定)"
+      },
+      "output_state": {
+        "turning_points": "R_in, R_out (以及可能的 R_mid)",
+        "inner_turning_point": "R_in: 满足 V_eff(R_in) = Q_value 的最小根",
+        "outer_turning_point": "R_out: 满足 V_eff(R_out) = Q_value 的最大根"
+      },
+      "observation": "通过数值求解方程 V_eff(R) = Q_value，得到内转折点 R_in 和外转折点 R_out。这两个转折点将用于后续 WKB 作用积分 ∫_{R_in}^{R_out} k(R) dR 的计算，其中 k(R) = sqrt(2μ|V_eff(R) - Q_value|)/ħ。转折点的精确值依赖于有效势的具体形式和 Q_value。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 预测使用 nuclear_radius_estimation -> mean_field_density_calculation -> NN_effective_interaction -> double_folding_integral -> NN_effective_interaction -> double_folding_integral -> effective_potential_assembly -> turning_point_solver 进行推导，与论文方法一致。[Gap] 分析方法选择正确的关键判断依据。[Decision] 预测方法链与论文实际推导高度一致，均以双折叠模型为核心，从核半径估计出发逐步构建密度分布、有效相互作用和势垒，最终通过WKB近似计算半衰期。预测正确的原因在于严格遵循了论文中明确的方法步骤和物理假设，如高斯α密度、费米子核密度和DDM3Y力，确保了方法链的完整性和逻辑连贯性。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "对于α衰变半衰期计算，当需要从核基态性质构建势垒时，双折叠模型结合密度依赖M3Y相互作用是标准选择，因为它能精确描述α-子核相互作用势，且适用于重核体系。"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 目标是从给定的初始条件（质量数A、电荷数Z、中子数N、Q值）出发，通过论文中采用的WKB近似和双折叠模型，推导α衰变半衰期。第一步需要构建α-子核相互作用势，这是计算势垒穿透概率的基础。论文明确使用双折叠模型，其中α粒子密度取高斯形式（式2），子核密度取球对称费米分布（式3），相互作用采用密度依赖的M3Y有效核力（并包含零范围赝势项）。[Gap] 当前只有初始条件，没有具体的势能表达式。需要先根据双折叠积分公式，结合给定的密度分布和有效相互作用，写出核势的表达式。[Decision] 因此，第一步是应用双折叠模型，构建α-子核之间的核势。使用工具 double_folding_integral，参数包括α粒子密度（高斯形式）、子核密度（费米分布）、M3Y有效相互作用（含零范围赝势）。输出为核势V_N(R)的表达式。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "projectile_density": "Gaussian form (Eq.2): ρ_α(r) = 0.4229 exp(-0.7024 r^2)",
+        "target_density": "Fermi distribution (Eq.3): ρ_t(r) = ρ_0 / [1 + exp((r - c)/a)], with c = r_ρ A_t^{1/3}, a = 0.54 fm, r_ρ = 1.07 fm",
+        "effective_interaction": "Density-dependent M3Y (DDM3Y) with zero-range pseudo-potential: v_{NN}(s, ρ) = t_{00}^{M3Y}(s) g(ρ) + J_{00}(E) δ(s), where t_{00}^{M3Y}(s) = [7999 exp(-4s)/(4s) - 2134 exp(-2.5s)/(2.5s)] MeV, g(ρ) = C [1 - β ρ^{2/3}(r)]",
+        "exchange_term": "Included via zero-range pseudo-potential approximation"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(R) = ∫∫ ρ_α(r_1) ρ_t(r_2) v_{NN}(s = |R + r_2 - r_1|, ρ) d^3r_1 d^3r_2"
+      },
+      "observation": "[方法说明] 使用双折叠模型计算α-子核相互作用势\n构建了双折叠核势的积分表达式，其中α密度为高斯型，子核密度为费米型，有效相互作用为密度依赖的M3Y力加零范围赝势。该势将用于后续的势垒穿透计算。\n[论文公式] Eq.(2): \\rho_{\\alpha}(r) = \\frac{4}{\\pi^{3/2} R_{\\alpha}^3} e^{-r^2 / R_{\\alpha}^2}",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在双折叠模型中，核势 V_N(R) 的积分表达式已建立，但需要具体化有效相互作用 v_{NN}(s, ρ) 的显式形式。论文采用密度依赖的 M3Y 有效相互作用，并附加零范围赝势以模拟交换效应。 [Gap] 目前仅有积分形式，尚未给出 v_{NN} 的具体参数化，无法进行数值积分。 [Decision] 因此，下一步应明确 M3Y 力的参数形式，包括直接项和交换项，以及密度依赖因子和赝势强度，为后续的势垒构建做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "NN_effective_interaction",
+        "version": ""
+      },
+      "parameters": {
+        "interaction_type": "density_dependent_M3Y",
+        "zero_range_pseudo_potential": true,
+        "exchange_term": "included"
+      },
+      "output_state": {
+        "effective_interaction": "v_{NN}(s, \\rho) = t^{M3Y}(s) + J_{00}(E) \\delta(s)",
+        "M3Y_direct_term": "t^{M3Y}(s) = 7999 \\frac{e^{-4s}}{4s} - 2134 \\frac{e^{-2.5s}}{2.5s}",
+        "density_dependence": "F(\\rho) = C [1 + \\alpha e^{-\\beta \\rho}]",
+        "zero_range_strength": "J_{00}(E) = -276 (1 - 0.005 E/A_\\alpha) \\text{ MeV fm}^3"
+      },
+      "observation": "明确了密度依赖的 M3Y 有效相互作用的具体形式：直接部分由两个 Yukawa 项组成，交换效应通过零范围赝势 J_{00}(E) 近似，整体乘以密度依赖因子 F(ρ)。参数值取自文献，其中 E 为 α 粒子动能，A_α=4。\n[论文公式] Eq.(4): c = r_{\\rho} A^{1/3}, \\quad r_{\\rho} = 1.07 \\, \\text{fm}, \\quad a = 0.54 \\, \\text{fm}",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 前两步已构建了双折叠核势的积分表达式和密度依赖M3Y有效相互作用的具体形式。核势V_N(R)需要通过数值积分计算得到，但在此之前需要明确α粒子和子核的密度分布函数的具体参数化形式，以便代入积分。 [Gap] 论文中α粒子密度分布为高斯形式（式2），子核密度分布为球对称费米分布（式3），参数c、r_ρ、a由式4给出，但尚未将这些密度分布的具体表达式和参数值显式列出，以便后续数值积分。 [Decision] 因此，本步应提取并明确α粒子和子核的密度分布函数的具体形式及参数，为后续的双折叠积分计算提供输入。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "alpha_density_form": "Gaussian",
+        "daughter_density_form": "Fermi",
+        "alpha_density_expression": "ρ_α(r) = (b_α / √π)^3 exp(-b_α^2 r^2), with b_α = √(3/(2R_α^2)), R_α = 1.61 fm",
+        "daughter_density_expression": "ρ_t(r) = ρ_0 / [1 + exp((r - c)/a)], with c = r_ρ A_t^{1/3}, a = 0.54 fm, r_ρ = 1.07 fm, ρ_0 = 0.17 fm^{-3} (normalized to mass number A_t)"
+      },
+      "output_state": {
+        "alpha_density": "ρ_α(r) = (b_α / √π)^3 exp(-b_α^2 r^2)",
+        "daughter_density": "ρ_t(r) = ρ_0 / [1 + exp((r - c)/a)]",
+        "density_parameters": "b_α = √(3/(2R_α^2)), R_α = 1.61 fm; c = r_ρ A_t^{1/3}, r_ρ = 1.07 fm, a = 0.54 fm, ρ_0 = 0.17 fm^{-3}"
+      },
+      "observation": "明确了α粒子密度为高斯分布，子核密度为费米分布，并给出了所有参数的具体数值或表达式。这些密度分布将代入双折叠积分中计算核势V_N(R)。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 前几步已经构建了双折叠核势的积分表达式、密度依赖的M3Y有效相互作用的具体形式，以及α粒子和子核的密度分布参数。接下来需要将这些元素代入双折叠积分中，通过数值积分计算出核势V_N(R)作为两核质心距离R的函数。这是势能构建的关键步骤，将直接用于后续的势垒穿透计算。[Gap] 目前仅有积分表达式和参数，尚未得到具体的势能数值或解析形式。[Decision] 因此，第4步应执行双折叠积分的数值计算，得到核势V_N(R)的数值结果或参数化形式。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "alpha_density": "ρ_α(r) = (b_α/√π)^3 exp(-b_α^2 r^2), b_α = √(3/(2R_α^2)), R_α = 1.61 fm",
+        "daughter_density": "ρ_t(r) = ρ_0 / [1 + exp((r - c)/a)], c = r_ρ A_t^{1/3}, r_ρ = 1.07 fm, a = 0.54 fm, ρ_0 由归一化确定",
+        "effective_interaction": "v_{NN}(s, ρ) = F(ρ) [t^{M3Y}(s) + J_{00}(E) δ(s)], t^{M3Y}(s) = 7999 e^{-4s}/(4s) - 2134 e^{-2.5s}/(2.5s), J_{00}(E) = -276 (1 - 0.005 E/A_α) MeV fm^3, F(ρ) = C [1 + α e^{-β ρ}], C=0.296, α=3.23, β=4.38 fm^3",
+        "integration_method": "六维数值积分，利用傅里叶变换或直接数值积分"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(R) = ∫∫ ρ_α(r_1) ρ_t(r_2) v_{NN}(s = |R + r_2 - r_1|, ρ) d^3r_1 d^3r_2",
+        "nuclear_potential_numerical": "在R=0~20 fm范围内计算得到一系列离散值，可参数化为Woods-Saxon形式或直接插值使用"
+      },
+      "observation": "通过数值计算双折叠积分，得到了核势V_N(R)作为距离R的函数。该势在短程（R < 6 fm）呈现强排斥，在中程（6-10 fm）呈现吸引，在长程趋于零。具体数值结果将用于后续与库仑势和离心势相加，构建总有效势。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将计算得到的0.89 s和0.16 s与实验测量的α衰变半衰期数据（如来自核数据库的精确值）进行直接对比，若偏差在10%以内则验证模型准确性。同时，使用相同的double_folding模型和WKB近似计算已知核素的半衰期，并与实验值比较，检验密度依赖M3Y相互作用和零范围赝势的适用性。",
+    "metrics": {
+      "half_life": {
+        "value": "0.16 s",
+        "unit": "^288115，Q_α=10.46 MeV",
+        "interpretation": "half_life; ^287115，Q_α=10.59 MeV"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：viola_seaborg_formula。"
+  },
+  "paper_methods": [
+    "wkb_approximation",
+    "double_folding_model",
+    "density_dependent_m3y_interaction",
+    "zero_range_pseudo_potential"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "double_folding_model",
+        "desc": "使用双折叠模型计算α-子核相互作用势"
+      },
+      {
+        "name": "wkb_approximation",
+        "desc": "使用WKB近似计算α衰变穿透因子"
+      },
+      {
+        "name": "density_dependent_m3y_interaction",
+        "desc": "采用密度依赖的M3Y有效相互作用描述核子-核子相互作用"
+      },
+      {
+        "name": "zero_range_pseudo_potential",
+        "desc": "引入零程赝势修正核子-核子相互作用的短程行为"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(2)",
+        "content": "\\rho_{\\alpha}(r) = \\frac{4}{\\pi^{3/2} R_{\\alpha}^3} e^{-r^2 / R_{\\alpha}^2}"
+      },
+      {
+        "label": "Eq.(3)",
+        "content": "\\rho_d(r) = \\frac{\\rho_0}{1 + \\exp\\left(\\frac{r - c}{a}\\right)}"
+      },
+      {
+        "label": "Eq.(4)",
+        "content": "c = r_{\\rho} A^{1/3}, \\quad r_{\\rho} = 1.07 \\, \\text{fm}, \\quad a = 0.54 \\, \\text{fm}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "0.89 s",
+        "condition": "^287115，Q_α=10.59 MeV"
+      },
+      {
+        "quantity": "half_life",
+        "value": "0.16 s",
+        "condition": "^288115，Q_α=10.46 MeV"
+      }
+    ],
+    "failure_points": [
+      "viola_seaborg_formula"
+    ]
+  }
+}

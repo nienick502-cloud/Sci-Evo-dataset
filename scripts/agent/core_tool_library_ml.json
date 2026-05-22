@@ -1,0 +1,262 @@
+{
+  "version": "1.0",
+  "design_philosophy": "ML DFS 库与物理库并列，采用工作流顺序依赖（软约束）而非数学硬依赖。每个 tool 代表 ML 管线中的一个原子操作，通过 DFS 反向搜索生成标准 ML 推导路径。ML 路径与物理路径在目标物理量处交汇。",
+  "paradigm": "data_driven_ml",
+
+  "ml_quantity_ontology": {
+    "_comment": "ML 特定物理量层次树，补充物理库的 ontology",
+    "ml_data": {
+      "training_dataset": {"type": "dataset", "unit": null, "description": "从实验数据库准备的训练数据集"},
+      "feature_vector": {"type": "vector", "unit": "mixed", "description": "ML 模型输入特征向量"},
+      "train_test_split": {"type": "dataset_pair", "unit": null, "description": "训练集与测试集的划分"}
+    },
+    "ml_model": {
+      "model_architecture": {"type": "specification", "unit": null, "description": "ML 模型架构选择（NN类型/树类型/GP核函数等）"},
+      "hyperparameters": {"type": "parameter_set", "unit": "mixed", "description": "模型超参数配置"},
+      "model_weights": {"type": "parameter_set", "unit": null, "description": "训练完成后的模型参数"},
+      "loss_function_value": {"type": "scalar", "unit": null, "description": "训练损失函数值"}
+    },
+    "ml_output": {
+      "prediction_output": {"type": "scalar_or_vector", "unit": "varies", "description": "ML 模型原始预测输出"},
+      "model_uncertainty": {"type": "scalar", "unit": null, "description": "预测不确定度估计"}
+    }
+  },
+
+  "ml_method_keywords": {
+    "_comment": "用于检测论文是否使用 ML 方法。如果 paper_methods 中有任何匹配，激活 ML DFS。",
+    "neural_network": ["artificial_neural_network", "neural_network", "deep_neural_network",
+                       "feedforward_neural_network", "dense_neural_network", "fully_connected_network",
+                       "multilayer_perceptron", "mlp", "dnn", "ann", "ffn"],
+    "cnn": ["convolutional_neural_network", "cnn", "resnet", "densenet", "conn"],
+    "rnn": ["recurrent_neural_network", "lstm", "gru", "rnn"],
+    "autoencoder": ["autoencoder", "variational_autoencoder", "vae"],
+    "bayesian_nn": ["bayesian_neural_network", "bnn", "bayesian_deep_learning"],
+    "physics_informed": ["physics_informed_neural_network", "pinn", "physics_guided",
+                         "physics_constrained", "physics_encoded"],
+    "tree_ensemble": ["gradient_boosting", "lightgbm", "xgboost", "catboost",
+                      "random_forest", "decision_tree", "gbdt"],
+    "gaussian_process": ["gaussian_process", "gaussian_process_regression", "gpr"],
+    "bayesian_inference": ["bayesian_inference", "markov_chain_monte_carlo", "mcmc",
+                           "variational_inference", "bayesian_model_averaging"],
+    "transfer_learning": ["transfer_learning", "pretrained_model", "fine_tuning"],
+    "ensemble": ["ensemble_method", "voting", "stacking", "model_averaging",
+                 "ensemble_learning", "ensemble_neural_network"],
+    "svm": ["support_vector_machine", "support_vector_regression", "svr", "svm",
+            "kernel_ridge_regression"],
+    "ml_general": ["machine_learning", "deep_learning", "supervised_learning",
+                   "data_driven", "ml_based", "learning_based"]
+  },
+
+  "tools": [
+
+    {"_section": "=== A. 数据工程层 (Data Engineering) ==="},
+
+    {
+      "id": "M01",
+      "tool_name": "ml_data_acquisition",
+      "description": "从实验核数据库（AME2020/NUBASE2020/ENSDF）获取训练数据，准备训练/测试集划分",
+      "requires": [],
+      "provides": ["training_dataset"],
+      "constraints": {"domain": "ML", "requires_experimental_data": true},
+      "category": "ml_data"
+    },
+    {
+      "id": "M02",
+      "tool_name": "ml_feature_construction",
+      "description": "从核性质（Z,N,A,δ,壳效应,对关联等）构建 ML 特征向量。输入可包含物理模型预计算量（Q值、形变参数等）",
+      "requires": ["mass_number_A", "charge_number_Z", "neutron_number_N"],
+      "provides": ["feature_vector"],
+      "constraints": {"domain": "ML"},
+      "category": "ml_data"
+    },
+
+    {"_section": "=== B. 模型选择层 (Model Selection) ==="},
+
+    {
+      "id": "M03",
+      "tool_name": "ml_model_selection",
+      "description": "根据问题特征（数据量、输入维度、可解释性需求）选择合适的 ML 架构：NN（FFN/DNN/BNN）、树集成（LightGBM/CatBoost）、高斯过程、或物理信息网络",
+      "requires": ["feature_vector"],
+      "provides": ["model_architecture", "hyperparameters"],
+      "constraints": {"domain": "ML", "note": "架构类型由 problem_context 决定"},
+      "category": "ml_model"
+    },
+
+    {"_section": "=== C. 模型训练层 (Model Training) ==="},
+
+    {
+      "id": "M04",
+      "tool_name": "ml_neural_network_training",
+      "description": "训练神经网络模型（FFN/DNN/BNN/CNN/MLP），使用 Adam/SGD 优化器 + 反向传播，含批量归一化和早停",
+      "requires": ["model_architecture", "training_dataset"],
+      "provides": ["model_weights", "loss_function_value"],
+      "constraints": {"domain": "ML", "architecture": "neural_network"},
+      "category": "ml_training"
+    },
+    {
+      "id": "M05",
+      "tool_name": "ml_tree_ensemble_training",
+      "description": "训练树集成模型（LightGBM/CatBoost/XGBoost/GBDT/RandomForest）",
+      "requires": ["model_architecture", "training_dataset"],
+      "provides": ["model_weights"],
+      "constraints": {"domain": "ML", "architecture": "tree_ensemble"},
+      "category": "ml_training"
+    },
+    {
+      "id": "M06",
+      "tool_name": "ml_gaussian_process_training",
+      "description": "高斯过程回归训练：选择核函数（RBF/Matérn）、优化核超参数，自带不确定度估计",
+      "requires": ["model_architecture", "training_dataset"],
+      "provides": ["model_weights", "model_uncertainty"],
+      "constraints": {"domain": "ML", "architecture": "gaussian_process"},
+      "category": "ml_training"
+    },
+    {
+      "id": "M07",
+      "tool_name": "ml_bayesian_inference",
+      "description": "贝叶斯参数估计：MCMC 采样后验分布 / 变分推断，得到参数后验 + 不确定度",
+      "requires": ["model_architecture", "training_dataset"],
+      "provides": ["model_weights", "model_uncertainty"],
+      "constraints": {"domain": "ML", "method": "bayesian"},
+      "category": "ml_training"
+    },
+    {
+      "id": "M08",
+      "tool_name": "ml_physics_informed_training",
+      "description": "物理信息网络训练：将薛定谔方程、守恒律等 PDE 约束作为损失函数正则项，用自动微分计算导数",
+      "requires": ["model_architecture", "training_dataset"],
+      "provides": ["model_weights", "loss_function_value"],
+      "constraints": {"domain": "ML", "architecture": "physics_informed", "requires_pde_constraint": true},
+      "category": "ml_training"
+    },
+    {
+      "id": "M09",
+      "tool_name": "ml_transfer_learning",
+      "description": "迁移学习：从预训练模型（ResNet/ImageNet等）微调到核物理任务",
+      "requires": ["model_architecture", "training_dataset"],
+      "provides": ["model_weights"],
+      "constraints": {"domain": "ML", "method": "transfer_learning", "note": "需要预训练权重"},
+      "category": "ml_training"
+    },
+
+    {"_section": "=== D. 模型评估层 (Model Evaluation) ==="},
+
+    {
+      "id": "M10",
+      "tool_name": "ml_model_evaluation",
+      "description": "模型评估：K折交叉验证 / 留一法，评估泛化误差和不确定度（RMS偏差、覆盖概率等）",
+      "requires": ["model_weights", "training_dataset"],
+      "provides": ["model_uncertainty", "loss_function_value"],
+      "constraints": {"domain": "ML"},
+      "category": "ml_evaluation"
+    },
+
+    {"_section": "=== E. 预测与输出层 (Prediction & Output) ==="},
+
+    {
+      "id": "M11",
+      "tool_name": "ml_direct_prediction",
+      "description": "用训练好的模型直接预测目标物理量（半衰期、结合能、截面等），输出含不确定度",
+      "requires": ["model_weights", "feature_vector"],
+      "provides": ["prediction_output", "model_uncertainty", "half_life"],
+      "constraints": {"domain": "ML", "output_type": "direct"},
+      "category": "ml_prediction"
+    },
+    {
+      "id": "M12",
+      "tool_name": "ml_physics_hybrid_correction",
+      "description": "混合物理+ML：将 ML 预测的残差/修正项叠加到物理模型基线预测上，得到最终物理量",
+      "requires": ["prediction_output"],
+      "provides": ["half_life"],
+      "constraints": {"domain": "ML", "method": "hybrid", "note": "需要物理模型给出基线预测"},
+      "category": "ml_prediction"
+    },
+    {
+      "id": "M13",
+      "tool_name": "ml_ensemble_prediction",
+      "description": "集成多模型预测（投票/堆叠/贝叶斯模型平均），综合多个模型的输出以减少方差",
+      "requires": ["model_weights", "feature_vector"],
+      "provides": ["prediction_output", "model_uncertainty", "half_life"],
+      "constraints": {"domain": "ML", "method": "ensemble"},
+      "category": "ml_prediction"
+    },
+    {
+      "id": "M14",
+      "tool_name": "ml_feature_importance_analysis",
+      "description": "特征重要性分析：SHAP值/排列重要性/随机森林重要性，识别哪些物理量对预测最敏感",
+      "requires": ["model_weights", "feature_vector"],
+      "provides": ["prediction_output", "model_uncertainty"],
+      "constraints": {"domain": "ML", "role": "analysis"},
+      "category": "ml_evaluation"
+    }
+  ],
+
+  "composite_paths": {
+    "_comment": "7条标准 ML 工作流路径（每条对应一种 ML 方法论）",
+
+    "ml_nn_direct_prediction": {
+      "description": "神经网络直接预测物理量（最常见：FFN/DNN/BNN → 训练 → 评估 → 预测）",
+      "tools": ["M01", "M02", "M03", "M04", "M10", "M11"],
+      "typical_papers": "核质量预测、结合能预测、半衰期直接回归"
+    },
+    "ml_nn_physics_correction": {
+      "description": "神经网络学习物理模型残差（物理基线 + NN 修正 → 最终预测）",
+      "tools": ["M01", "M02", "M03", "M04", "M10", "M11", "M12"],
+      "typical_papers": "质量模型优化、液滴模型+NN修正、Delta-UQ方法"
+    },
+    "ml_tree_ensemble_prediction": {
+      "description": "树集成方法预测（LightGBM/CatBoost → 训练 → 评估 → 预测）",
+      "tools": ["M01", "M02", "M03", "M05", "M10", "M11"],
+      "typical_papers": "核性质分类、表格数据回归"
+    },
+    "ml_gaussian_process_prediction": {
+      "description": "高斯过程回归预测（自带不确定度，不需交叉验证）",
+      "tools": ["M01", "M02", "M03", "M06", "M11"],
+      "typical_papers": "小样本核数据外推、不确定度量化优先的场景"
+    },
+    "ml_bayesian_inference": {
+      "description": "贝叶斯推断（MCMC/变分推断 → 后验预测分布）",
+      "tools": ["M01", "M02", "M03", "M07", "M11"],
+      "typical_papers": "参数估计、模型校准、预形成因子贝叶斯提取"
+    },
+    "ml_physics_informed": {
+      "description": "物理信息神经网络（PDE约束损失 → 自监督训练 → 预测）",
+      "tools": ["M01", "M02", "M03", "M08", "M11"],
+      "typical_papers": "薛定谔方程求解、密度泛函替代模型"
+    },
+    "ml_transfer_learning": {
+      "description": "迁移学习（预训练CNN → 微调 → 核物理任务预测）",
+      "tools": ["M01", "M02", "M03", "M09", "M10", "M11"],
+      "typical_papers": "图像分类（α事件识别）、云室图像分析"
+    }
+  },
+
+  "context_constraints": {
+    "_comment": "ML 方法选择的上下文约束",
+
+    "small_dataset": {
+      "preferred": ["M06", "M07"],
+      "discouraged": ["M04"],
+      "note": "小样本数据优先高斯过程或贝叶斯方法，避免过参数化神经网络"
+    },
+    "large_dataset": {
+      "preferred": ["M04", "M05"],
+      "discouraged": ["M06"],
+      "note": "大数据集适合神经网络或树集成，高斯过程计算代价过高"
+    },
+    "physics_hybrid_required": {
+      "preferred": ["M12"],
+      "note": "物理+ML混合场景必须在预测后叠加物理基线"
+    },
+    "uncertainty_critical": {
+      "preferred": ["M06", "M07", "M10"],
+      "discouraged": ["M05"],
+      "note": "不确定度关键场景优先高斯过程/贝叶斯方法"
+    },
+    "image_input": {
+      "preferred": ["M09"],
+      "discouraged": ["M05"],
+      "note": "图像输入优先CNN+迁移学习"
+    }
+  }
+}

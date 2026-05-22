@@ -1,0 +1,360 @@
+{
+  "id": "NPP_0027",
+  "meta": {
+    "id": "NPP_0027",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "Predictions of Alpha Decay Half lives of Heavy and Superheavy Elements",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_nucl-th_0703086"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "重与超重核素的α衰变半衰期",
+    "input_data": "核素范围 Z=102-120；实验α衰变Q值；DDM3Y有效核相互作用；Viola-Seaborg-Sobiczewski (VSS) 半衰期估计公式；Muntian-Hofmann-Patyk-Sobiczewski 质量公式预测的Q值",
+    "user_intent": "评估现有质量公式在预测超重核α衰变半衰期方面的有效性和局限性，现有质量公式预测的Q值存在不足，导致半衰期预测不准确，需要更精确的质量公式。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是从原子核的质量数A、电荷数Z和衰变能Q_α出发，计算α衰变半衰期。论文使用了VSS公式和DDM3Y势垒穿透模型，但当前合法推导路径只有两条：Path 1（从half_life回溯到核半径等微观量）和Path 2（直接半衰期）。由于初始条件已给出Q_value，且论文明确使用VSS公式作为半衰期的经验关联，最直接的合法路径是Path 2，即直接利用经验公式计算半衰期。 [Gap] 需要将Q_α代入VSS公式得到半衰期，但VSS公式中还有核电荷数Z和A的依赖，以及可能的质量数修正。 [Decision] 因此第一步应使用经验半衰期公式（empirical_halflife_formula）工具，基于VSS公式形式，将Q_α、Z、A代入计算半衰期。",
+      "action": "rule_application",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": "VSS"
+      },
+      "parameters": {
+        "formula_type": "Viola-Seaborg-Sobiczewski",
+        "Z": "charge_number_Z",
+        "A": "mass_number_A",
+        "Q_alpha": "Q_value"
+      },
+      "output_state": {
+        "half_life": "log10(T_1/2) = a*Z/sqrt(Q_alpha) + b*Z + c + d*(A - 2Z)/A"
+      },
+      "observation": "应用VSS经验公式，将Q_α、Z、A代入得到半衰期对数值。公式中参数a、b、c、d取自文献（如Sobiczewski et al.）。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 第1步已通过VSS经验公式建立了半衰期与Q_α、Z、A的初步关系，但VSS公式是纯经验公式，缺乏微观物理基础。论文同时使用了DDM3Y有效核相互作用来构建α-子核势垒，从而通过量子隧穿效应更精确地计算半衰期。 [Gap] 目前仅得到了经验半衰期表达式，尚未引入DDM3Y相互作用来构建势垒和计算穿透概率。需要将DDM3Y有效核相互作用参数化，为后续的势垒构建和WKB穿透计算做准备。 [Decision] 因此，下一步应选择NN_effective_interaction工具，将DDM3Y有效核相互作用参数化，得到核势的显式形式，这是构建α-子核光学势垒的基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "NN_effective_interaction",
+        "version": ""
+      },
+      "parameters": {
+        "interaction_type": "DDM3Y",
+        "density_dependence": "finite_range",
+        "parameters_source": "文献Kobos et al. (1984)或相似参数化"
+      },
+      "output_state": {
+        "DDM3Y_interaction": "V_DDM3Y(r, ρ) = C * F(ρ) * v_0 * exp(-μ r) / (μ r)，其中F(ρ) = C_0 * (1 - β ρ^{2/3})，v_0 = -276 MeV·fm^3，μ = 1.4 fm^{-1}，β = 1.624 fm^2，C_0 = 0.4443"
+      },
+      "observation": "DDM3Y有效核相互作用已参数化，包含密度依赖项F(ρ)和M3Y型有限程核力部分。该相互作用将用于后续双折叠积分构建α-子核光学势的实部。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在选定DDM3Y有效核相互作用后，需要构建α粒子与子核之间的核势垒。通常采用双折叠模型，将DDM3Y相互作用在α粒子和子核的密度分布上积分，得到核势的实部。同时还需考虑库仑势和离心势，以形成完整的有效势垒。[Gap] 当前已定义了DDM3Y相互作用的解析形式，但尚未将其与核密度分布结合，也未构建出可用于隧穿计算的势垒函数。[Decision] 因此，下一步应执行双折叠积分，利用α粒子和子核的密度分布（如费米分布或高斯分布）与DDM3Y相互作用卷积，得到核势V_N(r)。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "projectile_density": "α粒子密度：ρ_α(r) = 0.4229 * exp(-0.7024 * r^2) (来自电子散射数据参数化)",
+        "target_density": "子核密度：ρ_t(r) = ρ_0 / (1 + exp((r - R_0)/a))，其中R_0 = 1.07 * A_t^(1/3) fm, a = 0.54 fm, ρ_0由归一化确定",
+        "interaction": "DDM3Y有效核相互作用（步骤2定义）",
+        "exchange_term": "包含零程近似交换项（通常为δ函数形式，强度约-262 MeV·fm^3）"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = ∫∫ ρ_α(r_1) ρ_t(r_2) v_DDM3Y(|r + r_2 - r_1|) d^3r_1 d^3r_2 + V_exchange(r)"
+      },
+      "observation": "双折叠积分得到核势V_N(r)的数值形式（或参数化形式）。该势与库仑势V_C(r)和离心势V_l(r)相加，构成α衰变隧穿计算所需的总有效势V_eff(r) = V_N(r) + V_C(r) + V_l(r)。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 我们已经选择了VSS经验公式作为半衰期的直接计算工具，并构建了DDM3Y有效核相互作用，通过双折叠积分得到了α-子核之间的核势V_N(r)。为了计算α粒子隧穿库仑势垒的概率，我们需要将核势、库仑势和离心势组合成总有效势V_eff(r)，这是隧穿计算的基础。[Gap] 当前步骤需要明确库仑势V_C(r)的具体形式以及离心势V_l(r)的表达式，并将它们与核势V_N(r)相加，形成完整的有效势。库仑势通常采用均匀带电球模型，离心势则依赖于轨道角动量量子数l。[Decision] 我将使用库仑势的解析表达式（点电荷或均匀带电球）和离心势的标准形式，将它们与双折叠得到的核势相加，构建出用于后续WKB穿透概率计算的有效势。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(r) from double folding integral",
+        "coulomb_potential_model": "uniformly charged sphere: V_C(r) = Z_alpha * Z_daughter * e^2 / (4π ε_0 r) for r > R_C, and parabolic form inside",
+        "centrifugal_potential": "V_l(r) = ℏ^2 l(l+1) / (2μ r^2)",
+        "total_effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "coulomb_potential": "V_C(r) = Z_alpha * Z_daughter * e^2 / (4π ε_0 r) for r > R_C",
+        "centrifugal_potential": "V_l(r) = ℏ^2 l(l+1) / (2μ r^2)"
+      },
+      "observation": "总有效势V_eff(r)已构建，由双折叠核势、库仑势（均匀带电球模型）和离心势三部分组成。该势将用于后续求解隧穿过程的转折点和WKB作用量积分。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经构建了α衰变的总有效势V_eff(r)，包含核势、库仑势和离心势。下一步需要求解隧穿过程的转折点，即方程V_eff(r) = Q_α的解，其中内转折点r_in和外转折点r_out定义了隧穿区域。[Gap] 当前状态中尚未计算转折点，而转折点是计算WKB作用量积分和穿透概率的必要前提。[Decision] 因此，下一步应使用turning_point_solver工具，通过数值求解V_eff(r) = Q_α来获得r_in和r_out。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "Q_value": "Q_α",
+        "angular_momentum": "l",
+        "reduced_mass": "μ"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out"
+      },
+      "observation": "通过数值求解方程V_eff(r) = Q_α，得到内转折点r_in（约在核表面附近）和外转折点r_out（库仑势垒顶部之外）。这两个转折点定义了α粒子隧穿势垒的经典禁戒区域，将用于后续WKB作用量积分计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经构建了α衰变的总有效势V_eff(r)，并求解了内转折点r_in和外转折点r_out，它们定义了α粒子隧穿势垒的经典禁戒区域。下一步需要计算WKB作用量积分，该积分是穿透概率P的关键组成部分，其表达式为S = ∫_{r_in}^{r_out} sqrt(2μ/ℏ^2 * (V_eff(r) - Q_α)) dr。 [Gap] 目前我们只有转折点的数值位置，尚未计算作用量积分。 [Decision] 因此，下一步应使用WKB作用量积分工具，基于有效势和转折点数值计算作用量S。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r)",
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "Q_value": "Q_α",
+        "reduced_mass": "μ"
+      },
+      "output_state": {
+        "WKB_action": "S = ∫_{r_in}^{r_out} √(2μ/ℏ² (V_eff(r) - Q_α)) dr"
+      },
+      "observation": "WKB作用量积分S已通过数值积分计算得到。该积分值将用于后续计算α粒子隧穿库仑势垒的穿透概率P = exp(-2S)。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 根据WKB近似，α粒子隧穿库仑势垒的穿透概率P与作用量积分S的关系为P = exp(-2S)。在之前的步骤中，我们已经通过数值积分得到了WKB作用量S。现在需要利用这个关系计算穿透概率，这是从作用量积分到半衰期计算的关键中间量。[Gap] 当前状态中已有WKB作用量S，但尚未计算穿透概率P。需要应用WKB隧穿公式将S转换为P。[Decision] 直接应用WKB近似中穿透概率与作用量积分的关系式，计算P = exp(-2S)。这是严格推导步骤，沿合法路径Path 1从action_integral到penetrability。",
+      "action": "rule_application",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {
+        "WKB_action": "S",
+        "formula": "P = exp(-2S)"
+      },
+      "output_state": {
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "通过WKB近似，α粒子隧穿库仑势垒的穿透概率P已由作用量积分S计算得到：P = exp(-2S)。该概率值介于0和1之间，反映了α粒子每次撞击势垒时成功隧穿的概率。接下来将结合预形成因子和撞击频率计算衰变宽度。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前已通过WKB近似计算得到α粒子隧穿库仑势垒的穿透概率P = exp(-2S)。根据α衰变理论，半衰期T_{1/2}与穿透概率P、预形成因子S_α以及撞击频率f相关，具体公式为T_{1/2} = ln2 / (f * S_α * P)。其中预形成因子S_α表示α粒子在母核表面预形成的概率，撞击频率f表示α粒子在势阱内撞击势垒的频率。 [Gap] 目前尚未计算预形成因子S_α和撞击频率f，这两个量是连接穿透概率与半衰期的关键桥梁。 [Decision] 根据合法推导路径，下一步应计算预形成因子S_α。论文中通常采用经验公式或微观模型（如BCS配对关联）来估计S_α。这里选择使用经验预形成因子模型，基于核质量数A和质子数Z的参数化公式。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "empirical",
+        "mass_number_A": "A",
+        "charge_number_Z": "Z"
+      },
+      "output_state": {
+        "preformation_factor": "S_α = exp[-a * A - b * Z + c]"
+      },
+      "observation": "采用经验预形成因子模型，其中a、b、c为拟合参数。对于Z=102-120超重核区，典型值约为a≈0.02, b≈0.01, c≈1.5，使得S_α量级在10^{-2}到10^{-1}之间。该因子反映了α粒子在核表面的形成概率，将用于后续半衰期计算。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 预测使用 empirical_halflife_formula -> NN_effective_interaction -> double_folding_integral -> effective_potential_assembly -> turning_point_solver -> WKB_action_integral -> penetrability_from_action -> preformation_factor_model 进行推导，与论文方法一致。[Gap] 分析方法选择正确的关键判断依据。[Decision] 预测与论文均从VSS经验公式出发，但论文实际推导中先使用VSS公式作为基准，再通过DDM3Y和双折叠积分进行微观修正，这与预测的步骤顺序一致。预测正确的原因在于初始条件提供了Q_α，而DDM3Y方法能更精确地描述α-子核势垒，符合论文对微观物理基础的需求。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "当已知衰变能Q_α且需要微观隧穿计算时，应优先选择DDM3Y有效相互作用结合双折叠积分构建核势，再通过WKB近似计算半衰期，而非仅依赖经验公式。"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 根据论文推导提取模式，目标是从质量数A、电荷数Z和衰变能Q_α出发，计算α衰变半衰期。论文中使用了VSS公式作为半衰期的经验公式，该公式直接关联半衰期与Q_α、A、Z。这是推导的起点，因为VSS公式是经过实验验证的可靠经验关系。 [Gap] 当前仅有初始条件（A, Z, Q_α），尚未应用任何公式。需要首先将VSS公式具体化，以便后续代入数值或与其他理论（如DDM3Y势垒穿透）结合。 [Decision] 因此，第一步是明确写出VSS公式的表达式，并确认其中各参数的含义和数值（如a, b, c, d, e等常数），为后续计算或比较做准备。这属于规则应用（rule_application），因为VSS公式是已知的经验规则。",
+      "action": "rule_application",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": "Viola-Seaborg-Sobiczewski (VSS) 公式"
+      },
+      "parameters": {
+        "formula": "\\log_{10} T_{1/2} = (aZ + b) Q_\\alpha^{-1/2} + (cZ + d) + e",
+        "constants": "a=1.66175, b=-8.5166, c=-0.20228, d=-33.9069, e=0 (对于偶偶核), 或根据奇偶性调整",
+        "reference": "Viola, V.E., Seaborg, G.T., J. Inorg. Nucl. Chem. 28, 741 (1966); Sobiczewski, A., et al., Phys. Lett. B 224, 1 (1989)"
+      },
+      "output_state": {
+        "half_life_VSS": "\\log_{10} T_{1/2}^{\\text{VSS}} = (aZ + b) Q_\\alpha^{-1/2} + (cZ + d) + e",
+        "Q_alpha": "Q_\\alpha \\text{ (从质量公式或实验得到)}",
+        "Z": "原子序数",
+        "A": "质量数"
+      },
+      "observation": "成功提取VSS公式，明确了半衰期与Q_α、Z的依赖关系。该公式将作为后续计算半衰期的基准或与DDM3Y势垒穿透结果比较的参考。\n[论文公式] Eq.(1): \\log_{10} T_{1/2} = (aZ + b) Q_\\alpha^{-1/2} + (cZ + d)",
+      "valid": true,
+      "step_mode": "citation",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在第一步中，我们建立了VSS经验公式作为半衰期的基准表达式。论文的核心方法之一是使用DDM3Y有效核相互作用来构建α-子核之间的核势垒，从而通过量子隧穿计算更微观的半衰期。DDM3Y相互作用是密度依赖的，需要与子核的密度分布进行双折叠积分才能得到核势。 [Gap] 目前我们只有半衰期的经验公式，但尚未引入DDM3Y相互作用的具体形式以及如何从它构建核势。需要明确DDM3Y相互作用的参数化形式，并说明如何将其与子核密度分布结合得到核势垒。 [Decision] 因此，下一步应定义DDM3Y有效核相互作用的表达式，并说明其密度依赖性和参数。这是后续进行双折叠积分计算核势的基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "NN_effective_interaction",
+        "version": ""
+      },
+      "parameters": {
+        "interaction_type": "DDM3Y",
+        "density_dependence": "finite_range",
+        "parameters": "v_00=11061.5 MeV·fm^3, v_01=-2537.5 MeV·fm^3, alpha=0.005 fm^-1, beta=0.010 fm^-1, gamma=0.010 fm^-1, t=1.5 fm (M3Y-Paris参数化)"
+      },
+      "output_state": {
+        "DDM3Y_interaction": "v_{DD}(\\rho, r) = t_{M3Y}(r) \\cdot g(\\rho) 其中 t_{M3Y}(r) = \\sum_{i=1}^3 V_i \\frac{e^{-\\mu_i r}}{\\mu_i r}  (M3Y-Paris: V_1=11061.5, \\mu_1=0.25 fm^{-1}; V_2=-2537.5, \\mu_2=0.4 fm^{-1}; V_3=0, \\mu_3=1.414 fm^{-1} 或使用M3Y-Reid参数) 密度依赖因子 g(\\rho) = C \\left[1 + \\alpha e^{-\\beta \\rho} + \\gamma \\rho \\right] 或 g(\\rho) = C (1 - \\beta \\rho^{2/3}) 等，具体形式由论文选择。",
+        "density_dependence_form": "g(\\rho) = C \\left[1 + \\alpha e^{-\\beta \\rho} + \\gamma \\rho \\right]  (DDM3Y1) 或 g(\\rho) = C (1 - \\beta \\rho^{2/3}) (DDM3Y2)"
+      },
+      "observation": "成功定义了DDM3Y有效核相互作用的形式，包括M3Y有限范围项和密度依赖因子。该相互作用将用于后续与子核密度分布进行双折叠积分，以构建α-子核之间的核势垒。\n[论文公式] Eq.(5): P = \\exp\\left[-2\\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r) - Q_\\alpha)} dr\\right]",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 我们已经建立了VSS半衰期经验公式（Step 1）和DDM3Y有效核相互作用的具体形式（Step 2）。为了计算α粒子隧穿库仑势垒的穿透概率，需要构建α-子核之间的总相互作用势，其中包括核势、库仑势和离心势。核势部分可以通过双折叠积分得到，即用DDM3Y有效相互作用与α粒子和子核的密度分布进行卷积。[Gap] 当前缺少α粒子和子核的密度分布模型，以及双折叠积分的具体实现方式。[Decision] 下一步应使用双折叠积分方法，结合合理的密度分布（如费米分布或高斯分布），计算α-子核之间的核势。这里选择采用双折叠积分工具，并假设α粒子密度为高斯分布，子核密度为费米分布，这是核物理中处理α衰变势垒的常用方法。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "interaction_type": "DDM3Y",
+        "projectile_density": "Gaussian: ρ_α(r) = 0.4229 exp(-0.7024 r^2) (fm^{-3})",
+        "target_density": "Fermi: ρ_t(r) = ρ_0 / [1 + exp((r - R_t)/a)] with R_t = 1.07 A_t^{1/3} fm, a = 0.54 fm",
+        "folding_method": "double_folding_integral"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(R) = ∫∫ ρ_α(r_1) ρ_t(r_2) v_{DD}(|R + r_2 - r_1|) d^3r_1 d^3r_2",
+        "total_potential": "V_total(R) = V_N(R) + V_C(R) + V_l(R)",
+        "coulomb_potential": "V_C(R) = Z_α Z_t e^2 / R for R > R_c, else uniform sphere approximation",
+        "centrifugal_potential": "V_l(R) = ℏ^2 l(l+1) / (2μ R^2)"
+      },
+      "observation": "成功构建了双折叠积分表达式，用于计算α-子核之间的核势V_N(R)。总势垒由核势、库仑势和离心势三部分叠加而成。后续需要数值计算双折叠积分，得到随距离R变化的势垒形状，进而求解隧穿穿透概率。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "通过直接测量已知短寿命α衰变核素的半衰期，例如使用硅探测器测量^{212}Po的衰变时间谱，将实验测得的T_{1/2}与模型预测的10^{-6} s和10^{-3} s量级值进行对比。若实验数据与预测值在误差范围内一致，则验证模型正确性。",
+    "metrics": {
+      "half_life": {
+        "value": "10^{-3} s 量级",
+        "unit": "Z=118, N=176附近，使用实验Q_α值",
+        "interpretation": "half_life; Z=114, N=184附近，使用Muntian-Hofmann-Patyk-Sobiczewski质量公式预测的Q_α"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：muntian_hofmann_patyk_sobiczewski_mass_formula；vss_formula。"
+  },
+  "paper_methods": [
+    "vss_formula",
+    "ddm3y_potential",
+    "muntian_hofmann_patyk_sobiczewski_mass_formula"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "vss_formula",
+        "desc": "Viola-Seaborg-Sobiczewski经验公式，将α衰变半衰期与衰变能Q_α关联"
+      },
+      {
+        "name": "ddm3y_potential",
+        "desc": "基于DDM3Y有效核相互作用的α-子核势垒模型，用于计算穿透概率"
+      },
+      {
+        "name": "muntian_hofmann_patyk_sobiczewski_mass_formula",
+        "desc": "Muntian-Hofmann-Patyk-Sobiczewski质量公式，用于预测超重核的Q_α值"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "\\log_{10} T_{1/2} = (aZ + b) Q_\\alpha^{-1/2} + (cZ + d)"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "P = \\exp\\left[-2\\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r) - Q_\\alpha)} dr\\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "10^{-6} s 量级",
+        "condition": "Z=114, N=184附近，使用Muntian-Hofmann-Patyk-Sobiczewski质量公式预测的Q_α"
+      },
+      {
+        "quantity": "half_life",
+        "value": "10^{-3} s 量级",
+        "condition": "Z=118, N=176附近，使用实验Q_α值"
+      }
+    ],
+    "failure_points": [
+      "muntian_hofmann_patyk_sobiczewski_mass_formula",
+      "vss_formula"
+    ]
+  }
+}

@@ -1,0 +1,814 @@
+{
+  "version": "2.0",
+  "design_philosophy": "每个tool是原子物理操作：明确的requires→provides，粒度统一，可通过DFS反向链式搜索拼接成完整推导链",
+  "physical_quantity_ontology": {
+    "_comment": "物理量层次树，用于匹配时的层次推理",
+    "nuclear_structure": {
+      "mass_number_A": {"type": "integer", "unit": null},
+      "charge_number_Z": {"type": "integer", "unit": null},
+      "neutron_number_N": {"type": "integer", "unit": null},
+      "nuclear_radius": {"type": "scalar", "unit": "fm", "children": ["charge_radius", "matter_radius", "half_density_radius"]},
+      "deformation_parameter": {"type": "scalar", "unit": null, "children": ["beta2", "beta4"]},
+      "spin_parity": {"type": "label", "unit": null},
+      "nucleon_density": {"type": "function_of_r", "unit": "fm^-3", "children": ["proton_density", "neutron_density", "matter_density"]},
+      "binding_energy": {"type": "scalar", "unit": "MeV", "children": ["total_binding_energy", "separation_energy", "shell_correction_energy", "pairing_energy"]},
+      "single_particle_levels": {"type": "spectrum", "unit": "MeV"}
+    },
+    "decay_quantities": {
+      "Q_value": {"type": "scalar", "unit": "MeV"},
+      "penetrability": {"type": "scalar", "unit": null, "range": "[0,1]"},
+      "preformation_factor": {"type": "scalar", "unit": null, "range": "[0,1]"},
+      "assault_frequency": {"type": "scalar", "unit": "s^-1"},
+      "decay_width": {"type": "scalar", "unit": "MeV"},
+      "alpha_decay_width": {"type": "scalar", "unit": "MeV", "parent": "decay_width"},
+      "transition_width": {"type": "scalar", "unit": "MeV", "parent": "decay_width"},
+      "decay_constant": {"type": "scalar", "unit": "s^-1"},
+      "activity": {"type": "scalar", "unit": "Bq"},
+      "remaining_fraction": {"type": "scalar", "unit": null, "range": "[0,1]"},
+      "equilibrium_abundance_ratio": {"type": "scalar", "unit": null},
+      "time_dependent_abundance": {"type": "function_of_t", "unit": null},
+      "kinetic_energy_products": {"type": "scalar_or_vector", "unit": "MeV"},
+      "reaction_rate": {"type": "scalar", "unit": "s^-1"},
+      "particle_flux": {"type": "scalar", "unit": "cm^-2 s^-1"},
+      "coulomb_barrier_height": {"type": "scalar", "unit": "MeV"},
+      "incident_energy": {"type": "scalar", "unit": "MeV"},
+      "momentum_transfer": {"type": "scalar", "unit": "MeV/c"},
+      "outgoing_energy": {"type": "scalar", "unit": "MeV"},
+      "scattered_photon_energy": {"type": "scalar", "unit": "MeV"},
+      "recoil_electron_energy": {"type": "scalar", "unit": "MeV"},
+      "differential_cross_section": {"type": "function_of_angle", "unit": "mb/sr"},
+      "stopping_power": {"type": "function_of_energy", "unit": "MeV/(g/cm^2)"},
+      "form_factor": {"type": "function_of_q2", "unit": null, "range": "[0,1]"},
+      "charge_radius": {"type": "scalar", "unit": "fm"},
+      "half_life": {"type": "scalar", "unit": "s"},
+      "decay_constant": {"type": "scalar", "unit": "s^-1"},
+      "branching_ratio": {"type": "scalar", "unit": null}
+    },
+    "potential_quantities": {
+      "nuclear_potential": {"type": "function_of_r", "unit": "MeV", "children": ["woods_saxon_potential", "folded_potential", "proximity_potential"]},
+      "coulomb_potential": {"type": "function_of_r", "unit": "MeV"},
+      "centrifugal_potential": {"type": "function_of_r", "unit": "MeV"},
+      "effective_potential": {"type": "function_of_r", "unit": "MeV", "composition": "nuclear + coulomb + centrifugal"},
+      "optical_potential": {"type": "complex_function_of_r", "unit": "MeV", "children": ["real_optical_potential", "imaginary_optical_potential", "spin_orbit_potential"]},
+      "nucleon_nucleon_interaction": {"type": "function_of_r", "unit": "MeV", "children": ["m3y_interaction", "ddm3y_interaction", "reid_potential"]}
+    },
+    "scattering_quantities": {
+      "cross_section": {"type": "function_of_angle_or_energy", "unit": "mb", "children": ["differential_cross_section", "total_cross_section", "reaction_cross_section", "elastic_cross_section"]},
+      "scattering_amplitude": {"type": "complex_function", "unit": "fm"},
+      "phase_shift": {"type": "scalar_per_l", "unit": "rad"},
+      "S_matrix_element": {"type": "complex_scalar_per_l", "unit": null},
+      "transmission_coefficient": {"type": "scalar_per_l", "unit": null, "range": "[0,1]"},
+      "optical_model_parameters": {"type": "parameter_set", "unit": "mixed"}
+    },
+    "ml_quantities": {
+      "training_dataset": {"type": "dataset", "unit": null},
+      "feature_vector": {"type": "vector", "unit": "mixed"},
+      "model_weights": {"type": "parameter_set", "unit": null},
+      "prediction_output": {"type": "scalar_or_vector", "unit": "varies"},
+      "loss_function_value": {"type": "scalar", "unit": null},
+      "model_uncertainty": {"type": "scalar", "unit": null}
+    },
+    "mathematical_objects": {
+      "wave_function": {"type": "function", "unit": "fm^-3/2", "children": ["single_particle_wavefunction", "cluster_wavefunction", "scattering_wavefunction"]},
+      "single_particle_wavefunction": {"type": "function", "unit": "fm^-3/2", "parent": "wave_function"},
+      "cluster_wavefunction": {"type": "function", "unit": "fm^-3/2", "parent": "wave_function"},
+      "scattering_wavefunction": {"type": "function", "unit": "fm^-3/2", "parent": "wave_function"},
+      "turning_points": {"type": "pair_of_scalars", "unit": "fm"},
+      "action_integral": {"type": "scalar", "unit": null},
+      "matrix_element": {"type": "scalar_or_complex", "unit": "varies"},
+      "chi_squared": {"type": "scalar", "unit": null},
+      "fitted_parameters": {"type": "parameter_set", "unit": "mixed"}
+    }
+  },
+  "tools": [
+
+    {"_section": "=== A. 核结构输入层 (Nuclear Structure Input) ==="},
+
+    {
+      "id": "T01",
+      "tool_name": "nuclear_radius_estimation",
+      "description": "从质量数A估算核半径 R = r0 * A^(1/3)",
+      "requires": ["mass_number_A"],
+      "provides": ["nuclear_radius"],
+      "constraints": {},
+      "category": "nuclear_structure"
+    },
+    {
+      "id": "T02",
+      "tool_name": "shell_model_filling",
+      "description": "根据Z,N填充壳模型能级，确定基态自旋宇称和价核子轨道",
+      "requires": ["charge_number_Z", "neutron_number_N"],
+      "provides": ["spin_parity", "single_particle_levels"],
+      "constraints": {"symmetry": "spherical_or_weak_deformation"},
+      "category": "nuclear_structure"
+    },
+    {
+      "id": "T03",
+      "tool_name": "bethe_weizsacker_mass_formula",
+      "description": "半经验质量公式计算结合能（体积+表面+库仑+对称+配对项）",
+      "requires": ["mass_number_A", "charge_number_Z"],
+      "provides": ["binding_energy", "pairing_energy"],
+      "constraints": {"regime": "empirical", "validity": "A > 12"},
+      "category": "nuclear_structure"
+    },
+    {
+      "id": "T04",
+      "tool_name": "Q_value_calculation",
+      "description": "从母核与子核结合能之差计算衰变Q值",
+      "requires": ["binding_energy"],
+      "provides": ["Q_value"],
+      "constraints": {},
+      "category": "decay"
+    },
+    {
+      "id": "T05",
+      "tool_name": "mean_field_density_calculation",
+      "description": "用平均场方法(RMF/HF/HFB)自洽求解核子密度分布",
+      "requires": ["mass_number_A", "charge_number_Z"],
+      "provides": ["nucleon_density", "single_particle_levels", "binding_energy"],
+      "constraints": {"method": "first_principles", "compute_cost": "high"},
+      "category": "nuclear_structure"
+    },
+    {
+      "id": "T06",
+      "tool_name": "deformation_parameter_extraction",
+      "description": "从实验数据或理论计算提取核形变参数beta2/beta4",
+      "requires": ["mass_number_A", "charge_number_Z"],
+      "provides": ["deformation_parameter"],
+      "constraints": {},
+      "category": "nuclear_structure"
+    },
+    {
+      "id": "T07",
+      "tool_name": "pairing_correlation_BCS",
+      "description": "BCS方法处理核子配对关联，计算配对能和准粒子谱",
+      "requires": ["single_particle_levels"],
+      "provides": ["pairing_energy", "single_particle_wavefunction"],
+      "constraints": {"regime": "first_principles"},
+      "category": "nuclear_structure"
+    },
+
+    {"_section": "=== B. 势能构建层 (Potential Construction) ==="},
+
+    {
+      "id": "T08",
+      "tool_name": "woods_saxon_parameterization",
+      "description": "用Woods-Saxon形式参数化核势（深度V0, 半径R, 弥散a）",
+      "requires": ["nuclear_radius", "mass_number_A"],
+      "provides": ["nuclear_potential"],
+      "constraints": {"form": "phenomenological"},
+      "category": "potential"
+    },
+    {
+      "id": "T09",
+      "tool_name": "double_folding_integral",
+      "description": "将核子密度与NN有效相互作用做空间折叠积分，得到微观核势",
+      "requires": ["nucleon_density", "nucleon_nucleon_interaction"],
+      "provides": ["nuclear_potential"],
+      "constraints": {"method": "microscopic", "requires_density": true},
+      "category": "potential"
+    },
+    {
+      "id": "T10",
+      "tool_name": "NN_effective_interaction",
+      "description": "选择或构建核子-核子有效相互作用(M3Y/DDM3Y/Reid等)",
+      "requires": ["nucleon_density", "single_particle_levels"],
+      "provides": ["nucleon_nucleon_interaction"],
+      "constraints": {},
+      "category": "potential"
+    },
+    {
+      "id": "T11",
+      "tool_name": "coulomb_potential_calculation",
+      "description": "计算均匀带电球或点电荷的库仑势",
+      "requires": ["charge_number_Z", "nuclear_radius"],
+      "provides": ["coulomb_potential"],
+      "constraints": {},
+      "category": "potential"
+    },
+    {
+      "id": "T12",
+      "tool_name": "centrifugal_potential_construction",
+      "description": "构建离心势 l(l+1)hbar^2/(2mu*r^2)",
+      "requires": ["spin_parity"],
+      "provides": ["centrifugal_potential"],
+      "constraints": {},
+      "category": "potential"
+    },
+    {
+      "id": "T13",
+      "tool_name": "effective_potential_assembly",
+      "description": "将核势+库仑势+离心势叠加为总有效势",
+      "requires": ["nuclear_potential", "coulomb_potential", "centrifugal_potential"],
+      "provides": ["effective_potential"],
+      "constraints": {},
+      "category": "potential"
+    },
+    {
+      "id": "T14",
+      "tool_name": "proximity_potential_calculation",
+      "description": "用邻近势公式计算两核表面间的核力势",
+      "requires": ["nuclear_radius", "mass_number_A", "charge_number_Z"],
+      "provides": ["nuclear_potential"],
+      "constraints": {"regime": "surface_interaction", "validity": "heavy_systems"},
+      "category": "potential"
+    },
+    {
+      "id": "T15",
+      "tool_name": "liquid_drop_potential",
+      "description": "液滴模型构建形变依赖的势能面(GLDM等)",
+      "requires": ["mass_number_A", "charge_number_Z", "deformation_parameter"],
+      "provides": ["effective_potential"],
+      "constraints": {"regime": "macroscopic"},
+      "category": "potential"
+    },
+    {
+      "id": "T16",
+      "tool_name": "optical_potential_construction",
+      "description": "构建光学模型势（实部+虚部+自旋轨道项）",
+      "requires": ["nuclear_potential", "mass_number_A", "charge_number_Z"],
+      "provides": ["optical_potential"],
+      "constraints": {"domain": "scattering"},
+      "category": "potential"
+    },
+    {
+      "id": "T17",
+      "tool_name": "deformation_potential_correction",
+      "description": "对球形势做形变修正（耦合通道或形变平均）",
+      "requires": ["nuclear_potential", "deformation_parameter"],
+      "provides": ["nuclear_potential"],
+      "constraints": {"applies_when": "deformed_nucleus"},
+      "category": "potential"
+    },
+
+    {"_section": "=== C. 隧穿与衰变计算层 (Tunneling & Decay) ==="},
+
+    {
+      "id": "T18",
+      "tool_name": "turning_point_solver",
+      "description": "求解V_eff(r) = Q的经典转折点r1, r2, r3",
+      "requires": ["effective_potential", "Q_value"],
+      "provides": ["turning_points"],
+      "constraints": {},
+      "category": "tunneling"
+    },
+    {
+      "id": "T19",
+      "tool_name": "WKB_action_integral",
+      "description": "在转折点间计算WKB作用量积分 G = (2/hbar) * integral[sqrt(2mu(V-Q))]dr",
+      "requires": ["effective_potential", "turning_points", "Q_value"],
+      "provides": ["action_integral"],
+      "constraints": {"validity": "slowly_varying_potential", "method": "semiclassical"},
+      "category": "tunneling"
+    },
+    {
+      "id": "T20",
+      "tool_name": "penetrability_from_action",
+      "description": "从WKB作用量计算穿透概率 P = exp(-2*G) 或 Hill-Wheeler公式",
+      "requires": ["action_integral"],
+      "provides": ["penetrability"],
+      "constraints": {},
+      "category": "tunneling"
+    },
+    {
+      "id": "T21",
+      "tool_name": "preformation_factor_model",
+      "description": "计算alpha粒子在母核内的预形成概率（团簇模型/经验公式）",
+      "requires": ["mass_number_A", "charge_number_Z", "binding_energy"],
+      "provides": ["preformation_factor"],
+      "constraints": {},
+      "category": "decay"
+    },
+    {
+      "id": "T22",
+      "tool_name": "assault_frequency_calculation",
+      "description": "计算alpha粒子撞击势垒的频率 nu = v/(2R)",
+      "requires": ["Q_value", "nuclear_radius"],
+      "provides": ["assault_frequency"],
+      "constraints": {},
+      "category": "decay"
+    },
+    {
+      "id": "T23",
+      "tool_name": "decay_width_formula",
+      "description": "从穿透概率、预形成因子、撞击频率计算衰变宽度 Gamma = hbar*nu*P*S",
+      "requires": ["penetrability", "preformation_factor", "assault_frequency"],
+      "provides": ["alpha_decay_width"],
+      "constraints": {},
+      "category": "decay"
+    },
+    {
+      "id": "T24",
+      "tool_name": "halflife_from_width",
+      "description": "从衰变宽度或衰变常数计算半衰期 T = hbar*ln2/Gamma",
+      "requires": ["alpha_decay_width"],
+      "provides": ["half_life"],
+      "constraints": {},
+      "category": "decay"
+    },
+    {
+      "id": "T25",
+      "tool_name": "empirical_halflife_formula",
+      "description": "经验半衰期公式(Viola-Seaborg/Geiger-Nuttall/Royer等)直接估算",
+      "requires": ["Q_value", "mass_number_A", "charge_number_Z"],
+      "provides": ["half_life"],
+      "constraints": {"regime": "empirical", "accuracy": "order_of_magnitude"},
+      "category": "decay"
+    },
+    {
+      "id": "T26",
+      "tool_name": "cluster_formation_probability",
+      "description": "团簇模型计算alpha团簇形成概率（RGM/GCM/THSR波函数）",
+      "requires": ["cluster_wavefunction", "mass_number_A"],
+      "provides": ["preformation_factor"],
+      "constraints": {"method": "microscopic_cluster"},
+      "category": "decay"
+    },
+    {
+      "id": "T27",
+      "tool_name": "R_matrix_decay_width",
+      "description": "R矩阵方法计算衰变宽度（约化宽度+穿透因子）",
+      "requires": ["cluster_wavefunction", "nuclear_radius", "penetrability"],
+      "provides": ["alpha_decay_width"],
+      "constraints": {"method": "R_matrix"},
+      "category": "decay"
+    },
+
+    {"_section": "=== D. 散射计算层 (Scattering) ==="},
+
+    {
+      "id": "T28",
+      "tool_name": "schrodinger_equation_solver",
+      "description": "数值求解径向薛定谔方程，得到散射波函数",
+      "requires": ["optical_potential", "Q_value", "spin_parity"],
+      "provides": ["scattering_wavefunction", "phase_shift"],
+      "constraints": {"method": "numerical"},
+      "category": "scattering"
+    },
+    {
+      "id": "T29",
+      "tool_name": "partial_wave_expansion",
+      "description": "将散射振幅按分波展开，从相移计算散射振幅",
+      "requires": ["phase_shift"],
+      "provides": ["scattering_amplitude"],
+      "constraints": {},
+      "category": "scattering"
+    },
+    {
+      "id": "T30",
+      "tool_name": "cross_section_from_amplitude",
+      "description": "从散射振幅计算微分截面和总截面",
+      "requires": ["scattering_amplitude"],
+      "provides": ["cross_section"],
+      "constraints": {},
+      "category": "scattering"
+    },
+    {
+      "id": "T31",
+      "tool_name": "optical_model_fitting",
+      "description": "拟合光学势参数使理论截面最佳符合实验数据",
+      "requires": ["cross_section", "optical_potential"],
+      "provides": ["optical_model_parameters", "chi_squared"],
+      "constraints": {"requires_experimental_data": true},
+      "category": "scattering"
+    },
+    {
+      "id": "T32",
+      "tool_name": "reaction_cross_section_calculation",
+      "description": "从S矩阵或透射系数计算反应截面",
+      "requires": ["transmission_coefficient"],
+      "provides": ["cross_section"],
+      "constraints": {},
+      "category": "scattering"
+    },
+    {
+      "id": "T33",
+      "tool_name": "transmission_coefficient_from_potential",
+      "description": "从光学势计算各分波透射系数",
+      "requires": ["optical_potential"],
+      "provides": ["transmission_coefficient"],
+      "constraints": {},
+      "category": "scattering"
+    },
+    {
+      "id": "T34",
+      "tool_name": "folding_model_optical_potential",
+      "description": "用折叠模型从基态密度构建微观光学势",
+      "requires": ["nucleon_density", "nucleon_nucleon_interaction"],
+      "provides": ["optical_potential"],
+      "constraints": {"method": "microscopic"},
+      "category": "scattering"
+    },
+    {
+      "id": "T35",
+      "tool_name": "dispersive_optical_model",
+      "description": "色散光学模型：实部虚部通过色散关系自洽关联",
+      "requires": ["optical_model_parameters"],
+      "provides": ["optical_potential"],
+      "constraints": {"method": "dispersive", "energy_range": "wide"},
+      "category": "scattering"
+    },
+
+    {"_section": "=== E. 机器学习层 (Machine Learning Pipeline) ==="},
+
+    {
+      "id": "T36",
+      "tool_name": "feature_engineering",
+      "description": "从核结构量(Z,N,A,delta,pairing等)构建ML特征向量",
+      "requires": ["mass_number_A", "charge_number_Z", "neutron_number_N"],
+      "provides": ["feature_vector"],
+      "constraints": {"domain": "ML"},
+      "category": "ml"
+    },
+    {
+      "id": "T37",
+      "tool_name": "training_data_preparation",
+      "description": "从实验数据库(AME/NUBASE/ENSDF)准备训练集",
+      "requires": ["feature_vector"],
+      "provides": ["training_dataset"],
+      "constraints": {"domain": "ML", "requires_experimental_data": true},
+      "category": "ml"
+    },
+    {
+      "id": "T38",
+      "tool_name": "neural_network_training",
+      "description": "训练神经网络(MLP/BNN/CNN)学习核性质映射",
+      "requires": ["training_dataset"],
+      "provides": ["model_weights", "loss_function_value"],
+      "constraints": {"domain": "ML"},
+      "category": "ml"
+    },
+    {
+      "id": "T39",
+      "tool_name": "model_prediction",
+      "description": "用训练好的模型预测新核素的性质(半衰期/结合能/截面等)",
+      "requires": ["model_weights", "feature_vector"],
+      "provides": ["prediction_output", "model_uncertainty"],
+      "constraints": {"domain": "ML"},
+      "category": "ml"
+    },
+    {
+      "id": "T40",
+      "tool_name": "cross_validation_evaluation",
+      "description": "交叉验证评估模型泛化能力",
+      "requires": ["model_weights", "training_dataset"],
+      "provides": ["chi_squared", "model_uncertainty"],
+      "constraints": {"domain": "ML"},
+      "category": "ml"
+    },
+    {
+      "id": "T41",
+      "tool_name": "bayesian_uncertainty_quantification",
+      "description": "贝叶斯方法量化预测不确定度",
+      "requires": ["model_weights", "training_dataset"],
+      "provides": ["model_uncertainty", "prediction_output"],
+      "constraints": {"domain": "ML", "method": "bayesian"},
+      "category": "ml"
+    },
+
+    {"_section": "=== F. 数学操作层 (Mathematical Operations) ==="},
+
+    {
+      "id": "T42",
+      "tool_name": "numerical_integration",
+      "description": "数值积分（高斯求积/Simpson/自适应）",
+      "requires": ["effective_potential", "turning_points"],
+      "provides": ["action_integral"],
+      "constraints": {"method": "numerical"},
+      "category": "math"
+    },
+    {
+      "id": "T43",
+      "tool_name": "eigenvalue_solver",
+      "description": "求解本征值问题（束缚态能级、共振态）",
+      "requires": ["effective_potential", "spin_parity"],
+      "provides": ["single_particle_wavefunction", "single_particle_levels"],
+      "constraints": {},
+      "category": "math"
+    },
+    {
+      "id": "T44",
+      "tool_name": "chi_squared_minimization",
+      "description": "最小二乘拟合，优化参数使chi^2最小",
+      "requires": ["prediction_output"],
+      "provides": ["fitted_parameters", "chi_squared"],
+      "constraints": {"requires_experimental_data": true},
+      "category": "math"
+    },
+    {
+      "id": "T45",
+      "tool_name": "matrix_element_calculation",
+      "description": "计算算符在波函数间的矩阵元",
+      "requires": ["cluster_wavefunction"],
+      "provides": ["matrix_element"],
+      "constraints": {},
+      "category": "math"
+    },
+
+    {"_section": "=== G. 验证与比较层 (Verification) ==="},
+
+    {
+      "id": "T46",
+      "tool_name": "experimental_comparison",
+      "description": "将理论计算结果与实验数据对比，计算偏差",
+      "requires": ["half_life"],
+      "provides": ["chi_squared"],
+      "constraints": {"requires_experimental_data": true},
+      "category": "verification"
+    },
+    {
+      "id": "T47",
+      "tool_name": "systematic_trend_analysis",
+      "description": "分析物理量随Z/N/A的系统学趋势",
+      "requires": ["half_life", "mass_number_A"],
+      "provides": ["fitted_parameters"],
+      "constraints": {},
+      "category": "verification"
+    },
+    {
+      "id": "T48",
+      "tool_name": "dimensional_analysis_check",
+      "description": "量纲分析验证公式正确性",
+      "requires": [],
+      "provides": [],
+      "constraints": {"role": "verification_only"},
+      "category": "verification"
+    },
+    {
+      "id": "T49",
+      "tool_name": "limiting_case_verification",
+      "description": "检验极限情况（A→∞, l=0, 球形极限等）下结果是否合理",
+      "requires": [],
+      "provides": [],
+      "constraints": {"role": "verification_only"},
+      "category": "verification"
+    },
+
+    {"_section": "=== H. 宏观-微观混合层 (Macro-Micro Hybrid) ==="},
+
+    {
+      "id": "T50",
+      "tool_name": "macroscopic_microscopic_method",
+      "description": "宏观液滴能量+微观壳修正+配对修正",
+      "requires": ["mass_number_A", "charge_number_Z", "deformation_parameter"],
+      "provides": ["binding_energy", "effective_potential"],
+      "constraints": {"method": "mac_mic"},
+      "category": "hybrid"
+    },
+    {
+      "id": "T51",
+      "tool_name": "shell_correction_strutinsky",
+      "description": "Strutinsky壳修正方法计算壳效应能量",
+      "requires": ["single_particle_levels"],
+      "provides": ["binding_energy"],
+      "constraints": {"method": "strutinsky"},
+      "category": "hybrid"
+    },
+    {
+      "id": "T52",
+      "tool_name": "cranking_inertia_calculation",
+      "description": "Cranking模型计算集体运动惯性参数",
+      "requires": ["single_particle_levels", "deformation_parameter"],
+      "provides": ["assault_frequency"],
+      "constraints": {"method": "cranking"},
+      "category": "hybrid"
+    },
+
+    {"_section": "=== I. 团簇与预形成层 (Cluster & Preformation) ==="},
+
+    {
+      "id": "T53",
+      "tool_name": "RGM_cluster_wave_function",
+      "description": "共振群方法(RGM)计算alpha-核相对运动波函数",
+      "requires": ["nucleon_density", "mass_number_A", "single_particle_levels", "nucleon_nucleon_interaction"],
+      "provides": ["cluster_wavefunction"],
+      "constraints": {"method": "microscopic_cluster"},
+      "category": "cluster"
+    },
+    {
+      "id": "T54",
+      "tool_name": "THSR_wave_function",
+      "description": "THSR(Tohsaki-Horiuchi-Schuck-Ropke)团簇波函数",
+      "requires": ["mass_number_A", "charge_number_Z"],
+      "provides": ["cluster_wavefunction", "preformation_factor"],
+      "constraints": {"method": "THSR", "validity": "light_alpha_nuclei"},
+      "category": "cluster"
+    },
+    {
+      "id": "T55",
+      "tool_name": "spectroscopic_factor_extraction",
+      "description": "从壳模型重叠积分提取谱因子",
+      "requires": ["single_particle_wavefunction"],
+      "provides": ["preformation_factor"],
+      "constraints": {"method": "shell_model_overlap"},
+      "category": "cluster"
+    },
+    {
+      "id": "T56",
+      "tool_name": "Wildermuth_condition",
+      "description": "Wildermuth条件确定团簇相对运动量子数",
+      "requires": ["spin_parity", "mass_number_A"],
+      "provides": ["cluster_wavefunction"],
+      "constraints": {"method": "cluster_quantum_numbers"},
+      "category": "cluster"
+    },
+
+    {"_section": "=== J. 统计模型与多体层 (Many-Body & Statistical) ==="},
+
+    {
+      "id": "T57",
+      "tool_name": "statistical_model_decay",
+      "description": "统计模型(Hauser-Feshbach)计算复合核衰变分支比",
+      "requires": ["transmission_coefficient", "single_particle_levels"],
+      "provides": ["branching_ratio", "cross_section"],
+      "constraints": {"regime": "compound_nucleus"},
+      "category": "many_body"
+    },
+    {
+      "id": "T58",
+      "tool_name": "QRPA_transition_strength",
+      "description": "准粒子无规相位近似计算跃迁强度",
+      "requires": ["single_particle_levels", "pairing_energy"],
+      "provides": ["matrix_element", "transition_width"],
+      "constraints": {"method": "QRPA"},
+      "category": "many_body"
+    },
+    {
+      "id": "T59",
+      "tool_name": "coupled_channel_calculation",
+      "description": "耦合通道方法处理非弹性散射和形变效应",
+      "requires": ["optical_potential", "deformation_parameter"],
+      "provides": ["cross_section", "transmission_coefficient"],
+      "constraints": {"method": "coupled_channels"},
+      "category": "scattering"
+    },
+    {
+      "id": "T60",
+      "tool_name": "Brueckner_G_matrix",
+      "description": "Brueckner G矩阵方法计算核物质中有效相互作用",
+      "requires": ["nucleon_density", "single_particle_levels", "nucleon_nucleon_interaction"],
+      "provides": ["nucleon_nucleon_interaction"],
+      "constraints": {"method": "Brueckner", "regime": "nuclear_matter"},
+      "category": "many_body"
+    },
+    {
+      "id": "T61",
+      "tool_name": "no_core_shell_model",
+      "description": "无核心壳模型(NCSM)从头计算轻核结构",
+      "requires": ["nucleon_nucleon_interaction", "mass_number_A"],
+      "provides": ["binding_energy", "single_particle_wavefunction", "single_particle_levels"],
+      "constraints": {"method": "ab_initio", "validity": "A_less_than_20"},
+      "category": "many_body"
+    },
+    {
+      "id": "T62",
+      "tool_name": "interacting_boson_model",
+      "description": "相互作用玻色子模型(IBM)描述集体激发态",
+      "requires": ["mass_number_A", "charge_number_Z"],
+      "provides": ["single_particle_levels", "deformation_parameter"],
+      "constraints": {"method": "IBM", "regime": "collective"},
+      "category": "many_body"
+    },
+    {
+      "id": "T63",
+      "tool_name": "decay_kinematics",
+      "description": "利用能量-动量守恒计算衰变/反应产物的动能分配（可从Q值或结合能差出发）",
+      "requires": ["mass_number_A"],
+      "provides": ["kinetic_energy_products", "Q_value"],
+      "constraints": {},
+      "category": "decay_kinetics"
+    },
+    {
+      "id": "T64",
+      "tool_name": "decay_constant_from_halflife",
+      "description": "从半衰期计算衰变常数 λ=ln2/T_{1/2}",
+      "requires": ["half_life"],
+      "provides": ["decay_constant"]
+    },
+    {
+      "id": "T65",
+      "tool_name": "decay_activity_calculation",
+      "description": "从衰变常数或半衰期计算活度 A=λN 及剩余核数 N(t)=N0·exp(-λt)",
+      "requires": [],
+      "provides": ["activity", "remaining_fraction", "decay_constant"],
+      "constraints": {},
+      "category": "decay_kinetics"
+    },
+    {
+      "id": "T66",
+      "tool_name": "secular_equilibrium",
+      "description": "久期平衡条件：母核与子核活度相等，计算平衡时各代核素数目比",
+      "requires": [],
+      "provides": ["equilibrium_abundance_ratio"],
+      "constraints": {"regime": "secular_equilibrium", "condition": "T_parent >> T_daughter"},
+      "category": "decay_kinetics"
+    },
+    {
+      "id": "T67",
+      "tool_name": "bateman_equation_solution",
+      "description": "求解衰变链的Bateman方程，给出各代核素的时间演化",
+      "requires": [],
+      "provides": ["time_dependent_abundance"],
+      "constraints": {"method": "bateman_equation"},
+      "category": "decay_kinetics"
+    },
+    {
+      "id": "T68",
+      "tool_name": "reaction_rate_calculation",
+      "description": "从反应截面和粒子通量计算核反应率 R=Φ·n·σ",
+      "requires": ["cross_section", "particle_flux"],
+      "provides": ["reaction_rate"],
+      "constraints": {},
+      "category": "reaction"
+    },
+    {
+      "id": "T69",
+      "tool_name": "scattering_kinematics",
+      "description": "利用能量-动量守恒计算散射后的动量转移和出射能量",
+      "requires": ["incident_energy", "mass_number_A"],
+      "provides": ["momentum_transfer", "outgoing_energy"],
+      "constraints": {},
+      "category": "scattering_kinematics"
+    },
+    {
+      "id": "T70",
+      "tool_name": "coulomb_barrier_estimate",
+      "description": "估算库仑势垒高度 V_C≈Z₁Z₂e²/R（简化公式）",
+      "requires": ["charge_number_Z", "nuclear_radius"],
+      "provides": ["coulomb_barrier_height"],
+      "constraints": {"approximation": "point_charge"},
+      "category": "potential"
+    },
+    {
+      "id": "T71",
+      "tool_name": "compton_scattering",
+      "description": "康普顿散射运动学：从入射光子能量和散射角计算散射光子能量和反冲电子能量",
+      "requires": ["incident_energy"],
+      "provides": ["scattered_photon_energy", "recoil_electron_energy"],
+      "constraints": {"process": "compton"},
+      "category": "scattering_kinematics"
+    },
+    {
+      "id": "T72",
+      "tool_name": "mott_cross_section",
+      "description": "Mott散射微分截面：考虑自旋的库仑散射截面修正",
+      "requires": ["charge_number_Z", "incident_energy"],
+      "provides": ["differential_cross_section"],
+      "constraints": {"method": "mott", "regime": "relativistic_point_charge"},
+      "category": "scattering_kinematics"
+    },
+    {
+      "id": "T73",
+      "tool_name": "energy_loss_calculation",
+      "description": "计算带电粒子在物质中的能量损失（Bethe-Bloch公式）",
+      "requires": ["charge_number_Z", "incident_energy"],
+      "provides": ["stopping_power"],
+      "constraints": {"method": "bethe_bloch"},
+      "category": "scattering_kinematics"
+    },
+    {
+      "id": "T74",
+      "tool_name": "form_factor_extraction",
+      "description": "从电子散射截面提取形状因子，反推核电荷分布均方半径",
+      "requires": ["cross_section", "momentum_transfer"],
+      "provides": ["form_factor", "charge_radius"],
+      "constraints": {},
+      "category": "scattering_kinematics"
+    }
+  ],
+
+  "composite_tool_decomposition": {
+    "_comment": "Research层常见复合方法 → 原子tool序列的映射",
+    "double_folding_model": ["T05", "T10", "T09", "T11", "T12", "T13"],
+    "generalized_liquid_drop_model": ["T03", "T06", "T15", "T18", "T19", "T20"],
+    "WKB_alpha_decay_full": ["T03", "T04", "T08_or_T09", "T11", "T12", "T13", "T18", "T19", "T20", "T21", "T22", "T23", "T24"],
+    "cluster_model_decay": ["T05", "T53_or_T54", "T26", "T09", "T13", "T18", "T19", "T20", "T27"],
+    "optical_model_scattering": ["T05", "T10", "T34", "T28", "T29", "T30", "T31"],
+    "ML_halflife_prediction": ["T36", "T37", "T38", "T40", "T39"],
+    "mac_mic_fission_barrier": ["T06", "T50", "T51", "T52", "T18", "T19", "T20"]
+  },
+
+  "context_constraints": {
+    "_comment": "宏观物理背景对tool的约束（C矩阵的规则化表达）",
+    "deformed_nucleus": {
+      "blocked": ["T02"],
+      "required": ["T06", "T17"],
+      "note": "形变核必须考虑形变修正，球形壳模型不适用"
+    },
+    "superheavy_nucleus": {
+      "preferred": ["T05", "T09"],
+      "discouraged": ["T25"],
+      "note": "超重核经验公式外推不可靠，优先微观方法"
+    },
+    "light_nucleus": {
+      "preferred": ["T53", "T54", "T61"],
+      "discouraged": ["T15", "T50"],
+      "note": "轻核液滴模型不适用，优先团簇/从头计算"
+    },
+    "empirical_regime": {
+      "preferred": ["T03", "T08", "T14", "T25"],
+      "discouraged": ["T05", "T61"],
+      "note": "经验方法主导时不需要昂贵的第一性原理计算"
+    }
+  }
+}
