@@ -1,0 +1,549 @@
+{
+  "id": "NPP_0016",
+  "meta": {
+    "id": "NPP_0016",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "Machine Learning-Driven High-Precision Model for",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2508.03155"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T13:12:20.434381",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变能与半衰期",
+    "input_data": "已知条件：评估核数据与形变表；关键结构相关特征包括幻数邻近度、最小轨道角动量转移、同位旋不对称性和四极形变。",
+    "user_intent": "现有广泛使用的经验关系（如Royer公式和普适衰变定律）存在预测误差，需要一种在实验数据稀缺区域也能准确预测α衰变系统学的方法。",
+    "quantifiable_goal": "预测α衰变能 Q_α（单位：MeV）与α衰变半衰期 T_{1/2}（单位：s）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是从给定的核素信息（质量数A、电荷数Z、中子数N、形变参数）出发，计算α衰变半衰期。论文方法结合了WKB近似、Gamow理论、XGBoost算法和特征工程。合法路径中，half_life可以通过alpha_decay_width、penetrability、action_integral等步骤推导，也可以直接通过经验公式或机器学习预测。由于论文明确使用了XGBoost算法和特征工程，且初始条件包含形变参数，第一步应构建特征向量，为后续机器学习模型提供输入。 [Gap] 当前没有已生成的步骤，需要从初始条件出发，提取与α衰变相关的特征。 [Decision] 选择特征工程工具，将初始条件（A, Z, N, β₂）转化为模型可用的特征向量，包括质量数、电荷数、中子数、形变参数以及可能导出的同位旋不对称性等。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "deformation_parameter": "β₂",
+        "additional_features": [
+          "isotopic_asymmetry = (N - Z)/A",
+          "Q_value_empirical_estimate"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "x = [A, Z, N, β₂, (N-Z)/A, Q_emp]"
+      },
+      "observation": "构建了包含质量数、电荷数、中子数、四极形变参数、同位旋不对称性以及经验Q值估计的特征向量，为后续XGBoost模型预测半衰期做准备。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在构建了特征向量后，需要确定目标物理量半衰期的预测路径。根据合法推导路径，half_life 可以通过 Q_value 和 binding_energy 等核结构量计算，也可以通过机器学习模型直接预测。论文方法中明确使用了 XGBoost 算法，因此应沿机器学习路径进行。 [Gap] 当前已有特征向量，但缺乏训练数据集和模型参数，无法直接进行预测。需要先准备训练数据，包括输入特征和对应的半衰期标签。 [Decision] 选择沿 Path 3 或 Path 5 前进，下一步应使用 ml_data_acquisition 工具获取训练数据集，该数据集应包含已知核素的 α 衰变半衰期实验值及对应的特征向量。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": "1.0"
+      },
+      "parameters": {
+        "source": "实验数据库（如NuDat、ENSDF）",
+        "features": [
+          "A",
+          "Z",
+          "N",
+          "β₂",
+          "(N-Z)/A",
+          "Q_emp"
+        ],
+        "target": "half_life",
+        "filter_criteria": "Z≥84，实验半衰期已知"
+      },
+      "output_state": {
+        "training_dataset": "包含特征向量和对应半衰期实验值的集合"
+      },
+      "observation": "从实验数据库中获取了超重核区及附近核素的α衰变半衰期数据，构建了训练数据集，包含输入特征和标签。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在构建了特征向量和获取了训练数据集后，需要选择合适的机器学习模型来建立特征与半衰期之间的映射关系。论文中明确使用了XGBoost算法，这是一种基于梯度提升决策树的集成学习方法，适合处理表格数据且能有效捕捉特征间的非线性关系。[Gap] 当前步骤需要从候选模型中选择XGBoost作为核心预测模型，并确定其基本配置。[Decision] 因此，我将选择XGBoost模型，并设定其基本参数框架，为后续训练做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "XGBoost",
+        "objective": "reg:squarederror",
+        "max_depth": 6,
+        "learning_rate": 0.1,
+        "n_estimators": 500,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8
+      },
+      "output_state": {
+        "model_weights": "待训练初始化",
+        "loss_function_value": "待计算"
+      },
+      "observation": "选择了XGBoost回归模型，设定目标函数为均方误差，树最大深度为6，学习率0.1，树数量500，样本和特征采样率均为0.8，为后续训练和超参数调优奠定基础。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 我们已经构建了特征向量、获取了训练数据集并选择了XGBoost模型结构。接下来需要训练模型以得到权重，从而能够进行预测。[Gap] 当前模型权重尚未确定，损失函数值也未计算，需要执行训练过程。[Decision] 使用ml_neural_network_training工具（尽管XGBoost是树集成模型，但该工具可泛化为训练过程），通过训练数据拟合模型，得到训练后的模型权重和损失函数值。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "XGBoost",
+        "training_data": "training_dataset",
+        "features": "feature_vector",
+        "target": "half_life",
+        "hyperparameters": {
+          "objective": "reg:squarederror",
+          "max_depth": 6,
+          "learning_rate": 0.1,
+          "n_estimators": 500,
+          "subsample": 0.8,
+          "colsample_bytree": 0.8
+        }
+      },
+      "output_state": {
+        "model_weights": "训练后的XGBoost模型参数（树结构、叶子权重等）",
+        "loss_function_value": "训练集上的均方误差值"
+      },
+      "observation": "使用训练数据集对XGBoost模型进行训练，通过梯度提升算法优化树结构，得到训练后的模型权重和损失函数值。训练完成后，模型可用于预测新核素的α衰变半衰期。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 在完成XGBoost模型训练后，下一步是利用训练好的模型对目标核素进行半衰期预测。根据合法推导路径，prediction_output可以通过模型预测直接得到，而模型预测需要输入特征向量。当前状态已有训练好的模型权重和损失函数值，以及之前构建的特征向量。 [Gap] 需要将目标核素的特征向量输入到训练好的XGBoost模型中，执行预测过程，得到预测的半衰期值及其不确定性。 [Decision] 使用ml_direct_prediction工具，将特征向量输入到训练好的XGBoost模型中，得到预测的半衰期值，并利用XGBoost内置的方差估计或分位数回归方法获得模型不确定性。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {
+        "feature_vector": "x = [A, Z, N, β₂, (N-Z)/A, Q_emp]",
+        "model_weights": "训练后的XGBoost模型参数",
+        "prediction_type": "回归预测，同时输出预测均值和不确定性（标准差）"
+      },
+      "output_state": {
+        "prediction_output": "T_{1/2}^{pred} = f_{XGBoost}(x)",
+        "model_uncertainty": "σ_{pred} = 模型输出的标准差（通过分位数回归或方差估计得到）"
+      },
+      "observation": "将目标核素的特征向量输入训练好的XGBoost模型，得到α衰变半衰期的预测值T_{1/2}^{pred}及其不确定性σ_{pred}。该预测值可直接与实验值比较，或用于未知核素的半衰期估计。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已通过XGBoost模型直接预测得到目标核素的α衰变半衰期预测值及其不确定性。然而，纯机器学习预测可能缺乏物理约束，尤其在超重核区外推时可能产生非物理解。论文方法中同时使用了WKB近似和Gamow理论，因此需要将物理模型预测与机器学习预测进行混合校正，以提高预测的可靠性和可解释性。 [Gap] 目前仅有纯数据驱动的预测结果，尚未引入基于量子隧穿理论的物理修正。 [Decision] 采用ml_physics_hybrid_correction工具，将WKB隧穿概率计算得到的半衰期作为物理先验，与XGBoost预测结果进行贝叶斯融合或残差校正，得到最终的混合预测半衰期。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_physics_hybrid_correction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "ml_prediction": "T_{1/2}^{pred} = f_{XGBoost}(x)",
+        "physical_model": "T_{1/2}^{WKB} = \\frac{\\hbar \\ln 2}{\\Gamma_{WKB}}",
+        "correction_method": "残差学习：Δlog T_{1/2} = log T_{1/2}^{exp} - log T_{1/2}^{WKB}，用XGBoost预测Δlog T_{1/2}，最终预测为log T_{1/2}^{hybrid} = log T_{1/2}^{WKB} + Δlog T_{1/2}^{pred}"
+      },
+      "output_state": {
+        "hybrid_prediction": "T_{1/2}^{hybrid} = 10^{\\log_{10} T_{1/2}^{WKB} + \\Delta \\log_{10} T_{1/2}^{pred}}",
+        "model_uncertainty": "σ_{hybrid} = \\sqrt{σ_{WKB}^2 + σ_{pred}^2}"
+      },
+      "observation": "通过物理混合校正，将WKB理论计算的半衰期作为基线，用XGBoost模型预测理论值与实验值之间的残差，从而得到融合物理规律和数据驱动信息的混合预测半衰期T_{1/2}^{hybrid}及其综合不确定性。该方法在超重核区外推时能保持物理趋势，同时利用数据提升精度。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测认为论文方法同时使用了WKB近似和Gamow理论，并试图将物理模型预测与机器学习预测进行混合校正。然而，论文实际推导中，WKB/Gamow理论用于计算半衰期的物理特征（如穿透概率、预形成因子等），这些特征作为XGBoost模型的输入，而非与机器学习预测结果进行后处理融合。预测中的'物理混合校正'步骤误解了论文中物理与机器学习的结合方式，将物理模型视为独立预测并与ML结果融合，而论文是将物理量作为特征嵌入到ML模型中，属于特征工程层面的结合，不是预测结果层面的混合。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已通过XGBoost模型直接预测得到半衰期预测值及其不确定性，并通过物理混合校正将WKB理论计算与机器学习残差预测结合，得到了混合预测半衰期。然而，混合预测的综合不确定性σ_hybrid目前仅通过简单平方和合成，未考虑两种预测之间的相关性或模型偏差。此外，为了验证混合预测的可靠性，需要与实验数据或系统学趋势进行对比，评估预测精度并识别可能的系统偏差。[Gap] 目前缺少对混合预测结果的验证步骤，无法确认其是否优于纯理论或纯机器学习预测，也无法量化模型在目标核素上的具体误差。[Decision] 因此，下一步应进行系统趋势分析和实验比较，通过对比混合预测值与已知实验数据（或系统学经验公式）的偏差，评估模型性能，并检查是否存在与质量数、中子数或形变参数相关的系统误差。",
+      "action": "verification",
+      "tool": {
+        "name": "systematic_trend_analysis",
+        "version": ""
+      },
+      "parameters": {
+        "hybrid_prediction": "T_{1/2}^{hybrid}",
+        "experimental_data": "已知超重核α衰变半衰期实验值（来自文献）",
+        "analysis_type": "残差与质量数、中子数、形变参数的相关性分析"
+      },
+      "output_state": {
+        "systematic_deviation": "δ = log10(T_{1/2}^{hybrid}) - log10(T_{1/2}^{exp})",
+        "trend_indicators": "残差随A、N、β2的变化趋势（线性拟合斜率、显著性水平）",
+        "model_bias": "平均偏差和均方根误差（RMSE）"
+      },
+      "observation": "通过系统趋势分析，计算混合预测半衰期与实验值的对数偏差δ，并绘制δ随质量数A、中子数N和四极形变参数β2的散点图。若δ无明显系统趋势（如随A单调变化），则表明混合模型较好地捕捉了物理规律；若存在趋势，则提示模型可能遗漏了某些关键特征（如壳效应或对关联）。同时计算平均偏差和RMSE，量化预测精度。该步骤为后续模型改进或不确定性校准提供依据。",
+      "step_mode": "consistency_check",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 在完成混合预测和系统趋势分析后，需要进一步验证模型预测的物理合理性，特别是针对超重核区实验数据稀缺的情况。半衰期预测的最终目标是通过与实验值比较来评估模型性能，并给出可靠的预测结果。[Gap] 当前步骤已经得到了混合预测半衰期及其不确定性，以及系统偏差分析，但尚未与实验值进行直接的定量比较，也未给出最终的预测输出。[Decision] 因此，下一步应进行实验比较，将混合预测结果与已知实验数据对比，计算预测精度指标，并输出最终的半衰期预测值。",
+      "action": "verification",
+      "tool": {
+        "name": "experimental_comparison",
+        "version": ""
+      },
+      "parameters": {
+        "predicted_values": "T_{1/2}^{hybrid}",
+        "experimental_data": "已知超重核α衰变半衰期实验值",
+        "comparison_metrics": "平均偏差、均方根误差、相关系数"
+      },
+      "output_state": {
+        "final_prediction": "T_{1/2}^{final} = T_{1/2}^{hybrid} \\pm \\sigma_{hybrid}",
+        "prediction_accuracy": "RMSE = \\sqrt{\\frac{1}{N}\\sum_{i=1}^N (\\log_{10} T_{1/2,i}^{hybrid} - \\log_{10} T_{1/2,i}^{exp})^2}",
+        "validation_status": "模型预测与实验值在误差范围内一致，无明显系统偏差"
+      },
+      "observation": "将混合预测半衰期与已知实验值进行对比，计算均方根误差（RMSE）和平均偏差。若RMSE在合理范围内（如<0.5个数量级），且偏差无明显系统趋势，则验证了模型的有效性。最终输出半衰期预测值及其不确定性，用于未知核素的α衰变半衰期估计。 [DONE]",
+      "valid": true,
+      "step_mode": "consistency_check",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：采用ml_physics_hybrid_correction工具，将WKB隧穿概率计算得到的半衰期作为物理先验，与XGBoost预测结果进行贝叶斯融合或残差校正。当时已知的条件包括：已通过XGBoost模型直接预测得到目标核素的α衰变半衰期预测值及其不确定性；论文方法中同时使用了WKB近似和Gamow理论；尚未引入基于量子隧穿理论的物理修正。。[Gap] 错过的信号：在步骤6之前，步骤5的XGBoost预测中并未提及任何物理特征（如Q_α、穿透概率、预形成因子等）作为输入，而论文标题和背景强调“结合WKB近似和XGBoost算法”。这种特征缺失本应触发警觉：物理与ML的结合可能发生在特征层面而非结果层面，因为如果物理模型是独立预测再融合，那么XGBoost的输入特征中应该已经包含了物理量，但步骤5的观察中只提到“纯数据驱动预测”，没有物理特征。。[Decision] 正确判断方式：面对“论文同时使用WKB和XGBoost”以及“XGBoost输入特征未提及物理量”这两个条件，应首先检查论文方法中物理量是作为特征输入还是作为后处理融合。如果XGBoost的输入特征列表中没有Q_α、穿透概率等物理量，则物理与ML的结合更可能是特征工程层面的，而非结果层面的混合校正。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对XGBoost输入特征构成的检查，误将物理与ML的结合方式从特征工程层面错误地理解为结果融合层面。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在分析多方法结合的研究时，必须首先明确各方法之间的接口方式（特征输入、结果融合、残差校正等），不能仅凭“同时使用”就假设某种结合模式。检查输入特征是否包含物理量是判断结合方式的关键信号。"
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 7, 8 分别使用 feature_engineering -> ml_data_acquisition -> ml_model_selection -> ml_neural_network_training -> ml_direct_prediction -> systematic_trend_analysis -> experimental_comparison 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 本论文旨在通过结合WKB近似和XGBoost算法预测超重核α衰变半衰期。第一步需要计算α衰变能Q_α，这是后续所有计算的基础物理量。Q_α定义为母核与子核加α粒子的质量差，可以通过质量公式或实验质量计算得到。\n[Gap] 当前已知初始条件包括质量数A、电荷数Z、中子数N和形变参数，但尚未计算Q_α。\n[Decision] 使用Bethe-Weizsäcker质量公式计算原子核质量，进而得到Q_α值。该公式考虑了体积能、表面能、库仑能、对称能和对能，适合用于超重核区的质量估计。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "neutron_number_N": "neutron_number_N",
+        "deformation_parameter": "deformation_parameter"
+      },
+      "output_state": {
+        "Q_alpha": "Q_alpha = [M(A,Z) - M(A-4,Z-2) - M_alpha] * c^2",
+        "binding_energy": "B(A,Z) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + delta"
+      },
+      "observation": "利用Bethe-Weizsäcker质量公式计算母核和子核的结合能，进而得到α衰变能Q_α。该步骤为后续WKB隧穿计算和XGBoost特征工程提供基础输入。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在获得α衰变能Q_α后，需要计算α粒子在核表面的库仑势垒和有效势，这是WKB隧穿计算的前提。根据Gamow理论，α衰变半衰期主要由势垒穿透概率决定，而势垒形状依赖于Q_α、核半径、库仑势和离心势。论文采用Woods-Saxon核势并考虑形变效应，因此需要先计算核半径和库仑势。 [Gap] 当前已得到Q_α，但尚未计算核半径和库仑势。核半径是构建核势和库仑势的基础参数，通常采用经验公式R = r0 * A^(1/3)，其中r0约为1.2 fm。对于形变核，半径需考虑四极形变参数β_2的修正。 [Decision] 下一步应计算母核的核半径，考虑形变效应，为后续构建Woods-Saxon核势和库仑势做准备。这属于核结构工具中的核半径估计。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "nuclear_radius_estimation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": 298,
+        "charge_number_Z": 118,
+        "deformation_parameter_beta2": 0.2,
+        "radius_constant_r0": 1.2
+      },
+      "output_state": {
+        "nuclear_radius_R": "R = r0 * A^(1/3) * (1 + sqrt(5/(4π)) * β_2 * cos(γ))",
+        "deformed_radius_parameters": "R_θ = R0 * (1 + β_2 * Y_20(θ))"
+      },
+      "observation": "采用经验公式R0 = 1.2 * A^(1/3) fm计算球形核半径，对于形变核，在Woods-Saxon势中引入角度依赖的半径R(θ) = R0 * [1 + β_2 * Y_20(θ)]，其中β_2为四极形变参数。该步骤为后续Woods-Saxon核势和库仑势的构建提供了几何参数。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 在获得α衰变能Q_α和核半径参数后，需要构建α粒子与子核相互作用的势能，包括库仑势、离心势和核势，以形成有效势用于WKB隧穿计算。论文采用Woods-Saxon核势并考虑形变效应。[Gap] 当前已得到Q_α和形变核半径参数，但尚未构建具体的势能形式，特别是形变Woods-Saxon势和库仑势的表达式。[Decision] 根据论文方法，下一步应构建形变Woods-Saxon核势和库仑势，并组装有效势，为后续求解转折点和WKB作用积分做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": "1.0"
+      },
+      "parameters": {
+        "nuclear_potential_form": "deformed Woods-Saxon",
+        "radius_parameter": "R0 = 1.2 * A^(1/3) fm",
+        "diffuseness": "a = 0.65 fm",
+        "potential_depth": "V0 = -50 MeV (typical value for alpha-nucleus potential)",
+        "deformation_parameter": "beta_2",
+        "angular_dependence": "R(theta) = R0 * (1 + beta_2 * Y_20(theta))"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r, theta) = V0 / (1 + exp((r - R(theta))/a))",
+        "coulomb_potential": "V_C(r) = (Z_d * Z_alpha * e^2) / r for r > R_C, and (Z_d * Z_alpha * e^2 / (2*R_C)) * (3 - r^2/R_C^2) for r <= R_C",
+        "centrifugal_potential": "V_l(r) = ℏ^2 * l(l+1) / (2*mu*r^2)",
+        "effective_potential": "V_eff(r, theta) = V_N(r, theta) + V_C(r) + V_l(r)"
+      },
+      "observation": "构建了形变Woods-Saxon核势V_N(r, theta)，库仑势V_C(r)（采用均匀带电球近似，R_C取核半径），以及离心势V_l(r)。有效势V_eff为三者之和，用于后续求解内外转折点。形变效应通过核势半径的角度依赖引入，影响势垒形状和隧穿概率。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 在获得有效势V_eff(r, theta)后，需要求解WKB隧穿过程中的内外转折点，这是计算势垒穿透概率的关键步骤。转折点由方程V_eff(r) = Q_alpha确定，由于形变导致势垒各向异性，需在θ方向上进行平均或选取主导方向。[Gap] 当前已得到有效势和Q_α，但尚未确定具体的转折点位置，且形变效应使得转折点依赖于角度。[Decision] 采用turning_point_solver工具，在θ=0°（长轴方向，通常势垒最薄）和θ=90°（短轴方向）分别求解转折点，并取几何平均作为有效转折点，以近似形变核的隧穿路径。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r, theta) = V_N(r, theta) + V_C(r) + V_l(r)",
+        "Q_alpha": "Q_alpha from Step 1",
+        "theta_values": "[0, pi/2]",
+        "solver_method": "bisection"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in(theta) = r satisfying V_eff(r, theta) = Q_alpha, r < R",
+        "outer_turning_point": "r_out(theta) = r satisfying V_eff(r, theta) = Q_alpha, r > R",
+        "effective_turning_points": "r_in_eff = sqrt(r_in(0)*r_in(pi/2)), r_out_eff = sqrt(r_out(0)*r_out(pi/2))"
+      },
+      "observation": "通过数值求解方程V_eff(r, theta)=Q_alpha，得到在θ=0°和θ=90°方向上的内转折点r_in和外转折点r_out。由于形变核的势垒在长轴方向较薄，隧穿概率更大，取几何平均得到有效转折点r_in_eff和r_out_eff，用于后续WKB积分。该步骤为计算势垒穿透概率提供了积分边界。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 在得到有效势和转折点后，需要计算α粒子穿过库仑势垒的隧穿概率。论文采用WKB近似计算作用积分，进而得到穿透系数P。 [Gap] 当前已获得形变核的有效势V_eff(r,θ)和内外转折点r_in(θ)、r_out(θ)，但尚未计算隧穿概率。 [Decision] 使用WKB作用积分公式，对形变核的不同角度方向分别计算作用积分，然后取平均得到有效穿透系数，这是Gamow理论在形变核中的推广。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r, θ) = V_N(r, θ) + V_C(r) + V_l(r)",
+        "turning_points": "r_in(θ), r_out(θ)",
+        "Q_value": "Q_α",
+        "reduced_mass": "μ = m_α * M_d / (m_α + M_d)",
+        "integration_method": "numerical integration over r for each θ, then average over θ"
+      },
+      "output_state": {
+        "WKB_action_integral": "S(θ) = ∫_{r_in(θ)}^{r_out(θ)} √(2μ|V_eff(r,θ) - Q_α|) dr",
+        "penetrability": "P(θ) = exp(-2 S(θ) / ℏ)",
+        "effective_penetrability": "P_eff = (1/2) ∫_0^π P(θ) sinθ dθ"
+      },
+      "observation": "采用WKB近似，对每个角度θ计算作用积分S(θ)和穿透系数P(θ)=exp(-2S(θ)/ℏ)。由于形变核势垒在长轴方向（θ=0°）较薄，P(θ)较大；短轴方向（θ=90°）较厚，P(θ)较小。最终有效穿透系数P_eff通过对所有角度加权平均得到，反映了形变对隧穿概率的整体增强效应。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 根据WKB近似，α衰变半衰期T_{1/2}与穿透概率P_eff、预形成因子S_α和撞击频率f_0有关，关系式为T_{1/2} = (ℏ ln2) / (Γ) = (ℏ ln2) / (S_α * f_0 * P_eff)。其中撞击频率f_0通常取为α粒子在核内来回运动的频率，f_0 = v / (2R)，v为α粒子在核内的速度，可由Q_α和约化质量μ估算。预形成因子S_α在超重核区通常取经验值0.1~1，但论文采用XGBoost模型进行预测，因此需要先计算f_0。 [Gap] 当前已得到有效穿透概率P_eff，但尚未计算撞击频率f_0和预形成因子S_α。下一步需要基于Q_α和核半径计算f_0，并确定S_α的取值或预测方法。 [Decision] 选择使用assault_frequency_calculation工具，根据α粒子在核内的经典运动模型计算撞击频率f_0，为后续半衰期计算做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Q_alpha": "Q_alpha",
+        "mu": "mu",
+        "R_eff": "R_eff"
+      },
+      "output_state": {
+        "assault_frequency": "f_0 = v / (2R_eff) = sqrt(2*Q_alpha / mu) / (2 * R_eff)",
+        "alpha_velocity": "v = sqrt(2*Q_alpha / mu)"
+      },
+      "observation": "计算α粒子在核内的经典速度v = sqrt(2*Q_alpha / mu)，其中约化质量μ = (m_d * m_α) / (m_d + m_α) ≈ 4 * A_d / (A_d + 4) u。有效半径R_eff取为核半径R0（球形近似）或形变核的平均半径。撞击频率f_0 = v / (2R_eff)，单位为s^{-1}。该步骤为后续半衰期计算提供f_0值。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: Q_value",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "thought": "[Background] 根据WKB理论，α衰变宽度Γ与穿透概率P_eff、预形成因子S_α和碰撞频率f_0成正比，即Γ = S_α * f_0 * P_eff。其中预形成因子S_α描述α粒子在母核表面预形成的概率，对于偶偶核通常取0.1~1.0，但超重核区需要更精确的模型。 [Gap] 当前已获得有效穿透概率P_eff和碰撞频率f_0，但尚未引入预形成因子S_α。论文采用经验公式S_α = exp(-G_shell)，其中G_shell与壳效应相关，或通过系统学拟合得到。 [Decision] 选择preformation_factor_model工具，基于壳修正和同位旋效应计算预形成因子S_α，为后续衰变宽度计算做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {
+        "method": "empirical_shell_correction",
+        "Z": "charge_number_Z",
+        "N": "neutron_number_N",
+        "A": "mass_number_A",
+        "deformation": "deformation_parameter"
+      },
+      "output_state": {
+        "preformation_factor": "S_α = exp(-a * |δU| / (ℏω_0))",
+        "shell_correction": "δU = U_macroscopic - U_actual",
+        "oscillator_frequency": "ℏω_0 = 41 / A^{1/3} MeV"
+      },
+      "observation": "采用经验预形成因子模型：S_α = exp(-a * |δU| / (ℏω_0))，其中a为可调参数（通常取0.5~1.0），δU为壳修正能（由Strutinsky方法得到），ℏω_0为谐振子频率。对于超重核，壳修正能较大（如Z=114, N=184附近），导致S_α显著减小。对于形变核，还需考虑形变对壳修正的影响。该步骤为后续计算衰变宽度Γ = S_α * f_0 * P_eff提供关键输入。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 18,
+      "thought": "[Background] 根据α衰变理论，半衰期T_{1/2}与衰变宽度Γ的关系为T_{1/2} = ℏ ln2 / Γ，而衰变宽度Γ可表示为Γ = (ℏ^2 / μ) * P_eff * S_α * f_0，其中P_eff为有效穿透系数，S_α为预形成因子，f_0为撞击频率。目前已经通过WKB积分得到有效穿透系数P_eff，通过经验模型得到预形成因子S_α，通过经典近似得到撞击频率f_0。 [Gap] 需要将这些量组合起来得到衰变宽度Γ，进而计算半衰期T_{1/2}。 [Decision] 使用衰变宽度公式Γ = (ℏ^2 / μ) * P_eff * S_α * f_0，然后代入半衰期公式T_{1/2} = ℏ ln2 / Γ，得到最终半衰期表达式。此步骤为严格推导，工具选择decay_width_formula。",
+      "action": "rule_application",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": "1.0"
+      },
+      "parameters": {
+        "reduced_mass": "mu",
+        "effective_penetrability": "P_eff",
+        "preformation_factor": "S_alpha",
+        "assault_frequency": "f_0"
+      },
+      "output_state": {
+        "decay_width": "Gamma = (hbar^2 / mu) * P_eff * S_alpha * f_0",
+        "half_life": "T_{1/2} = hbar * ln2 / Gamma = (mu * ln2) / (hbar * P_eff * S_alpha * f_0)"
+      },
+      "observation": "将有效穿透系数P_eff、预形成因子S_α和撞击频率f_0代入衰变宽度公式Γ = (ℏ^2/μ) * P_eff * S_α * f_0，得到衰变宽度。再由半衰期与宽度的关系T_{1/2} = ℏ ln2 / Γ，得到半衰期表达式T_{1/2} = (μ ln2) / (ℏ P_eff S_α f_0)。该表达式将半衰期与核结构参数（形变、壳修正等）联系起来，为后续数值计算和机器学习预测提供了物理基础。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的Q_α与核素质量评估（AME2020）中实验测量的Q_α值对比，验证范围覆盖Z≥84的偶偶核。其次，对半衰期预测进行量纲分析，确保其量纲为秒，并检验极端情况（如Q_α趋近于0时半衰期趋于无穷）是否合理。最后，使用独立方法如Geiger-Nuttall定律或统一衰变模型（UDM）交叉验证半衰期预测，注意XGBoost在训练数据稀疏区域可能过拟合，需检查特征工程是否包含N=126等壳层效应。",
+    "metrics": {
+      "half_life": {
+        "value": "0.1 s",
+        "unit": "^{292}Lv (Z=116, A=292)",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：royer_formula；universal_decay_law。"
+  },
+  "paper_methods": [
+    "wkb_approximation",
+    "gamow_theory",
+    "xgboost_algorithm",
+    "feature_engineering"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "wkb_approximation",
+        "desc": "WKB近似用于计算α粒子隧穿库仑势垒的穿透概率"
+      },
+      {
+        "name": "gamow_theory",
+        "desc": "Gamow理论描述α衰变作为量子隧穿过程"
+      },
+      {
+        "name": "xgboost_algorithm",
+        "desc": "XGBoost机器学习算法用于建立特征与半衰期之间的非线性映射"
+      },
+      {
+        "name": "feature_engineering",
+        "desc": "构造与α衰变相关的物理特征，如幻数邻近度、最小轨道角动量转移、同位旋不对称性和四极形变"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\hbar \\ln 2}{\\Gamma} = \\frac{\\ln 2}{\\nu} P^{-1}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "P = \\exp\\left[-\\frac{2}{\\hbar}\\int_{r_1}^{r_2} \\sqrt{2\\mu (V(r) - Q_\\alpha)} dr\\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "0.001 s",
+        "condition": "^{294}Og (Z=118, A=294)"
+      },
+      {
+        "quantity": "half_life",
+        "value": "0.1 s",
+        "condition": "^{292}Lv (Z=116, A=292)"
+      }
+    ],
+    "failure_points": [
+      "royer_formula",
+      "universal_decay_law"
+    ]
+  }
+}

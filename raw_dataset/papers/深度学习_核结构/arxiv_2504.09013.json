@@ -1,0 +1,447 @@
+{
+  "id": "NPP_0139",
+  "meta": {
+    "id": "NPP_0139",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Quantifying uncertainty in machine learning on nuclear binding energy",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2504.09013"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "核结合能机器学习预测的不确定度",
+    "input_data": "已知条件：核素范围（质子数Z，中子数N）作为输入特征；可用的实验核结合能数据（约40%的核素）；现有核质量模型（宏观微观模型、唯象微观模型、非相对论能量密度泛函理论）的预测结果。",
+    "user_intent": "研究动机：机器学习方法在核物理中的应用日益增多，但其预测的不确定度常被忽视。现有方法（如多次训练网络、高斯过程、贝叶斯神经网络）难以有效分离和量化认知不确定度，且计算成本高。需要一种可靠且高效的不确定度量化方法来评估机器学习预测的可信度，尤其是在训练数据稀少的区域（如丰中子或超重核）。",
+    "quantifiable_goal": "量化机器学习模型对核结合能（单位：MeV）预测的认知不确定度（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是量化机器学习模型对核结合能预测的认知不确定度。已知输入特征是核素的质子数Z和中子数N，输出是结合能。有约40%核素的实验数据可用，以及现有核质量模型的预测结果。[Gap] 需要一种方法来分离和量化认知不确定度（源于模型结构或数据不足），而不是偶然不确定度（源于数据噪声）。[Decision] 采用delta_uq_method（Delta不确定性量化方法）。该方法基于模型集合，通过比较不同模型（或同一模型不同初始化）的预测差异来估计认知不确定度。预期将使用实验数据和现有理论模型作为基准，训练多个机器学习模型（如神经网络），然后利用它们的预测方差来量化认知不确定度。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "delta_uq_method",
+        "version": ""
+      },
+      "parameters": {
+        "uncertainty_type": "epistemic",
+        "ensemble_approach": "multiple_ML_models_or_initializations",
+        "variance_estimation": "based_on_prediction_spread"
+      },
+      "observation": "预期得到认知不确定度 $\\sigma_{epist}(Z, N)$ 的数学定义，例如作为多个机器学习模型预测结合能 $B_{pred,i}(Z, N)$ 的方差：$\\sigma_{epist}^2(Z, N) = \\frac{1}{M-1} \\sum_{i=1}^{M} (B_{pred,i}(Z, N) - \\bar{B}_{pred}(Z, N))^2$，其中 $M$ 是模型数量，$\\bar{B}_{pred}$ 是平均预测。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已定义使用模型集合的方差来量化认知不确定度。[Gap] 需要训练这些机器学习模型。训练需要损失函数和优化器来最小化预测误差。[Decision] 使用adam_optimization来训练神经网络模型。损失函数可能结合实验数据（均方误差）和现有理论模型的预测（作为正则化项或先验），以在数据稀少区域约束模型。关键假设是Adam优化器能有效找到损失函数的（局部）最小值，从而得到一组参数不同的模型（通过不同的随机初始化或训练子集）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "adam_optimization",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "MSE_on_experimental_data + regularization_term_with_theoretical_models",
+        "training_data_split": "using_available_experimental_data",
+        "model_initialization": "multiple_random_seeds"
+      },
+      "observation": "预期得到一组经过训练的机器学习模型（例如神经网络），每个模型对核素 $(Z, N)$ 输出一个结合能预测值 $B_{pred,i}(Z, N)$。这些模型的预测在训练数据丰富的区域会收敛，在数据稀少的区域（如丰中子核）可能发散，其发散程度将用于后续不确定度计算。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤错误地将Adam优化器视为量化认知不确定度的核心方法。论文实际使用Delta-UQ方法，通过锚点变换输入特征来产生预测分布，认知不确定度来源于锚点引起的预测方差，而不是通过训练多个独立模型并计算其方差。预测步骤混淆了不同不确定度量化方法的物理机制。"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已训练好一组机器学习模型，可以直接计算它们在预测结合能时的方差作为认知不确定度。[Gap] 但是，为了更物理地理解和验证不确定度，特别是在训练数据稀少的区域，可能需要一个理论基准。现有核质量模型中，密度泛函理论（DFT）提供了从第一性原理出发的微观描述。[Decision] 运用density_functional_theory（密度泛函理论）计算一批核素（包括训练集内和训练集外，特别是数据稀少区域）的结合能。这将提供一个独立于机器学习训练集的理论预测集合，用于交叉验证和可能作为先验信息。关键近似是选择具体的能量密度泛函（如SLy4、UNEDF等）和数值求解方案。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "density_functional_theory",
+        "version": ""
+      },
+      "parameters": {
+        "energy_density_functional": "specific_EDF_name_e.g._SLy4",
+        "nuclei_set": "spanning_training_and_extrapolation_regions",
+        "output_quantity": "binding_energy_B_DFT(Z,N)"
+      },
+      "observation": "预期得到一组基于密度泛函理论的核结合能预测 $B_{DFT}(Z, N)$。这些值将与实验数据以及机器学习模型的平均预测进行比较，用于评估机器学习外推的可靠性，并可能作为先验约束机器学习模型在数据稀少区域的行为。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤错误地引入密度泛函理论（DFT）作为验证机器学习不确定度的理论基准。论文实际并未使用DFT，而是完全基于Delta-UQ方法在机器学习框架内量化认知不确定度。预测步骤添加了不必要的物理理论基准，误解了论文量化不确定度的纯数据驱动方法学。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已获得DFT结合能预测。然而，对于开放壳核素（大多数核素），配对效应至关重要，需要超流理论描述。[Gap] 标准的DFT计算（如Skyrme-Hartree-Fock）可能未充分包含配对关联，或者需要更自洽的处理。[Decision] 运用hartree_fock_bogoliubov（HFB）理论进行更完整的计算。HFB是处理配对关联的自洽平均场理论，是核密度泛函理论中描述原子基态（包括超流性）的标准框架。这里将使用与上一步相同的能量密度泛函，但通过HFB方程求解，得到包含配对效应的基态结合能。关键近似是采用零程或有限程配对力，并可能采用Bogoliubov变换的近似（如粒子数投影未严格实施）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "hartree_fock_bogoliubov",
+        "version": ""
+      },
+      "parameters": {
+        "framework": "HFB_with_skyrmelike_EDF",
+        "pairing_force": "e.g._delta_pairing",
+        "calculation_scope": "binding_energies_for_broad_nuclear_chart"
+      },
+      "observation": "预期得到一组基于HFB理论的、包含配对效应的核结合能预测 $B_{HFB}(Z, N)$。这些预测预计比简单HF更可靠，特别是对远离稳定线的核素。$B_{HFB}$ 将作为更可靠的理论基准，用于与机器学习预测对比，并可能用于分析机器学习不确定度在理论预测差异较大的区域是否也较大。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤进一步错误地引入Hartree-Fock-Bogoliubov（HFB）理论来处理配对效应。论文实际方法不依赖于任何核物理微观理论模型作为基准或验证。预测步骤完全偏离了论文的数据驱动不确定度量化框架，错误地认为需要核物理理论来补充或验证机器学习方法。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 现在拥有多种预测：机器学习模型集合的预测 $\\{B_{pred,i}\\}$，DFT/HFB理论预测 $B_{DFT/HFB}$，以及实验数据 $B_{exp}$。[Gap] 需要将理论基准信息与机器学习不确定度量化过程结合起来。一种策略是利用理论预测来约束或评估机器学习模型在外推区域的行为。[Decision] 将HFB/DFT预测作为一种“伪数据”或先验，融入机器学习训练过程（例如，在损失函数中加入与理论预测偏差的惩罚项），或者在后处理中，将机器学习预测的方差与机器学习平均预测同理论预测的偏差进行关联分析。关键假设是理论模型在数据稀少区域提供了合理的物理趋势。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "delta_uq_method",
+        "version": ""
+      },
+      "parameters": {
+        "integration_with_theory": "comparing_ML_ensemble_variance_to_ML_vs_HFB_deviation",
+        "purpose": "assess_physical_plausibility_of_epistemic_uncertainty"
+      },
+      "observation": "预期得到一个关联关系，例如：在训练数据稀少的区域，如果机器学习模型的预测方差 $\\sigma_{epist}$ 很大，同时机器学习平均预测 $\\bar{B}_{pred}$ 与HFB预测 $B_{HFB}$ 的差值 $|\\bar{B}_{pred} - B_{HFB}|$ 也很大，则进一步确认该区域认知不确定度高，预测不可信。可能得到一个修正或加权的认知不确定度估计。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤基于前几步的错误前提，试图将理论预测（DFT/HFB）与机器学习不确定度关联。论文实际方法仅使用实验数据训练，通过Delta-UQ的内部机制（锚点变换）产生预测分布来量化认知不确定度，无需外部理论模型约束或评估。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经建立了基于模型方差的认知不确定度 $\\sigma_{epist}(Z, N)$，并可能用理论预测进行了交叉验证。[Gap] 需要对整个方法进行数值实现和计算，得到核素图上结合能预测及其不确定度的具体分布。[Decision] 综合运用所有方法进行大规模数值计算。使用Adam优化训练多个神经网络模型（步骤2），对每个核素计算模型预测的均值和方差（步骤1）。同时，在选定的核素上运行HFB计算（步骤4）以获得理论基准。最后，在整个核素图（或关注区域）上可视化结合能预测和 $\\sigma_{epist}$，并特别标出实验数据稀少、但理论预测与机器学习预测差异大的区域。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "tasks": [
+          "train_ML_ensemble_with_Adam",
+          "compute_ML_predictions_and_epistemic_variance",
+          "run_HFB_calculations_for_reference_nuclei",
+          "produce_maps_of_B_and_sigma_epist"
+        ]
+      },
+      "observation": "预期得到一系列数值结果和图表：1) 一张核素图，颜色表示机器学习预测的结合能 $\\bar{B}_{pred}(Z, N)$；2) 另一张核素图，颜色表示认知不确定度 $\\sigma_{epist}(Z, N)$，预计在训练数据覆盖的边缘和之外区域（如丰中子、超重核）不确定度较高；3) 散点图显示 $\\sigma_{epist}$ 与 $|\\bar{B}_{pred} - B_{HFB}|$ 或与到最近训练数据点的“距离”的可能正相关关系。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文旨在量化机器学习模型预测核结合能的认知不确定度。为此，引入了Delta_UQ方法。[Gap] 需要将标准的输入特征向量转换为能够产生预测分布的形式，以便后续计算不确定度。[Decision] 论文将每个输入特征向量X_i与一组常数偏置（锚点）C_j组合，生成扩展的输入组合{X_i - C_j, C_j}。",
+      "action": "rule_application",
+      "tool": {
+        "name": "Delta_UQ_method",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "输入维度从n_d加倍，数据长度从n增加到n×m，其中n是输入数据点数，m是锚点数。生成Delta-UQ锚定输入。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 网络使用扩展后的输入进行训练，每个数据点对应多个锚点会产生多个输出。[Gap] 需要一个损失函数来指导网络参数的优化，该函数需要综合所有锚点对应的预测误差。[Decision] 论文采用均方误差(MSE)作为损失函数，计算所有锚点预测值与真实值之差的平方的平均值。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "Delta_UQ_method",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "损失函数定义为：\\mathcal {L} = \\frac {1}{n m} \\sum_ {i = 1} ^ {n} \\sum_ {j = 1} ^ {m} \\left(\\hat {y} _ {i j} - y _ {i}\\right) ^ {2} (Eq.1)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 网络使用Adam优化器进行训练，以最小化损失函数，最终得到最优的网络参数。[Gap] 训练完成后，对于每个核素i，模型会输出m个对应于不同锚点的预测值。需要从这组预测值中提取一个代表性的预测均值。[Decision] 论文计算这m个预测值的算术平均值作为该核素的Delta-UQ预测均值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Delta_UQ_method",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "对于核素i，预测均值为：\\mu_ {\\Delta i} = \\frac {1}{m} \\sum_ {j} ^ {m} \\hat {y} _ {i j} (Eq.2)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 已经得到了每个核素的预测均值。为了量化认知不确定度，需要衡量这m个预测值围绕其均值的分散程度。[Gap] 需要一个统计量来表征预测值的波动性，该波动性反映了模型因训练数据有限而产生的认知不确定度。[Decision] 论文计算这m个预测值的标准差，作为认知不确定度的估计。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Delta_UQ_method",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "对于核素i，认知不确定度（标准差）为：\\sigma_ {\\Delta i} = \\sqrt {\\frac {1}{m} \\sum_ {j} ^ {m} \\left(\\hat {y} _ {i j} ^ {2} - \\mu_ {\\Delta i} ^ {2}\\right)} (Eq.3)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] Delta-UQ方法通过锚点变换输入并产生预测分布。为了从理论上理解该方法如何估计认知不确定度，论文进行了简化分析。[Gap] 需要分析Delta-UQ输入变换对网络第一层（线性层）输出的影响，以揭示不确定度产生的机制。[Decision] 论文考虑神经网络第一线性层的一个节点，分析其原始输出y = kx + b在应用Delta-UQ变换后的形式。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "Delta_UQ_method",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "应用Delta-UQ后，输出变为：y = (k, \\not \\kappa) \\left( \\begin{array}{c} C \\\\ x - C \\end{array} \\right) + b = \\left[ \\not \\kappa + (k - \\not \\kappa) \\frac {C}{x} \\right] x + b (Eq.4)。这显示了权重k和\\not \\kappa通过锚点C与输入x耦合，导致输出随锚点变化。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤2：决定使用Adam优化器训练多个独立模型（不同随机初始化），并计算其方差作为认知不确定度。[Gap] 错过的信号：认知不确定度源于模型对训练数据有限性的无知，而Adam优化器只是寻找损失函数最小值的算法。训练多个独立模型并计算方差是集成方法（如深度集成）的典型做法，但这需要模型在参数空间上足够分散。仅靠不同的随机初始化，在数据充足区域模型预测会高度一致，方差接近于零，这无法解释为何在数据稀少区域认知不确定度会自然增大。。[Decision] 正确判断方式：经验丰富的物理学家会意识到，认知不确定度的量化需要一种机制，能迫使模型在数据稀少区域产生系统性的预测分散，而不仅仅是优化过程的副产品。他们会问：'什么物理或数学操作能主动引入这种与数据密度相关的可变性，而不是被动等待优化结果的分歧？' 这导向对输入特征进行扰动或变换的方法，而非依赖训练过程的随机性。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：混淆了优化算法（Adam）与不确定度量化机制，误以为训练过程的随机性足以产生与数据分布相关的认知不确定度。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：决定引入密度泛函理论（DFT）计算作为独立的理论基准，用于验证或约束机器学习的不确定度。[Gap] 错过的信号：论文目标是量化机器学习模型自身的认知不确定度，这是一个关于模型置信度的问题，而不是寻找一个“更正确”的物理理论。引入外部理论基准（如DFT）会混淆不确定度的来源——此时的不确定度度量将混合机器学习模型的不确定度和理论模型与真实物理的偏差。。[Decision] 正确判断方式：面对“如何验证机器学习不确定度”的问题，经验丰富的物理学家会首先区分不确定度的类型。他们会坚持：评估认知不确定度量化方法本身的有效性，应在同一数据框架内进行（例如，通过检查不确定度是否在训练数据稀少区域增大，或通过交叉验证），而不是引入另一个本身也有不确定性的物理模型作为“金标准”。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：错误地将“物理验证”等同于需要引入另一个微观物理理论，未能理解数据驱动方法中不确定度评估应保持方法学内洽。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 14,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：决定进一步运用HFB理论处理配对效应，以提供更“可靠”的理论基准。[Gap] 错过的信号：此步骤延续了步骤3的错误，且变本加厉。HFB计算复杂，本身包含大量近似（泛函选择、配对力、数值求解），其预测在远离稳定线区域也有很大不确定度。用这样一个本身具有高模型不确定度的理论去“标定”机器学习的不确定度，在逻辑上是循环的，且使问题复杂化。。[Decision] 正确判断方式：经验丰富的物理学家在考虑引入更复杂理论时会警觉：这解决了原问题的核心吗？原问题是“量化机器学习模型的认知不确定度”。添加HFB不仅没有直接解决这个问题，反而引入了新的、可能更大的理论模型不确定度。正确的思路是思考如何在机器学习框架内，用更简洁、可控的方式诱导出认知不确定度。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：陷入了“物理复杂性等于可靠性”的误区，用增加物理模型复杂度的方式回避了在数据驱动框架内设计不确定度量化机制的核心挑战。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 15,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：决定将理论预测（DFT/HFB）作为伪数据或先验，融入机器学习训练或后处理，以关联理论偏差与认知不确定度。[Gap] 错过的信号：这一决策基于前几步错误构建的“双轨系统”（机器学习 vs. 理论模型）。信号在于：如果认知不确定度量化是可靠的，它应该能自我指示预测的不可靠性，而不需要另一个理论模型的“佐证”。强行关联两者，相当于默认理论模型在数据稀少区域是更可信的，这是一个没有根据的假设，且违背了纯粹数据驱动评估的初衷。。[Decision] 正确判断方式：面对“如何结合理论信息”的诱惑，经验丰富的物理学家会质疑其必要性。他们会坚持：一个良好的认知不确定度度量应该自成体系。如果需要外部理论来“校准”或“解释”这个不确定度，那说明这个不确定度度量方法本身可能不够有效或可解释。正确的方向是改进不确定度量化方法本身，使其物理意义更清晰，而不是嫁接外部理论。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：在错误的前提下进行补救性思考，试图调和两个本不应并列的系统（数据驱动不确定度与理论模型预测），而不是回头审视不确定度量化方法本身的缺陷。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "本文揭示的教训是：在数据驱动的物理问题中，量化模型认知不确定度的核心是设计一种与数据分布（如稀疏性）主动耦合的机制（如Delta-UQ的锚点变换），而不是依赖优化随机性、或引入外部物理理论作为参照系。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "completeness": {
+        "value": "paper_derivation 提取完成",
+        "unit": "",
+        "interpretation": "论文推导步骤已成功提取"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "delta_uq_method",
+    "adam_optimization",
+    "density_functional_theory",
+    "hartree_fock_bogoliubov"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是量化机器学习模型对核结合能预测的认知不确定度。已知输入特征是核素的质子数Z和中子数N，输出是结合能。有约40%核素的实验数据可用，以及现有核质量模型的预测结果。[Gap] 需要一种方法来分离和量化认知不确定度（源于模型结构或数据不足），而不是偶然不确定度（源于数据噪声）。[Decision] 采用delta_uq_method（Delta不确定性量化方法）。该方法基于模型集合，通过比较不同模型（或同一模型不同初始化）的预测差异来估计认知不确定度。预期将使用实验数据和现有理论模型作为基准，训练多个机器学习模型（如神经网络），然后利用它们的预测方差来量化认知不确定度。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "delta_uq_method",
+        "version": ""
+      },
+      "parameters": {
+        "uncertainty_type": "epistemic",
+        "ensemble_approach": "multiple_ML_models_or_initializations",
+        "variance_estimation": "based_on_prediction_spread"
+      },
+      "observation": "预期得到认知不确定度 $\\sigma_{epist}(Z, N)$ 的数学定义，例如作为多个机器学习模型预测结合能 $B_{pred,i}(Z, N)$ 的方差：$\\sigma_{epist}^2(Z, N) = \\frac{1}{M-1} \\sum_{i=1}^{M} (B_{pred,i}(Z, N) - \\bar{B}_{pred}(Z, N))^2$，其中 $M$ 是模型数量，$\\bar{B}_{pred}$ 是平均预测。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已定义使用模型集合的方差来量化认知不确定度。[Gap] 需要训练这些机器学习模型。训练需要损失函数和优化器来最小化预测误差。[Decision] 使用adam_optimization来训练神经网络模型。损失函数可能结合实验数据（均方误差）和现有理论模型的预测（作为正则化项或先验），以在数据稀少区域约束模型。关键假设是Adam优化器能有效找到损失函数的（局部）最小值，从而得到一组参数不同的模型（通过不同的随机初始化或训练子集）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "adam_optimization",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "MSE_on_experimental_data + regularization_term_with_theoretical_models",
+        "training_data_split": "using_available_experimental_data",
+        "model_initialization": "multiple_random_seeds"
+      },
+      "observation": "预期得到一组经过训练的机器学习模型（例如神经网络），每个模型对核素 $(Z, N)$ 输出一个结合能预测值 $B_{pred,i}(Z, N)$。这些模型的预测在训练数据丰富的区域会收敛，在数据稀少的区域（如丰中子核）可能发散，其发散程度将用于后续不确定度计算。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已训练好一组机器学习模型，可以直接计算它们在预测结合能时的方差作为认知不确定度。[Gap] 但是，为了更物理地理解和验证不确定度，特别是在训练数据稀少的区域，可能需要一个理论基准。现有核质量模型中，密度泛函理论（DFT）提供了从第一性原理出发的微观描述。[Decision] 运用density_functional_theory（密度泛函理论）计算一批核素（包括训练集内和训练集外，特别是数据稀少区域）的结合能。这将提供一个独立于机器学习训练集的理论预测集合，用于交叉验证和可能作为先验信息。关键近似是选择具体的能量密度泛函（如SLy4、UNEDF等）和数值求解方案。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "density_functional_theory",
+        "version": ""
+      },
+      "parameters": {
+        "energy_density_functional": "specific_EDF_name_e.g._SLy4",
+        "nuclei_set": "spanning_training_and_extrapolation_regions",
+        "output_quantity": "binding_energy_B_DFT(Z,N)"
+      },
+      "observation": "预期得到一组基于密度泛函理论的核结合能预测 $B_{DFT}(Z, N)$。这些值将与实验数据以及机器学习模型的平均预测进行比较，用于评估机器学习外推的可靠性，并可能作为先验约束机器学习模型在数据稀少区域的行为。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已获得DFT结合能预测。然而，对于开放壳核素（大多数核素），配对效应至关重要，需要超流理论描述。[Gap] 标准的DFT计算（如Skyrme-Hartree-Fock）可能未充分包含配对关联，或者需要更自洽的处理。[Decision] 运用hartree_fock_bogoliubov（HFB）理论进行更完整的计算。HFB是处理配对关联的自洽平均场理论，是核密度泛函理论中描述原子基态（包括超流性）的标准框架。这里将使用与上一步相同的能量密度泛函，但通过HFB方程求解，得到包含配对效应的基态结合能。关键近似是采用零程或有限程配对力，并可能采用Bogoliubov变换的近似（如粒子数投影未严格实施）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "hartree_fock_bogoliubov",
+        "version": ""
+      },
+      "parameters": {
+        "framework": "HFB_with_skyrmelike_EDF",
+        "pairing_force": "e.g._delta_pairing",
+        "calculation_scope": "binding_energies_for_broad_nuclear_chart"
+      },
+      "observation": "预期得到一组基于HFB理论的、包含配对效应的核结合能预测 $B_{HFB}(Z, N)$。这些预测预计比简单HF更可靠，特别是对远离稳定线的核素。$B_{HFB}$ 将作为更可靠的理论基准，用于与机器学习预测对比，并可能用于分析机器学习不确定度在理论预测差异较大的区域是否也较大。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 现在拥有多种预测：机器学习模型集合的预测 $\\{B_{pred,i}\\}$，DFT/HFB理论预测 $B_{DFT/HFB}$，以及实验数据 $B_{exp}$。[Gap] 需要将理论基准信息与机器学习不确定度量化过程结合起来。一种策略是利用理论预测来约束或评估机器学习模型在外推区域的行为。[Decision] 将HFB/DFT预测作为一种“伪数据”或先验，融入机器学习训练过程（例如，在损失函数中加入与理论预测偏差的惩罚项），或者在后处理中，将机器学习预测的方差与机器学习平均预测同理论预测的偏差进行关联分析。关键假设是理论模型在数据稀少区域提供了合理的物理趋势。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "delta_uq_method",
+        "version": ""
+      },
+      "parameters": {
+        "integration_with_theory": "comparing_ML_ensemble_variance_to_ML_vs_HFB_deviation",
+        "purpose": "assess_physical_plausibility_of_epistemic_uncertainty"
+      },
+      "observation": "预期得到一个关联关系，例如：在训练数据稀少的区域，如果机器学习模型的预测方差 $\\sigma_{epist}$ 很大，同时机器学习平均预测 $\\bar{B}_{pred}$ 与HFB预测 $B_{HFB}$ 的差值 $|\\bar{B}_{pred} - B_{HFB}|$ 也很大，则进一步确认该区域认知不确定度高，预测不可信。可能得到一个修正或加权的认知不确定度估计。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经建立了基于模型方差的认知不确定度 $\\sigma_{epist}(Z, N)$，并可能用理论预测进行了交叉验证。[Gap] 需要对整个方法进行数值实现和计算，得到核素图上结合能预测及其不确定度的具体分布。[Decision] 综合运用所有方法进行大规模数值计算。使用Adam优化训练多个神经网络模型（步骤2），对每个核素计算模型预测的均值和方差（步骤1）。同时，在选定的核素上运行HFB计算（步骤4）以获得理论基准。最后，在整个核素图（或关注区域）上可视化结合能预测和 $\\sigma_{epist}$，并特别标出实验数据稀少、但理论预测与机器学习预测差异大的区域。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "tasks": [
+          "train_ML_ensemble_with_Adam",
+          "compute_ML_predictions_and_epistemic_variance",
+          "run_HFB_calculations_for_reference_nuclei",
+          "produce_maps_of_B_and_sigma_epist"
+        ]
+      },
+      "observation": "预期得到一系列数值结果和图表：1) 一张核素图，颜色表示机器学习预测的结合能 $\\bar{B}_{pred}(Z, N)$；2) 另一张核素图，颜色表示认知不确定度 $\\sigma_{epist}(Z, N)$，预计在训练数据覆盖的边缘和之外区域（如丰中子、超重核）不确定度较高；3) 散点图显示 $\\sigma_{epist}$ 与 $|\\bar{B}_{pred} - B_{HFB}|$ 或与到最近训练数据点的“距离”的可能正相关关系。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "Delta_UQ_method",
+        "desc": "用于估计机器学习预测的均值和认知不确定性，通过将输入特征向量与一组称为“锚点”的常数偏置组合来生成扩展输入。"
+      },
+      {
+        "name": "Adam_optimization",
+        "desc": "在训练过程中根据计算的梯度自动调整学习率，用于更新网络参数以减少训练损失。"
+      },
+      {
+        "name": "density_functional_theory",
+        "desc": "使用SLy4参数化的能量泛函，结合表面-体积密度依赖对力，计算所有不稳定核的结合能以生成合成数据集。"
+      },
+      {
+        "name": "HF-BTHO_solver",
+        "desc": "用于执行所有密度泛函理论计算，以确定核的基态能量。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "\\mathcal {L} = \\frac {1}{n m} \\sum_ {i = 1} ^ {n} \\sum_ {j = 1} ^ {m} \\left(\\hat {y} _ {i j} - y _ {i}\\right) ^ {2}"
+      },
+      {
+        "label": "Eq.2",
+        "content": "\\mu_ {\\Delta i} = \\frac {1}{m} \\sum_ {j} ^ {m} \\hat {y} _ {i j}"
+      },
+      {
+        "label": "Eq.3",
+        "content": "\\sigma_ {\\Delta i} = \\sqrt {\\frac {1}{m} \\sum_ {j} ^ {m} \\left(\\hat {y} _ {i j} ^ {2} - \\mu_ {\\Delta i} ^ {2}\\right)}"
+      },
+      {
+        "label": "Eq.4",
+        "content": "y = (k, \\not \\kappa) \\left( \\begin{array}{c} C \\\\ x - C \\end{array} \\right) + b = \\left[ \\not \\kappa + (k - \\not \\kappa) \\frac {C}{x} \\right] x + b"
+      },
+      {
+        "label": "Eq.6",
+        "content": "K = \\left[ \\begin{array}{c c c c} \\not {k} + (k - \\not {k}) \\frac {x _ {1}}{x _ {1}} & \\not {k} + (k - \\not {k}) \\frac {x _ {2}}{x _ {1}} & \\dots & \\not {k} + (k - \\not {k}) \\frac {x _ {n}}{x _ {1}} \\\\ \\not {k} + (k - \\not {k}) \\frac {x _ {1}}{x _ {2}} & \\not {k} + (k - \\not {k}) \\frac {x _ {2}}{x _ {2}} & \\dots & \\not {k} + (k - \\not {k}) \\frac {x _ {n}}{x _ {2}} \\\\ \\vdots & \\vdots & & \\vdots \\\\ \\not {k} + (k - \\not {k}) \\frac {x _ {1}}{x _ {n}} & \\not {k} + (k - \\not {k}) \\frac {x _ {2}}{x _ {n}} & \\dots & \\not {k} + (k - \\not {k}) \\frac {x _ {n}}{x _ {n}} \\end{array} \\right]"
+      },
+      {
+        "label": "Eq.11",
+        "content": "\\Delta y _ {1} = \\mathrm {s t d} \\big (k x _ {1}, k x _ {1} + \\Delta k (x _ {2} - x _ {1}), \\ldots , \\left. k x _ {1} + \\Delta k \\left(x _ {i} - x _ {1}\\right), \\dots\\right)"
+      }
+    ],
+    "key_results": [],
+    "failure_points": []
+  }
+}

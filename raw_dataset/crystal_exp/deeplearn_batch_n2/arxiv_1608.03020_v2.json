@@ -1,0 +1,389 @@
+{
+  "id": "NPP_0112",
+  "meta": {
+    "id": "NPP_0112",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear charge radii: Density functional theory meets Bayesian neural networks",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_1608.03020"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T20:23:01.315751",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "原子核电荷半径的预测",
+    "input_data": "已知条件：实验电荷半径数据；使用基于相对论能量密度泛函（Relativistic Energy Density Functionals）的理论预测作为输入；核素范围覆盖整个核素图。",
+    "user_intent": "现有模型（如液滴模型LDM及其扩展ELD模型）对轻核或表面效应显著的核素电荷半径描述不佳，需要提高理论预测的精度和可靠性。",
+    "quantifiable_goal": "预测原子核的均方根电荷半径 R_ch（单位：fm），并提供理论误差估计。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是根据质量数A和电荷数Z预测核电荷半径。论文方法包括相对论平均场（RMF）和贝叶斯神经网络（BNN）结合马尔可夫链蒙特卡洛（MCMC）。[Gap] 需要建立从初始条件到电荷半径的推导路径。合法路径中，核半径估计（nuclear_radius_estimation）是核结构工具，可直接从A和Z给出电荷半径的初步估计，作为后续贝叶斯修正的基准。[Decision] 第一步使用核半径估计工具，基于液滴模型或经验公式计算电荷半径的初始值，为后续BNN修正提供输入。",
+      "action": "model_building",
+      "tool": {
+        "name": "nuclear_radius_estimation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "model_type": "empirical_liquid_drop"
+      },
+      "output_state": {
+        "nuclear_charge_radius_initial": "R_0 = r_0 * A^{1/3}，其中r_0 ≈ 1.2 fm，可加入等质子数修正项"
+      },
+      "observation": "基于液滴模型，电荷半径初始估计为 R_0 = r_0 A^{1/3}，典型值 r_0 ≈ 1.2 fm。此值为后续贝叶斯神经网络修正提供基准。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 第1步基于液滴模型给出了电荷半径的初始估计 R_0 = r_0 A^{1/3}，但论文明确指出液滴模型对轻核或表面效应显著的核素描述不佳，因此需要引入更精确的理论输入。论文方法中使用了相对论平均场（RMF）理论来提供可靠的电荷半径输入，这可以作为贝叶斯神经网络的物理先验特征。[Gap] 目前仅有液滴模型的粗估计，尚未引入RMF理论的计算结果作为更准确的基准或特征。[Decision] 因此，下一步应使用相对论能量密度泛函（通过相对论平均场计算）来获得更精确的电荷半径理论值，作为后续贝叶斯神经网络修正的输入特征。选择工具为核结构类中的mean_field_density_calculation，该工具可基于RMF理论计算核密度分布并提取电荷半径。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "method": "relativistic_mean_field",
+        "functional": "DD-ME2或类似参数化",
+        "nucleus": "由mass_number_A和charge_number_Z指定"
+      },
+      "output_state": {
+        "nuclear_charge_radius_RMF": "R_RMF = \\sqrt{\\langle r^2 \\rangle} = \\left[ \\frac{\\int \\rho_p(\\mathbf{r}) r^2 d^3r}{\\int \\rho_p(\\mathbf{r}) d^3r} \\right]^{1/2}，其中ρ_p(r)为RMF计算的质子密度分布"
+      },
+      "observation": "通过相对论平均场计算，得到基于RMF理论的电荷半径R_RMF。该值比液滴模型更精确，考虑了壳效应和形变，将作为贝叶斯神经网络的输入特征之一。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 前两步已获得液滴模型初始半径 R_0 和相对论平均场理论半径 R_RMF。论文方法结合了相对论平均场与贝叶斯神经网络，因此需要构建输入特征集，包括核子数 A、质子数 Z 以及 R_RMF 等物理量，并引入贝叶斯神经网络进行修正。[Gap] 目前尚未建立贝叶斯神经网络模型，需要定义输入特征并准备训练数据。[Decision] 选择 ml_feature_construction 工具，构建包含 A、Z、R_RMF 等特征的特征向量，为后续贝叶斯神经网络训练做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_feature_construction",
+        "version": ""
+      },
+      "parameters": {
+        "feature_list": [
+          "mass_number_A",
+          "charge_number_Z",
+          "RMF_radius_R_RMF"
+        ],
+        "target_quantity": "nuclear_charge_radius",
+        "model_type": "bayesian_neural_network"
+      },
+      "output_state": {
+        "feature_vector": "x = [A, Z, R_RMF]",
+        "target": "R_charge (experimental charge radius)"
+      },
+      "observation": "构建了贝叶斯神经网络的输入特征向量，包含质量数 A、质子数 Z 以及相对论平均场理论预测的电荷半径 R_RMF。目标量为实验电荷半径 R_charge。该特征集将用于后续贝叶斯神经网络的训练与预测。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 根据论文方法，在构建了包含A、Z和R_RMF的特征向量后，下一步需要建立贝叶斯神经网络模型来预测电荷半径。贝叶斯神经网络能够提供预测的不确定性估计，而马尔可夫链蒙特卡洛（MCMC）方法常用于贝叶斯神经网络的参数后验采样。 [Gap] 当前已构建特征向量，但尚未定义贝叶斯神经网络的具体结构（如层数、节点数、激活函数）以及先验分布设定，这是模型构建的关键步骤。 [Decision] 因此，下一步应进行模型构建，定义贝叶斯神经网络的架构和先验，为后续MCMC训练做准备。选择工具ml_model_selection来设定网络结构。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "bayesian_neural_network",
+        "input_dim": 3,
+        "hidden_layers": [
+          50,
+          50
+        ],
+        "activation": "tanh",
+        "prior_distribution": "Gaussian with mean 0 and variance 1",
+        "output_dim": 1
+      },
+      "output_state": {
+        "bayesian_neural_network_architecture": "输入层(3节点) -> 隐藏层1(50节点, tanh) -> 隐藏层2(50节点, tanh) -> 输出层(1节点, 线性)",
+        "prior_specification": "网络权重和偏置的先验分布为独立高斯分布 N(0, 1)"
+      },
+      "observation": "定义了贝叶斯神经网络的结构：两个隐藏层各50个神经元，激活函数为tanh，输出层为线性。权重和偏置的先验分布设为标准正态分布。该模型将用于后续MCMC采样以得到后验分布，从而预测电荷半径及其不确定性。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经构建了贝叶斯神经网络的架构，包括输入特征（A, Z, R_RMF）、网络结构（两个隐藏层各50个tanh神经元）以及权重先验（独立高斯N(0,1)）。[Gap] 为了利用MCMC方法进行后验采样，需要定义似然函数（即给定网络参数下观测数据的概率分布），并建立完整的贝叶斯模型。似然函数通常假设观测误差服从高斯分布，其方差σ²也需要作为超参数进行推断。[Decision] 因此，下一步是构建贝叶斯模型的似然函数，并指定误差项的先验分布，为后续MCMC采样做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_bayesian_inference",
+        "version": ""
+      },
+      "parameters": {
+        "likelihood_type": "Gaussian",
+        "noise_prior": "Inverse-Gamma(1, 0.1)",
+        "target_variable": "R_charge"
+      },
+      "output_state": {
+        "likelihood_function": "p(D|w, σ²) = ∏_{i=1}^N N(R_charge_i | f(x_i; w), σ²)",
+        "noise_prior": "σ² ~ Inverse-Gamma(α=1, β=0.1)",
+        "posterior": "p(w, σ²|D) ∝ p(D|w, σ²) p(w) p(σ²)"
+      },
+      "observation": "定义了贝叶斯神经网络的似然函数为高斯分布，观测噪声方差σ²的先验为Inverse-Gamma(1, 0.1)。后验分布正比于似然乘以先验（权重先验N(0,1)和噪声先验）。该模型将用于后续MCMC采样，以得到权重和噪声方差的后验样本，进而预测电荷半径及其不确定性。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经构建了贝叶斯神经网络的架构、先验分布和似然函数，后验分布 p(w, σ²|D) 已定义但无法解析求解。 [Gap] 需要从后验分布中采样，以得到网络权重和噪声方差的样本，进而用于预测电荷半径及其不确定性。论文方法中使用了马尔可夫链蒙特卡洛（MCMC）方法。 [Decision] 因此，下一步应选择 MCMC 采样工具，对后验分布进行数值采样，获得权重和噪声方差的后验样本。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "ml_bayesian_inference",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Markov Chain Monte Carlo (MCMC)",
+        "sampling_algorithm": "Hamiltonian Monte Carlo (HMC) or No-U-Turn Sampler (NUTS)",
+        "num_samples": 5000,
+        "num_chains": 4,
+        "warmup_steps": 1000,
+        "target_distribution": "posterior p(w, σ²|D)"
+      },
+      "output_state": {
+        "mcmc_samples": "{w_s, σ²_s}_{s=1}^{S} where S = 20000 (after warmup and across chains)",
+        "posterior_mean_weights": "w_hat = (1/S) Σ_s w_s",
+        "posterior_noise_variance": "σ²_hat = (1/S) Σ_s σ²_s"
+      },
+      "observation": "通过 MCMC 采样（如 HMC 或 NUTS），从后验分布 p(w, σ²|D) 中获得了 4 条链共 20000 个有效样本（每条链 5000 个，前 1000 步作为 warmup 丢弃）。这些样本代表了权重和噪声方差的后验分布，可用于后续的电荷半径预测及其不确定性量化。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 我们已经通过MCMC采样得到了后验样本，包括权重和噪声方差。下一步需要利用这些后验样本进行预测，即对新的输入特征（质量数A、质子数Z、RMF预测的电荷半径R_RMF）计算电荷半径的预测分布，从而得到预测均值及其不确定性。这是贝叶斯神经网络的标准预测流程。 [Gap] 当前状态有后验样本，但尚未生成预测结果。需要定义预测分布的计算方式，并应用于测试集或新核素。 [Decision] 使用后验样本进行预测，计算预测均值（作为点估计）和预测方差（作为不确定性度量）。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {
+        "mcmc_samples": "w_s, σ²_s for s=1..S",
+        "new_input": "x* = [A, Z, R_RMF]",
+        "prediction_method": "posterior predictive distribution: p(R_charge* | x*, D) = ∫ p(R_charge* | x*, w, σ²) p(w, σ²|D) dw dσ² ≈ (1/S) Σ_s N(R_charge* | f(x*; w_s), σ²_s)"
+      },
+      "output_state": {
+        "predicted_charge_radius_mean": "R_charge_pred = (1/S) Σ_s f(x*; w_s)",
+        "predicted_charge_radius_variance": "Var(R_charge_pred) = (1/S) Σ_s [f(x*; w_s) - R_charge_pred]² + (1/S) Σ_s σ²_s",
+        "prediction_uncertainty": "σ_pred = sqrt(Var(R_charge_pred))"
+      },
+      "observation": "利用MCMC后验样本，对任意新输入x*（包含A, Z, R_RMF），计算预测分布。预测均值R_charge_pred作为电荷半径的最佳估计，预测方差包含模型不确定性（权重后验方差）和观测噪声（σ²）两部分。该结果可直接与实验值比较，并用于评估模型性能。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 我们已经通过贝叶斯神经网络和MCMC采样得到了电荷半径的预测均值R_charge_pred及其不确定性。然而，根据论文方法，该模型通常结合相对论平均场（RMF）的理论输入进行混合预测，即输入特征可能包含RMF计算的电荷半径值作为物理先验信息。目前我们尚未明确输入特征的具体构成，特别是是否包含RMF预测值。 [Gap] 需要确定贝叶斯神经网络的输入特征向量x*的具体组成，以确保模型与论文方法一致。 [Decision] 根据论文方法中relativistic_mean_field和bayesian_neural_network的结合方式，输入特征通常包括质量数A、质子数Z以及RMF理论预测的电荷半径R_RMF，以利用物理模型信息并修正其系统偏差。因此，我将定义输入特征向量并说明其来源。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "mass_number_A, charge_number_Z, RMF_predicted_radius_R_RMF",
+        "output_target": "experimental_charge_radius_R_exp",
+        "feature_description": "输入特征包含三个变量：核子数A、质子数Z、以及由相对论平均场（RMF）理论计算的电荷半径R_RMF。输出目标为实验电荷半径R_exp。该特征设计允许BNN学习RMF预测与实验值之间的系统偏差，从而修正理论模型。"
+      },
+      "output_state": {
+        "input_feature_vector": "x = [A, Z, R_RMF]",
+        "feature_dimension": 3,
+        "feature_source": "A和Z为已知核素标识，R_RMF由相对论平均场计算得到"
+      },
+      "observation": "定义了贝叶斯神经网络的输入特征向量为x = [A, Z, R_RMF]，其中R_RMF是相对论平均场理论预测的电荷半径。该特征设计使得模型能够利用物理理论信息并修正其系统偏差，与论文中结合RMF和BNN的方法一致。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6, 7, 8 分别使用 nuclear_radius_estimation -> mean_field_density_calculation -> ml_feature_construction -> ml_model_selection -> ml_bayesian_inference -> ml_bayesian_inference -> ml_direct_prediction -> feature_engineering 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 论文目标是预测原子核电荷半径，基于相对论平均场理论（RMF）和贝叶斯神经网络（BNN）方法。初始条件是质量数A和电荷数Z。根据前提层，电荷半径主要由A和Z决定，且RMF可提供可靠的输入。[Gap] 需要从初始条件出发，构建一个能够整合RMF理论预测与BNN修正的模型框架。第一步应建立RMF理论预测的基本表达式，作为后续修正的基础。[Decision] 采用相对论平均场理论，通过求解Dirac方程得到核子密度分布，进而计算电荷半径的均方根值。使用RMF的典型参数化（如NL3或FSUGold）作为起点。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "method": "relativistic_mean_field",
+        "parameter_set": "NL3",
+        "nucleus": "general",
+        "observable": "charge_radius"
+      },
+      "output_state": {
+        "RMF_charge_radius": "R_c,RMF = sqrt(<r^2>_p) = sqrt( (1/Z) * ∫ r^2 ρ_p(r) d^3r )",
+        "proton_density": "ρ_p(r) = Σ_i (occupied proton states) |ψ_i(r)|^2"
+      },
+      "observation": "建立了相对论平均场理论下电荷半径的基本表达式，其中质子密度由占据态波函数平方求和得到。该表达式将作为后续贝叶斯神经网络修正的输入特征之一。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在相对论平均场理论中，电荷半径的初步计算值 R_c,RMF 已经通过质子密度分布得到。然而，论文指出纯RMF理论对轻核或表面效应显著的核素描述不佳，因此需要引入贝叶斯神经网络（BNN）进行修正。BNN的输入特征需要包括核子数A、质子数Z以及理论预测值R_c,RMF，以学习系统偏差。 [Gap] 目前仅有RMF理论值，尚未构建BNN的输入特征向量和修正模型结构。 [Decision] 下一步应构建BNN的输入特征，并定义修正模型的形式，即电荷半径的最终预测为RMF理论值加上BNN修正项。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": [
+          "mass_number_A",
+          "charge_number_Z",
+          "RMF_charge_radius"
+        ],
+        "target_quantity": "nuclear_charge_radius",
+        "model_type": "bayesian_neural_network"
+      },
+      "output_state": {
+        "BNN_input_vector": "x = [A, Z, R_c,RMF]",
+        "BNN_correction_term": "δ_R = f_BNN(x)",
+        "final_charge_radius": "R_c = R_c,RMF + δ_R"
+      },
+      "observation": "构建了贝叶斯神经网络的输入特征向量，包含质量数A、电荷数Z和RMF理论电荷半径R_c,RMF。最终电荷半径预测为RMF理论值加上BNN修正项δ_R，其中δ_R由BNN模型f_BNN(x)给出。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 我们已经建立了相对论平均场（RMF）理论下电荷半径的基本表达式，并构建了贝叶斯神经网络（BNN）的输入特征向量，最终电荷半径预测为RMF理论值加上BNN修正项。接下来需要训练BNN模型，以确定修正项的具体形式。训练过程需要定义损失函数，并利用马尔可夫链蒙特卡洛（MCMC）方法进行贝叶斯推断，以得到模型参数的后验分布。[Gap] 目前我们只有模型框架，但尚未明确如何训练BNN模型，即如何定义损失函数、如何利用MCMC进行参数采样，以及如何从后验分布中得到预测结果。[Decision] 因此，下一步应构建BNN的训练过程，包括定义损失函数（如负对数似然）和MCMC采样策略，从而将BNN修正项具体化。这属于模型构建和数值计算步骤，可选用ml_bayesian_inference工具。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_bayesian_inference",
+        "version": ""
+      },
+      "parameters": {
+        "likelihood_function": "p(D|w) = ∏_i N(R_c,exp_i | R_c,RMF_i + f_BNN(x_i; w), σ^2)",
+        "prior_distribution": "p(w) = N(0, α^{-1} I)",
+        "posterior_sampling_method": "Markov Chain Monte Carlo (MCMC) with Hamiltonian Monte Carlo (HMC)",
+        "loss_function": "Negative Log Posterior: -log p(w|D) = -log p(D|w) - log p(w) + const"
+      },
+      "output_state": {
+        "BNN_training_procedure": "采用贝叶斯推断，通过MCMC采样从后验分布p(w|D)中抽取参数样本，其中似然函数假设实验电荷半径服从以RMF+BNN预测值为均值、σ为方差的高斯分布，先验采用高斯分布。损失函数为负对数后验，最小化该损失等价于寻找最大后验估计。",
+        "BNN_predictive_distribution": "R_c_pred = ∫ (R_c,RMF + f_BNN(x; w)) p(w|D) dw ≈ (1/N_samples) Σ_{s=1}^{N_samples} (R_c,RMF + f_BNN(x; w_s))",
+        "uncertainty_estimate": "σ_pred^2 = (1/N_samples) Σ_{s=1}^{N_samples} (R_c,RMF + f_BNN(x; w_s) - R_c_pred)^2 + σ^2"
+      },
+      "observation": "建立了贝叶斯神经网络的训练框架：通过MCMC方法对网络权重进行后验采样，从而得到电荷半径的预测分布及其不确定性。该步骤将BNN修正项从抽象函数具体化为可计算的统计模型，为后续数值训练和预测奠定了基础。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的3.477 fm和5.501 fm与实验测量的电荷半径（如来自原子光谱或电子散射数据）在对应核素上进行直接数值对比，验证偏差是否在理论误差范围内。其次，对轻核（如Z<20）和重核（如Z>80）分别进行极限情况检验，检查模型在极端质子数下的行为是否与已知系统学趋势（如半径随A^{1/3}的偏离）一致。最后，使用独立方法如Skyrme-Hartree-Fock或协变密度泛函理论对相同核素进行交叉验证，若结果差异显著，则表明RMF-BNN-MCMC组合可能因贝叶斯先验选择不当或MCMC采样不足而失效。",
+    "metrics": {
+      "nuclear_charge_radius": {
+        "value": "5.501 fm",
+        "unit": "核素 ^208Pb",
+        "interpretation": "nuclear_charge_radius"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：liquid_drop_model；extended_liquid_drop_model。"
+  },
+  "paper_methods": [
+    "relativistic_mean_field",
+    "bayesian_neural_network",
+    "markov_chain_monte_carlo"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "relativistic_mean_field",
+        "desc": "基于相对论能量密度泛函计算原子核电荷半径的理论值"
+      },
+      {
+        "name": "bayesian_neural_network",
+        "desc": "利用贝叶斯神经网络对理论预测进行修正，提高精度"
+      },
+      {
+        "name": "markov_chain_monte_carlo",
+        "desc": "用于贝叶斯推断中采样后验分布，优化模型参数"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "R_{\\text{ch}} = \\sqrt{\\langle r^2 \\rangle} = \\sqrt{\\frac{\\int r^2 \\rho_{\\text{ch}}(\\mathbf{r}) d^3r}{\\int \\rho_{\\text{ch}}(\\mathbf{r}) d^3r}}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "R_{\\text{ch}}(Z,N) = R_{\\text{th}}(Z,N) + \\delta R(Z,N)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "nuclear_charge_radius",
+        "value": "3.477 fm",
+        "condition": "核素 ^40Ca"
+      },
+      {
+        "quantity": "nuclear_charge_radius",
+        "value": "5.501 fm",
+        "condition": "核素 ^208Pb"
+      }
+    ],
+    "failure_points": [
+      "liquid_drop_model",
+      "extended_liquid_drop_model"
+    ]
+  }
+}

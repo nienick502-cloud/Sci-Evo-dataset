@@ -1,0 +1,456 @@
+{
+  "id": "NPP_0124",
+  "meta": {
+    "id": "NPP_0124",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Deep learning on nuclear mass and $\\alpha$ decay half-lives",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2202.11897"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "核素结合能与α衰变半衰期",
+    "input_data": "已知核素结合能数据（2149个核素）与α衰变半衰期数据（350个和486个核素集）。",
+    "user_intent": "对于重核，基于第一性原理的核质量（结合能）与α衰变半衰期计算因量子多体模拟的维度灾难而难以处理。现有机器学习方法在预测精度和外推能力上仍有提升空间。",
+    "quantifiable_goal": "预测核素结合能（单位：MeV）与α衰变半衰期（以log_{10}T_{1/2}表示）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知有大量核素的结合能数据（2149个）和α衰变半衰期数据（两个集合，分别有350和486个核素）。研究目标是预测这两个物理量。[Gap] 需要建立一个能够从核素特征（如质子数Z、中子数N）映射到结合能和半衰期的模型。直接的第一性原理计算存在维度灾难问题。[Decision] 首先，利用已知的液滴模型（liquid_droplet_model）为每个核素生成一个结合能的粗估基准值。这提供了一个基于半经验核物理的初始特征，可以作为神经网络的输入或用于构造残差目标。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "liquid_droplet_model",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "Proton number Z, Neutron number N, Mass number A",
+        "output": "Binding energy estimate B_est(Z, N) according to Bethe-Weizsäcker formula"
+      },
+      "observation": "预期得到每个核素（Z，N）的结合能粗估值 $B_{est}(Z, N)$，其表达式包含体积能、表面能、库仑能、对称能和对能项。这个值将与实验结合能数据进行比较，其差值（残差）可能包含壳修正等效应。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得基于液滴模型的结合能粗估值 $B_{est}$。[Gap] 实验结合能数据 $B_{exp}$ 与 $B_{est}$ 的残差 $\\Delta B = B_{exp} - B_{est}$ 包含了液滴模型未描述的微观效应（如壳效应、对效应等）。同时，α衰变半衰期 $\\log_{10} T_{1/2}$ 与核结构密切相关。需要构建一个模型来学习从核素基本特征（Z, N, A）以及可能包含 $B_{est}$ 或 $\\Delta B$ 的特征，到目标量 $B_{exp}$ 和 $\\log_{10} T_{1/2}$ 的复杂映射。[Decision] 设计一个前馈神经网络（feed_forward_neural_network），其输入层包含核素特征（如Z, N, A, $B_{est}$, 可能还有 $\\Delta B$ 作为中间目标），输出层有两个节点，分别对应结合能 $B_{exp}$ 和半衰期对数 $\\log_{10} T_{1/2}$。这是一个多任务学习框架。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "feed_forward_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "Z, N, A, liquid_droplet_binding_energy_estimate",
+        "hidden_layers": "Multiple fully connected layers with activation functions",
+        "outputs": "Predicted binding energy B_pred and predicted log10(alpha decay half-life) logT_pred"
+      },
+      "observation": "预期得到一个神经网络模型架构，其输入为核素特征向量，经过若干隐藏层非线性变换后，输出两个标量：预测的结合能 $B_{pred}$ 和预测的 $\\log_{10} T_{1/2, pred}$。模型参数（权重和偏置）待训练。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤错误地将α衰变半衰期作为神经网络的直接输出之一。在论文实际的推导中，神经网络仅用于预测结合能（或质量）残差，α衰变半衰期是通过结合能预测结果，结合Gamow理论或类似公式（如Viola-Seaborg公式）独立计算的，并非神经网络的多任务输出。将半衰期作为直接输出混淆了物理因果链：半衰期由核质量（结合能）决定，而不是与结合能并列的独立预测目标。"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已定义神经网络架构。[Gap] 深度神经网络在训练过程中容易出现内部协变量偏移，导致训练不稳定、收敛慢。[Decision] 在神经网络的隐藏层之后、激活函数之前，引入批归一化（batch_normalization）层。这将归一化每一层输入的分布，使其均值为0、方差为1，从而加速训练并允许使用更高的学习率。",
+      "action": "approximation",
+      "tool": {
+        "name": "batch_normalization",
+        "version": ""
+      },
+      "parameters": {
+        "normalization_operation": "Normalize the activations of each hidden layer across the mini-batch"
+      },
+      "observation": "预期在训练过程中，每个批归一化层会计算当前小批量数据的均值和方差，用于归一化该层的输入，然后通过可学习的缩放和平移参数进行反归一化。这应使隐藏层激活值的分布更加稳定。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 模型架构（包含批归一化）和损失函数（如结合能的均方误差和半衰期对数的均方误差之和）已定义。[Gap] 需要一种高效的算法来优化（训练）神经网络中大量的参数，以最小化损失函数。[Decision] 使用随机梯度下降（stochastic_gradient_descent）或其变体（如Adam）作为优化器。它将基于小批量数据计算损失函数的梯度，并更新网络参数。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "stochastic_gradient_descent",
+        "version": ""
+      },
+      "parameters": {
+        "optimization_algorithm": "Mini-batch gradient descent with momentum or Adam",
+        "loss_function": "Combined loss: L = MSE(B_pred, B_exp) + \\lambda * MSE(logT_pred, logT_exp)"
+      },
+      "observation": "预期在训练循环中，优化器会迭代地调整神经网络权重，使模型在训练数据上的预测结合能和半衰期对数逐渐接近实验值。训练过程将输出一组优化的模型参数。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 拥有结合能和半衰期两个数据集。半衰期数据点（350或486）少于结合能数据点（2149）。[Gap] 需要一种稳健的方法来评估模型的性能、防止过拟合，并可能利用所有可用数据。特别是对于数据量较少的半衰期预测任务，需要可靠的性能估计。[Decision] 采用10折交叉验证（10_fold_cross_validation）策略。对于结合能预测，可以将2149个核素随机分成10份；对于半衰期预测，由于数据更少，可能对350/486个核素集进行10折划分。在每一折，用9份数据训练模型（包含SGD优化和批归一化），用剩下的1份验证，循环10次。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "10_fold_cross_validation",
+        "version": ""
+      },
+      "parameters": {
+        "dataset_splitting": "Random partition of the binding energy dataset (2149) and half-life dataset (350/486) into 10 folds",
+        "evaluation_metric": "Mean Absolute Error (MAE) or Root Mean Square Error (RMSE) for binding energy and log10 half-life"
+      },
+      "observation": "预期得到10个不同的训练-验证分割，并产生10组性能评估指标（如结合能预测的MAE和半衰期对数预测的MAE）。最终模型的泛化误差可以取这10次验证结果的平均值。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 通过10折交叉验证，已经评估了模型在已知数据上的平均性能。[Gap] 需要确认模型是否真正学到了有物理意义的规律，而不是仅仅记忆数据。特别是，模型对于训练集之外的核素（外推）的预测能力是关键。[Decision] 在交叉验证框架内，分析模型在每一折的验证集（即未参与该折训练的核素）上的预测误差。此外，可以有意将某些区域（如超重核区域）的数据保留作为独立的测试集，以专门评估外推能力。将液滴模型预测值 $B_{est}$ 与神经网络最终预测值 $B_{pred}$ 进行对比，观察残差 $\\Delta B_{pred}$ 是否呈现出已知的壳结构（如幻数处的突变）。",
+      "action": "verification",
+      "tool": {
+        "name": "feed_forward_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "analysis": "Plot predicted vs. experimental values for binding energy and log10 half-life on validation/test sets. Analyze residuals as a function of Z and N."
+      },
+      "observation": "预期得到验证集/测试集上预测结合能与实验结合能的散点图，以及预测半衰期对数与实验值的散点图。预期结合能残差图（$B_{pred} - B_{exp}$ vs. N或Z）可能显示出在幻数附近的系统性偏离被模型部分捕获。半衰期预测的误差分布将被量化。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤错误地预期模型会同时输出结合能和半衰期对数的散点图。根据论文实际推导，模型仅输出结合能（或质量）的预测，半衰期是基于预测的质量通过独立的理论公式（如α衰变能Q_α计算）导出的。因此，验证应主要针对结合能残差，而非同时验证两个独立量。将半衰期对数作为模型的直接输出进行验证，是对模型物理功能的不正确描述。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文的目标是预测核结合能，并指出传统的半经验模型（如Bethe-Weizsäcker模型和液滴模型）的均方根误差大于2 MeV。[Gap] 需要一种方法来显著降低结合能预测的误差。[Decision] 论文采用前馈神经网络作为监督回归模型，通过最小化实验数据与半经验模型之间的残差来预测结合能。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "feed_forward_neural_network",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "网络结构定义为：输入层为3个原生特征（Z, N, A）或26个物理特征；输出层为一个神经元，代表结合能残差；中间有n+2个隐藏层，其中第一层和最后一层有4×m个神经元，其他n层每层有m个神经元。神经元计算遵循公式：h_i = \\sigma \\left(\\sum_{j} w_{ij} x_{j} + b_{i}\\right)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 神经网络结构已定义，但其性能（预测精度）未知。[Gap] 需要确定最优的网络结构参数（层数n和宽度m）以获得最佳预测精度。[Decision] 论文使用10折交叉验证方法，对不同n和m的组合进行性能扫描。",
+      "action": "verification",
+      "tool": {
+        "name": "10_fold_cross_validation",
+        "version": ""
+      },
+      "parameters": {
+        "n_values": [
+          0,
+          2,
+          4,
+          6,
+          8,
+          10,
+          16
+        ],
+        "m_values": [
+          8,
+          64,
+          256,
+          512
+        ]
+      },
+      "observation": "扫描结果显示：当网络宽度m从8增加到64时，使用26个特征的均方根误差从1.5 MeV下降到0.3 MeV；将m从256增加到512不会带来进一步改善；网络性能对深度不敏感，隐藏层数从2增加到18时，RMS误差仅有轻微变化。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 通过性能扫描，确定了网络结构参数（n=8, m=256）能实现较低的预测误差。[Gap] 需要量化在该最优结构下，神经网络对结合能残差的预测精度。[Decision] 论文计算了在10折交叉验证下，使用最优网络结构预测液滴模型质量残差的平均均方根误差。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "feed_forward_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "n": 8,
+        "m": 256,
+        "features": 26
+      },
+      "observation": "使用26个特征和最优网络结构（n=8, m=256）时，液滴模型质量残差预测的平均RMS误差为263 keV。使用3个特征时，平均RMS误差为332 keV。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 神经网络在训练集上表现出高精度，但其对未知核素（未参与训练或模型拟合）的泛化能力需要评估。[Gap] 需要测试网络对全新核素的预测性能，并与基础液滴模型进行比较。[Decision] 论文在322个新元素上评估了神经网络和液滴模型的预测误差。",
+      "action": "verification",
+      "tool": {
+        "name": "feed_forward_neural_network",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "对322个未用于训练网络或拟合液滴模型参数的新元素，神经网络预测的RMS误差为0.605 MeV，而液滴模型预测的RMS误差为2.542 MeV。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤2：设计一个多任务神经网络，同时输出结合能B_exp和α衰变半衰期对数log10(T_1/2)。。[Gap] 错过的信号：α衰变半衰期与核质量（结合能）之间存在已知的、强烈的物理依赖关系（例如，通过衰变能Q_α，而Q_α可由母核与子核的质量差计算）。在核物理中，半衰期通常不是与质量并列的独立观测量，而是质量的导出量。。[Decision] 正确判断方式：经验丰富的物理学家会意识到，半衰期是核质量的强函数。他们会优先考虑建立一个精确的质量（结合能）模型，然后利用成熟的理论公式（如Viola-Seaborg公式，其输入包含Q_α）从预测的质量中独立计算半衰期。将半衰期作为直接输出，相当于让网络同时学习一个核心量（质量）及其复杂的非线性函数（半衰期），这在物理上是冗余且低效的，还可能引入不必要的误差。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：混淆了物理量之间的因果层级关系，将具有明确理论依赖关系的导出量（半衰期）与基本预测目标（结合能）置于了同一建模层面。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：计划同时验证神经网络对结合能和半衰期对数的预测性能，并分析两者的残差。。[Gap] 错过的信号：验证计划本身延续了步骤2的错误模型架构假设。如果模型仅预测结合能，那么对半衰期的“预测”验证就失去了对象。正确的验证逻辑应聚焦于模型的实际输出（结合能残差）及其物理合理性。。[Decision] 正确判断方式：在明确了模型仅输出结合能的前提下，经验丰富的物理学家会设计完全不同的验证路径：1) 严格评估结合能预测的残差；2) 使用预测的结合能，通过独立的理论模块计算半衰期；3) 最后验证计算出的半衰期与实验值的符合程度。步骤6的计划错误地将一个尚未通过理论公式计算的中间量当成了模型的直接输出进行验证。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：未能根据正确的物理建模流程（先质量，后半衰期）调整验证策略，而是基于一个错误的前置假设（多任务输出）制定了无效的验证方案。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在将机器学习应用于物理建模时，必须严格尊重物理量之间的因果和依赖关系。模型应优先学习基础物理量，而将具有明确理论关系的导出量留给独立、透明的物理公式进行计算，这能保证模型的物理可解释性和预测链条的清晰性。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "RMS_error__BWM_LDM": {
+        "value": "> 2 MeV",
+        "unit": "Bethe-Weizsäcker模型和液滴模型的均方根误差",
+        "interpretation": "RMS error (BWM/LDM)"
+      },
+      "Optimal_RMS_error__mass_prediction": {
+        "value": "0.22 MeV",
+        "unit": "使用10个隐藏层（第一层和最后一层1024个神经元，其他8层256个神经元）的最佳网络结构",
+        "interpretation": "Optimal RMS error (mass prediction)"
+      },
+      "Average_RMS_error__10_fold__26_features": {
+        "value": "263 keV",
+        "unit": "使用26个特征和最优网络结构（n=8, m=256）的液滴模型质量残差预测",
+        "interpretation": "Average RMS error (10-fold, 26 features)"
+      },
+      "Average_RMS_error__10_fold__3_features": {
+        "value": "332 keV",
+        "unit": "使用3个特征和最优网络结构（n=8, m=256）的液滴模型质量残差预测",
+        "interpretation": "Average RMS error (10-fold, 3 features)"
+      },
+      "RMS_error__322_new_elements__network": {
+        "value": "0.605 MeV",
+        "unit": "对322个未用于训练网络或拟合液滴模型参数的新元素的网络预测",
+        "interpretation": "RMS error (322 new elements, network)"
+      },
+      "RMS_error__322_new_elements__LDM": {
+        "value": "2.542 MeV",
+        "unit": "对322个未用于训练网络或拟合液滴模型参数的新元素的液滴模型预测",
+        "interpretation": "RMS error (322 new elements, LDM)"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：Increasing m from 256 to 512 does not bring further improvement in RMS error for mass prediction.；The performance is not sensitive to the depth of the neural network; RMS error changes slightly as one increases the number of hidden layers from 2 to 18.；In our experience, subtracting both macro and micro parts (from mass models) will not benefit nuclear word-vector learning.。推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "feed_forward_neural_network",
+    "stochastic_gradient_descent",
+    "batch_normalization",
+    "10_fold_cross_validation",
+    "liquid_droplet_model"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知有大量核素的结合能数据（2149个）和α衰变半衰期数据（两个集合，分别有350和486个核素）。研究目标是预测这两个物理量。[Gap] 需要建立一个能够从核素特征（如质子数Z、中子数N）映射到结合能和半衰期的模型。直接的第一性原理计算存在维度灾难问题。[Decision] 首先，利用已知的液滴模型（liquid_droplet_model）为每个核素生成一个结合能的粗估基准值。这提供了一个基于半经验核物理的初始特征，可以作为神经网络的输入或用于构造残差目标。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "liquid_droplet_model",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "Proton number Z, Neutron number N, Mass number A",
+        "output": "Binding energy estimate B_est(Z, N) according to Bethe-Weizsäcker formula"
+      },
+      "observation": "预期得到每个核素（Z，N）的结合能粗估值 $B_{est}(Z, N)$，其表达式包含体积能、表面能、库仑能、对称能和对能项。这个值将与实验结合能数据进行比较，其差值（残差）可能包含壳修正等效应。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得基于液滴模型的结合能粗估值 $B_{est}$。[Gap] 实验结合能数据 $B_{exp}$ 与 $B_{est}$ 的残差 $\\Delta B = B_{exp} - B_{est}$ 包含了液滴模型未描述的微观效应（如壳效应、对效应等）。同时，α衰变半衰期 $\\log_{10} T_{1/2}$ 与核结构密切相关。需要构建一个模型来学习从核素基本特征（Z, N, A）以及可能包含 $B_{est}$ 或 $\\Delta B$ 的特征，到目标量 $B_{exp}$ 和 $\\log_{10} T_{1/2}$ 的复杂映射。[Decision] 设计一个前馈神经网络（feed_forward_neural_network），其输入层包含核素特征（如Z, N, A, $B_{est}$, 可能还有 $\\Delta B$ 作为中间目标），输出层有两个节点，分别对应结合能 $B_{exp}$ 和半衰期对数 $\\log_{10} T_{1/2}$。这是一个多任务学习框架。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "feed_forward_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "Z, N, A, liquid_droplet_binding_energy_estimate",
+        "hidden_layers": "Multiple fully connected layers with activation functions",
+        "outputs": "Predicted binding energy B_pred and predicted log10(alpha decay half-life) logT_pred"
+      },
+      "observation": "预期得到一个神经网络模型架构，其输入为核素特征向量，经过若干隐藏层非线性变换后，输出两个标量：预测的结合能 $B_{pred}$ 和预测的 $\\log_{10} T_{1/2, pred}$。模型参数（权重和偏置）待训练。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已定义神经网络架构。[Gap] 深度神经网络在训练过程中容易出现内部协变量偏移，导致训练不稳定、收敛慢。[Decision] 在神经网络的隐藏层之后、激活函数之前，引入批归一化（batch_normalization）层。这将归一化每一层输入的分布，使其均值为0、方差为1，从而加速训练并允许使用更高的学习率。",
+      "action": "approximation",
+      "tool": {
+        "name": "batch_normalization",
+        "version": ""
+      },
+      "parameters": {
+        "normalization_operation": "Normalize the activations of each hidden layer across the mini-batch"
+      },
+      "observation": "预期在训练过程中，每个批归一化层会计算当前小批量数据的均值和方差，用于归一化该层的输入，然后通过可学习的缩放和平移参数进行反归一化。这应使隐藏层激活值的分布更加稳定。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 模型架构（包含批归一化）和损失函数（如结合能的均方误差和半衰期对数的均方误差之和）已定义。[Gap] 需要一种高效的算法来优化（训练）神经网络中大量的参数，以最小化损失函数。[Decision] 使用随机梯度下降（stochastic_gradient_descent）或其变体（如Adam）作为优化器。它将基于小批量数据计算损失函数的梯度，并更新网络参数。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "stochastic_gradient_descent",
+        "version": ""
+      },
+      "parameters": {
+        "optimization_algorithm": "Mini-batch gradient descent with momentum or Adam",
+        "loss_function": "Combined loss: L = MSE(B_pred, B_exp) + \\lambda * MSE(logT_pred, logT_exp)"
+      },
+      "observation": "预期在训练循环中，优化器会迭代地调整神经网络权重，使模型在训练数据上的预测结合能和半衰期对数逐渐接近实验值。训练过程将输出一组优化的模型参数。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 拥有结合能和半衰期两个数据集。半衰期数据点（350或486）少于结合能数据点（2149）。[Gap] 需要一种稳健的方法来评估模型的性能、防止过拟合，并可能利用所有可用数据。特别是对于数据量较少的半衰期预测任务，需要可靠的性能估计。[Decision] 采用10折交叉验证（10_fold_cross_validation）策略。对于结合能预测，可以将2149个核素随机分成10份；对于半衰期预测，由于数据更少，可能对350/486个核素集进行10折划分。在每一折，用9份数据训练模型（包含SGD优化和批归一化），用剩下的1份验证，循环10次。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "10_fold_cross_validation",
+        "version": ""
+      },
+      "parameters": {
+        "dataset_splitting": "Random partition of the binding energy dataset (2149) and half-life dataset (350/486) into 10 folds",
+        "evaluation_metric": "Mean Absolute Error (MAE) or Root Mean Square Error (RMSE) for binding energy and log10 half-life"
+      },
+      "observation": "预期得到10个不同的训练-验证分割，并产生10组性能评估指标（如结合能预测的MAE和半衰期对数预测的MAE）。最终模型的泛化误差可以取这10次验证结果的平均值。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 通过10折交叉验证，已经评估了模型在已知数据上的平均性能。[Gap] 需要确认模型是否真正学到了有物理意义的规律，而不是仅仅记忆数据。特别是，模型对于训练集之外的核素（外推）的预测能力是关键。[Decision] 在交叉验证框架内，分析模型在每一折的验证集（即未参与该折训练的核素）上的预测误差。此外，可以有意将某些区域（如超重核区域）的数据保留作为独立的测试集，以专门评估外推能力。将液滴模型预测值 $B_{est}$ 与神经网络最终预测值 $B_{pred}$ 进行对比，观察残差 $\\Delta B_{pred}$ 是否呈现出已知的壳结构（如幻数处的突变）。",
+      "action": "verification",
+      "tool": {
+        "name": "feed_forward_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "analysis": "Plot predicted vs. experimental values for binding energy and log10 half-life on validation/test sets. Analyze residuals as a function of Z and N."
+      },
+      "observation": "预期得到验证集/测试集上预测结合能与实验结合能的散点图，以及预测半衰期对数与实验值的散点图。预期结合能残差图（$B_{pred} - B_{exp}$ vs. N或Z）可能显示出在幻数附近的系统性偏离被模型部分捕获。半衰期预测的误差分布将被量化。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "feed_forward_neural_network",
+        "desc": "用于预测核结合能残差的监督回归模型，具有可调整的层数和宽度。"
+      },
+      {
+        "name": "stochastic_gradient_descent",
+        "desc": "用于在训练过程中逐步调整神经网络参数的优化算法。"
+      },
+      {
+        "name": "10_fold_cross_validation",
+        "desc": "用于扫描神经网络预测性能的验证方法，评估不同网络结构。"
+      },
+      {
+        "name": "Batch_Normalization",
+        "desc": "在神经网络层之间采用的方法，用于加速学习并避免梯度消失和爆炸。"
+      },
+      {
+        "name": "word_vector_representation",
+        "desc": "从核质量预测任务的神经网络隐藏层获取的高维表示，用于辅助α衰变半衰期预测。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "h _ {i} = \\sigma \\left(\\sum_ {j} w _ {i j} x _ {j} + b _ {i}\\right)"
+      },
+      {
+        "label": "Eq.2",
+        "content": "\\text {R e s i d u a l} = M _ {\\exp} - M _ {\\mathrm {L D M}} - R _ {\\text {N e t w o r k}}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "RMS error (BWM/LDM)",
+        "value": "> 2 MeV",
+        "condition": "Bethe-Weizsäcker模型和液滴模型的均方根误差"
+      },
+      {
+        "quantity": "Optimal RMS error (mass prediction)",
+        "value": "0.22 MeV",
+        "condition": "使用10个隐藏层（第一层和最后一层1024个神经元，其他8层256个神经元）的最佳网络结构"
+      },
+      {
+        "quantity": "Average RMS error (10-fold, 26 features)",
+        "value": "263 keV",
+        "condition": "使用26个特征和最优网络结构（n=8, m=256）的液滴模型质量残差预测"
+      },
+      {
+        "quantity": "Average RMS error (10-fold, 3 features)",
+        "value": "332 keV",
+        "condition": "使用3个特征和最优网络结构（n=8, m=256）的液滴模型质量残差预测"
+      },
+      {
+        "quantity": "RMS error (322 new elements, network)",
+        "value": "0.605 MeV",
+        "condition": "对322个未用于训练网络或拟合液滴模型参数的新元素的网络预测"
+      },
+      {
+        "quantity": "RMS error (322 new elements, LDM)",
+        "value": "2.542 MeV",
+        "condition": "对322个未用于训练网络或拟合液滴模型参数的新元素的液滴模型预测"
+      },
+      {
+        "quantity": "Average RMS deviation (Q-value prediction)",
+        "value": "0.15 MeV",
+        "condition": "与486个核的实验数据相比的Q值预测误差"
+      }
+    ],
+    "failure_points": [
+      "Increasing m from 256 to 512 does not bring further improvement in RMS error for mass prediction.",
+      "The performance is not sensitive to the depth of the neural network; RMS error changes slightly as one increases the number of hidden layers from 2 to 18.",
+      "In our experience, subtracting both macro and micro parts (from mass models) will not benefit nuclear word-vector learning."
+    ]
+  }
+}

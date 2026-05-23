@@ -1,0 +1,466 @@
+{
+  "id": "NPP_0038",
+  "meta": {
+    "id": "NPP_0038",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_liquid_drop",
+    "source": {
+      "type": "paper",
+      "title": "I. INTRODUCTION",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2403.02748"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T12:43:50.284391",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变半衰期",
+    "input_data": "核素范围 100≤Z≤120；使用NL3*参数集的轴向形变相对论平均场（RMF）计算的结合能作为微观输入；可用的实验数据；WS4全局核质量模型的理论结果作为比较基准。",
+    "user_intent": "现有多种经验公式（如修正的Brown定标律、修正的Viola-Seaborg公式等）用于计算α衰变半衰期，但它们在同位旋不对称性和衰变能方面的依赖性不同，导致结果存在显著差异，需要系统评估这些公式在超重核区域的适用性和准确性，以提供对超重核稳定性的可靠信息。",
+    "quantifiable_goal": "计算α衰变半衰期 T_{1/2}（单位：s），并评估不同经验公式计算结果与实验及微观输入的一致性。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标物理量是α衰变半衰期half_life。根据合法推导路径，half_life可以通过alpha_decay_width、penetrability、action_integral等微观量逐步推导，也可以直接使用经验公式。论文方法中提到了modified_viola_seaborg_formula、modified_scaling_law_brown_formula、yibin_et_al_formula等经验或半经验公式，这些公式可以直接从初始条件（质量数A、电荷数Z、中子数N、Q值）出发计算半衰期。由于当前处于半盲预测模式，且论文明确使用了这些公式，第一步应选择最直接的经验公式作为起点，以便后续与微观推导路径交叉验证。 [Gap] 目前只有初始条件（A, Z, N, Q_value），没有微观势垒或预形成因子信息，直接进行微观隧穿计算条件不足。 [Decision] 选择使用modified_viola_seaborg_formula作为第一步，该公式是经验公式，直接利用Q值和Z计算半衰期，符合论文方法且不依赖微观细节。工具选择empirical_halflife_formula，它属于隧穿衰变类别，可以容纳多种经验公式形式。",
+      "action": "rule_application",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": ""
+      },
+      "parameters": {
+        "formula_type": "modified_viola_seaborg",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "neutron_number_N": "neutron_number_N",
+        "Q_value": "Q_value"
+      },
+      "output_state": {
+        "half_life_empirical": "log10(T_{1/2}) = (aZ + b) / sqrt(Q_alpha) + cZ + d，其中a,b,c,d为拟合参数（可能依赖A或N）"
+      },
+      "observation": "应用modified_viola_seaborg公式得到半衰期的经验表达式，作为后续微观修正的基准。具体参数需根据论文拟合值确定。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 上一步使用了modified_viola_seaborg公式作为经验基准，但该公式未包含核结构效应（如壳层、形变、配对能）。论文方法中提到了constant_gap_bcs_method，用于处理超重核的配对关联，这会影响预形成因子和衰变能。 [Gap] 需要引入BCS配对能修正，以更准确地描述超重核的基态性质，从而影响Q值和半衰期。 [Decision] 使用pairing_correlation_BCS工具，基于NL3*参数集的平均场结果，计算配对能修正，并更新Q值。",
+      "action": "model_building",
+      "tool": {
+        "name": "pairing_correlation_BCS",
+        "version": ""
+      },
+      "parameters": {
+        "mean_field_model": "NL3*",
+        "pairing_method": "constant_gap_BCS",
+        "nucleus": "Z, N, A from initial conditions"
+      },
+      "output_state": {
+        "pairing_energy_correction": "Δ_pair = -Δ^2 / (2G) 其中Δ为能隙，G为配对强度",
+        "Q_value_corrected": "Q_α_corrected = Q_value + δQ_pairing"
+      },
+      "observation": "通过constant_gap_BCS方法计算超重核的配对能修正，得到能隙Δ和配对能Δ_pair，进而修正衰变能Q_α。此修正将影响后续半衰期计算中的指数因子。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "BCS配对能修正直接用于修正衰变能Q_α在物理上不合理。配对能影响的是基态能量和预形成因子，而不是直接改变衰变能Q_α（Q_α由母核与子核的质量差决定，配对能对两者的贡献近似抵消，不会显著改变Q_α）。论文中配对能是作为修正因子直接加入半衰期公式的指数项，而不是修正Q_α。"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 当前已通过经验公式得到半衰期的基准值，并通过BCS配对能修正了衰变能。接下来需要将核结构效应（如形变、壳修正）纳入半衰期计算，论文中提到了modified scaling law (Brown公式)和Yibin等人的公式，这些公式通常包含对形变和壳效应的参数化修正。 [Gap] 目前尚未引入形变参数和壳修正对半衰期的影响，需要从核结构信息中提取这些量。 [Decision] 选择使用deformation_parameter_extraction工具，从RMF计算得到的四极形变参数β₂出发，结合宏观-微观方法中的Strutinsky壳修正，为后续的修正公式提供形变和壳修正输入。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "deformation_parameter_extraction",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "neutron_number_N": "neutron_number_N",
+        "method": "relativistic_mean_field",
+        "parameter_set": "NL3*"
+      },
+      "output_state": {
+        "quadrupole_deformation_beta2": "β₂ = 0.25 (示例值，实际由RMF计算给出)",
+        "hexadecapole_deformation_beta4": "β₄ = 0.05 (示例值，实际由RMF计算给出)",
+        "shell_correction_energy": "δU_shell = E_shell_correction (由Strutinsky方法从单粒子能级计算)"
+      },
+      "observation": "通过RMF计算（NL3*参数集）提取了超重核的形变参数β₂和β₄，以及壳修正能δU_shell。这些量将用于后续的modified scaling law公式中，以修正半衰期对形变和壳效应的依赖。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 前序步骤已获得经验半衰期公式（modified Viola-Seaborg）、配对能修正后的衰变能Q_α_corrected、以及形变参数和壳修正能。论文中使用了modified scaling law (Brown公式)作为另一种半衰期预测方法，该公式将半衰期与衰变能、质子数以及壳修正能关联起来，形变效应通过有效Q值或直接修正项体现。 [Gap] 目前尚未构建modified scaling law的具体表达式，需要将壳修正能δU_shell和形变参数β₂、β₄纳入公式，以得到更准确的半衰期预测。 [Decision] 选择modified scaling law (Brown公式)作为当前步骤的模型，将壳修正能作为指数修正项，形变参数通过影响有效Q值或直接作为修正因子加入公式。",
+      "action": "model_building",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "half_life_scaling_law": "log10(T_{1/2}) = a * Z / sqrt(Q_alpha_corrected) + b * Z + c + d * (δU_shell) + e * β₂ + f * β₄",
+        "scaling_law_parameters": "a, b, c, d, e, f 为待定参数，需通过拟合实验数据确定"
+      },
+      "observation": "构建了modified scaling law (Brown公式)的表达式，将壳修正能δU_shell和形变参数β₂、β₄作为修正项纳入半衰期对数公式。该公式将用于后续与实验数据比较或与modified Viola-Seaborg公式结果进行综合预测。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "incorrect_derivation",
+      "error_reason": "预测将形变参数β₂、β₄和壳修正能δU_shell同时作为修正项纳入modified scaling law公式，但论文中该公式仅包含形变β₂和配对能Δ_p的修正，不包含壳修正能δU_shell。壳修正能通常用于宏观-微观质量公式或Viola-Seaborg公式的修正，而非Brown公式。将壳修正能混入Brown公式会导致物理量重复或错误关联。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已通过modified scaling law (Brown公式)构建了包含壳修正和形变效应的半衰期表达式，但该公式中的参数需要拟合确定。论文中提到了yibin_et_al_formula，这是一种基于系统学拟合的改进公式，通常将半衰期对数表达为衰变能、质子数以及壳修正和形变参数的线性组合。[Gap] 需要将yibin_et_al_formula具体化，并明确其与modified scaling law的关系，以便后续整合或比较。[Decision] 选择empirical_halflife_formula工具，构建yibin_et_al_formula的表达式，该公式通常形式为 log10(T_{1/2}) = a Z / sqrt(Q_α_corrected) + b Z + c + d δU_shell + e β₂ + f β₄，其中a,b,c,d,e,f为拟合参数。",
+      "action": "model_building",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": ""
+      },
+      "parameters": {
+        "formula_type": "yibin_et_al_formula",
+        "corrected_Q_value": "Q_alpha_corrected",
+        "shell_correction": "delta_U_shell",
+        "deformation_parameters": "beta2, beta4",
+        "proton_number": "Z"
+      },
+      "output_state": {
+        "half_life_yibin_formula": "log10(T_{1/2}) = a * Z / sqrt(Q_alpha_corrected) + b * Z + c + d * delta_U_shell + e * beta2 + f * beta4",
+        "yibin_parameters": "a, b, c, d, e, f (待拟合)"
+      },
+      "observation": "构建了yibin_et_al_formula的表达式，该公式在modified scaling law基础上增加了壳修正能δU_shell和形变参数β₂、β₄的线性修正项，能够更精确地描述超重核区域的α衰变半衰期。参数a,b,c,d,e,f需通过拟合实验数据确定。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "incorrect_derivation",
+      "error_reason": "预测将壳修正能δU_shell和形变参数β₂、β₄同时作为线性修正项加入yibin_et_al公式，但论文中该公式仅包含形变β₂和配对能Δ_p的修正，不包含壳修正能。壳修正能是宏观-微观方法中的概念，与经验公式中的形变修正属于不同物理层次，混用会导致参数冗余和物理意义不清。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已通过RMF+BCS方法获得了修正后的衰变能Q_alpha_corrected、形变参数beta2和beta4、壳修正能deltaU_shell，并构建了modified scaling law和yibin_et_al公式的表达式框架。这些公式中的参数(a,b,c,d,e,f)需要通过拟合实验数据来确定，才能用于预测超重核的半衰期。[Gap] 目前仅有公式形式，缺少拟合参数的具体数值，无法直接计算半衰期。需要利用已知的实验半衰期数据对公式参数进行最小二乘拟合。[Decision] 选择chi_squared_minimization工具，以实验半衰期数据为目标，对yibin_et_al公式中的参数进行拟合，得到适用于超重核区域的最优参数集。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "formula": "log10(T_{1/2}) = a * Z / sqrt(Q_alpha_corrected) + b * Z + c + d * deltaU_shell + e * beta2 + f * beta4",
+        "fitting_target": "experimental_half_life_log10",
+        "fitting_dataset": "selected_superheavy_nuclei_experimental_data",
+        "initial_guess": {
+          "a": 1.0,
+          "b": -0.5,
+          "c": -20.0,
+          "d": 0.05,
+          "e": 0.1,
+          "f": 0.02
+        }
+      },
+      "output_state": {
+        "fitted_parameters_yibin": "a=0.95, b=-0.48, c=-19.8, d=0.052, e=0.12, f=0.018 (示例值，实际由拟合确定)",
+        "chi_squared_value": "chi2 = 3.2 (示例值，表示拟合优度)"
+      },
+      "observation": "通过最小二乘法拟合yibin_et_al公式中的六个参数，得到最优参数集。拟合过程中使用了超重核区域的实验半衰期数据，并考虑了壳修正能和形变参数的贡献。该参数集将用于后续对目标核的半衰期预测。",
+      "valid": false,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": "incorrect_derivation",
+      "error_reason": "预测使用包含壳修正能δU_shell的yibin_et_al公式进行参数拟合，但论文中该公式的修正项仅包含形变β₂和配对能Δ_p。壳修正能δU_shell并非该公式的输入参数，将其纳入拟合会导致拟合参数集与论文公式形式不匹配，且物理上壳修正能已通过其他途径（如宏观-微观方法）处理，不应重复出现在经验公式中。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 我们已经通过RMF计算得到了目标核的形变参数β₂、β₄和壳修正能δU_shell，并构建了modified scaling law (Brown公式)和yibin_et_al公式的表达式。在第6步中，我们通过最小二乘法拟合得到了yibin_et_al公式的最优参数集。现在需要利用这些参数和已知的Q值、形变参数、壳修正能，代入yibin_et_al公式直接计算目标核的α衰变半衰期预测值。[Gap] 当前状态中尚未得到目标核的具体半衰期数值，需要执行预测计算。[Decision] 使用ml_direct_prediction工具（或empirical_halflife_formula工具）将拟合好的参数代入yibin_et_al公式，计算目标核的半衰期对数预测值。",
+      "action": "model_building",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": ""
+      },
+      "parameters": {
+        "formula_type": "yibin_et_al",
+        "parameters": {
+          "a": 0.95,
+          "b": -0.48,
+          "c": -19.8,
+          "d": 0.052,
+          "e": 0.12,
+          "f": 0.018
+        },
+        "inputs": {
+          "Z": "charge_number_Z",
+          "Q_alpha_corrected": "Q_value + 2*δU_shell (示例修正)",
+          "beta_2": 0.25,
+          "beta_4": 0.05,
+          "delta_U_shell": "shell_correction_energy"
+        }
+      },
+      "output_state": {
+        "half_life_log10_predicted": "log10(T_{1/2}) = a * Z / sqrt(Q_alpha_corrected) + b * Z + c + d * β₂² + e * β₄ + f * δU_shell",
+        "half_life_predicted": "T_{1/2} = 10^{log10(T_{1/2})} (秒)"
+      },
+      "observation": "将拟合得到的参数a=0.95, b=-0.48, c=-19.8, d=0.052, e=0.12, f=0.018代入yibin_et_al公式，结合目标核的Z、Q_alpha_corrected（考虑壳修正能修正后的衰变能）、β₂=0.25、β₄=0.05和δU_shell，计算出半衰期的对数预测值。该预测值将用于后续与实验数据比较或模型不确定性评估。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "incorrect_derivation",
+      "error_reason": "预测代入的yibin_et_al公式参数包含壳修正能δU_shell的系数，但论文中该公式的修正项仅包含形变β₂和配对能Δ_p。壳修正能δU_shell不是该公式的输入，将其代入会导致预测公式与论文公式形式不一致，物理上壳修正能对半衰期的影响已通过其他机制（如宏观-微观方法）体现，不应在此重复引入。"
+    },
+    {
+      "step_index": 8,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤2：使用pairing_correlation_BCS工具计算配对能修正并直接修正衰变能Q_α，当时已知的条件包括：上一步使用了modified_viola_seaborg公式作为经验基准，该公式未包含核结构效应；论文方法中提到了constant_gap_bcs_method用于处理超重核的配对关联；配对能影响预形成因子和衰变能。。[Gap] 错过的信号：配对能对母核和子核的质量贡献近似抵消，不会显著改变Q_α，这是核物理中关于质量差的基本常识。决策时已知Q_α由母核与子核的质量差定义，而配对能对两者的贡献在质量差中几乎相消，本应触发对“直接修正Q_α”这一做法的警觉。。[Decision] 正确判断方式：面对“配对能影响基态能量”这一条件，应首先检查配对能对Q_α的影响方式：Q_α = M_parent - M_daughter - M_α，配对能对M_parent和M_daughter的贡献近似相等，因此对Q_α的修正很小。如果发现修正量级远小于Q_α本身（如<0.1 MeV），则应将配对能作为半衰期公式指数项的独立修正因子，而非修正Q_α。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对配对能如何影响Q_α的物理机制分析，直接假设配对能修正可叠加到Q_α上。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：在modified scaling law (Brown公式)中同时引入壳修正能δU_shell和形变参数β₂、β₄作为修正项，当时已知的条件包括：前序步骤已获得经验半衰期公式、配对能修正后的衰变能、形变参数和壳修正能；论文中使用了modified scaling law (Brown公式)作为半衰期预测方法。。[Gap] 错过的信号：壳修正能δU_shell是宏观-微观质量公式中的概念，用于修正液滴模型的质量，而Brown公式是纯经验公式，通常只包含形变和配对能修正。决策时已知壳修正能已通过其他途径（如宏观-微观方法）处理，将其混入Brown公式会导致物理量重复或错误关联，本应触发对“壳修正能是否属于Brown公式输入”的警觉。。[Decision] 正确判断方式：面对“壳修正能δU_shell和形变参数β₂、β₄同时可用”这一条件，应首先检查Brown公式的原始形式：它通常只包含形变β₂和配对能Δ_p的修正。如果发现壳修正能δU_shell在Brown公式中无先例，则不应将其纳入，而应保留壳修正能用于其他公式（如Viola-Seaborg公式的修正）。。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对Brown公式原始形式的检查，错误地将壳修正能作为通用修正项加入。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：在yibin_et_al_formula中同时引入壳修正能δU_shell和形变参数β₂、β₄作为线性修正项，当时已知的条件包括：已通过modified scaling law构建了包含壳修正和形变效应的表达式；论文中提到了yibin_et_al_formula作为改进公式。。[Gap] 错过的信号：yibin_et_al公式是Brown公式的变体，其修正项通常只包含形变β₂和配对能Δ_p，不包含壳修正能。决策时已知壳修正能是宏观-微观方法中的概念，与经验公式中的形变修正属于不同物理层次，本应触发对“壳修正能是否与yibin_et_al公式的物理基础兼容”的警觉。。[Decision] 正确判断方式：面对“壳修正能δU_shell和形变参数β₂、β₄同时可用”这一条件，应首先检查yibin_et_al公式的原始形式：它通常只包含形变β₂和配对能Δ_p的修正。如果发现壳修正能δU_shell在该公式中无先例，则不应将其纳入，而应保留壳修正能用于其他公式。。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对yibin_et_al公式原始形式的检查，错误地将壳修正能作为通用修正项加入。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：使用包含壳修正能δU_shell的yibin_et_al公式进行参数拟合，当时已知的条件包括：前序步骤已构建了包含壳修正能和形变参数的yibin_et_al公式；需要利用实验半衰期数据拟合参数。。[Gap] 错过的信号：壳修正能δU_shell并非yibin_et_al公式的输入参数，将其纳入拟合会导致拟合参数集与论文公式形式不匹配。决策时已知壳修正能已通过其他途径（如宏观-微观方法）处理，不应重复出现在经验公式中，本应触发对“拟合公式是否与论文公式一致”的警觉。。[Decision] 正确判断方式：面对“需要拟合yibin_et_al公式参数”这一条件，应首先检查该公式的原始形式：它只包含形变β₂和配对能Δ_p的修正。如果发现壳修正能δU_shell不在公式中，则应在拟合前将其移除，仅保留形变β₂和配对能Δ_p作为修正项。。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对拟合公式形式的验证，错误地使用了包含壳修正能的公式进行拟合。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤7：将包含壳修正能δU_shell系数的参数代入yibin_et_al公式计算半衰期，当时已知的条件包括：前序步骤已拟合得到包含壳修正能系数的参数集；需要代入公式计算目标核的半衰期。。[Gap] 错过的信号：壳修正能δU_shell不是yibin_et_al公式的输入，将其代入会导致预测公式与论文公式形式不一致。决策时已知壳修正能对半衰期的影响已通过其他机制（如宏观-微观方法）体现，不应在此重复引入，本应触发对“代入公式是否与论文公式一致”的警觉。。[Decision] 正确判断方式：面对“需要代入yibin_et_al公式计算半衰期”这一条件，应首先检查该公式的原始形式：它只包含形变β₂和配对能Δ_p的修正。如果发现壳修正能δU_shell不在公式中，则应在代入前移除壳修正能项，仅使用形变β₂和配对能Δ_p的修正项。。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对代入公式形式的验证，错误地使用了包含壳修正能的公式进行计算。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在构建经验公式时，必须严格遵循公式的原始定义和物理基础，避免将不同层次的物理量（如壳修正能与形变参数）混用；任何修正项的引入都应基于对公式适用边界和物理机制的明确检查，而非直觉性地叠加。"
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 3 分别使用 empirical_halflife_formula -> deformation_parameter_extraction 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 3 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 目标是从质量数A、电荷数Z、中子数N和衰变能Q_α出发，推导超重核α衰变半衰期。论文采用改进的Viola-Seaborg公式作为经验起点，该公式将半衰期与Q_α和Z直接关联，是α衰变半衰期预测的经典方法。[Gap] 当前仅有初始条件，尚未建立任何半衰期表达式。需要选择第一个工具来引入经验公式或理论框架。[Decision] 根据论文方法列表，首先应用经验半衰期公式（modified_viola_seaborg_formula）作为推导的起点，该公式属于隧穿衰变类工具，且位于合法路径Path 1的起始端（half_life可通过经验公式直接得到）。",
+      "action": "rule_application",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": ""
+      },
+      "parameters": {
+        "formula_type": "modified_Viola_Seaborg",
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "Q_value": "Q_α"
+      },
+      "output_state": {
+        "half_life_empirical": "log10(T_{1/2}) = (aZ + b) / sqrt(Q_α) + cZ + d，其中a,b,c,d为拟合参数"
+      },
+      "observation": "采用改进的Viola-Seaborg经验公式作为半衰期预测的起点，该公式将半衰期对数与Q_α和Z关联。参数a,b,c,d由实验数据拟合得到，适用于超重核区域。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 第1步使用了经验公式得到半衰期的初步估计，但该公式未考虑核结构效应（如形变、配对能、同位旋不对称性等），对于超重核区域，这些效应可能显著影响半衰期。论文采用相对论平均场（RMF）理论结合常数能隙BCS方法计算核结构修正，进而修正半衰期。 [Gap] 需要引入核结构信息，特别是形变参数和配对能，以修正经验公式。 [Decision] 使用RMF+BCS方法计算基态形变和配对能，为后续修正提供输入。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": "RMF+BCS"
+      },
+      "parameters": {
+        "nucleus": "Z, N, A",
+        "parameter_set": "NL3*",
+        "BCS_gap": "constant_gap_approximation",
+        "deformation": "quadrupole_deformation_beta2"
+      },
+      "output_state": {
+        "deformation_parameter_beta2": "由RMF+BCS自洽计算得到，描述核四极形变",
+        "pairing_energy": "由BCS方法计算的对关联能，Δ_p = G * sum_{i>0} u_i v_i",
+        "single_particle_levels": "RMF计算得到的单粒子能级，用于后续计算对关联和形变"
+      },
+      "observation": "采用NL3*参数集的相对论平均场理论，结合常数能隙BCS方法，计算超重核的基态形变参数β₂和配对能。这些核结构量将用于修正经验半衰期公式，提高预测精度。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 前两步已获得经验半衰期公式和核结构参数（形变β₂、配对能Δ_p、单粒子能级）。经验公式仅依赖Q_α和Z，未考虑核结构效应（如形变、对关联）对隧穿概率的影响。超重核区域形变显著（如β₂可达0.2-0.3），对关联能改变势垒穿透因子，需引入修正。[Gap] 需要将核结构信息融入半衰期预测，论文采用修正的Brown缩放定律（modified scaling law of Brown formula），该公式通过形变和配对能修正指数项。[Decision] 应用修正的Brown缩放定律公式，将形变参数β₂和配对能Δ_p作为修正因子，得到结构修正后的半衰期表达式。",
+      "action": "approximation",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": ""
+      },
+      "parameters": {
+        "formula_type": "modified_scaling_law_brown",
+        "deformation_parameter": "beta2",
+        "pairing_energy": "Delta_p",
+        "Q_value": "Q_alpha",
+        "mass_number": "A",
+        "charge_number": "Z"
+      },
+      "output_state": {
+        "half_life_structural_corrected": "log10(T_{1/2}^{struct}) = (a'Z + b') / sqrt(Q_α) + c'Z + d' + e * β₂ + f * Δ_p，其中a',b',c',d',e,f为拟合参数，β₂为四极形变参数，Δ_p为配对能（单位MeV）"
+      },
+      "observation": "采用修正的Brown缩放定律公式，在经验Viola-Seaborg公式基础上引入形变修正项e*β₂和配对能修正项f*Δ_p。形变增大使势垒变宽（β₂>0时半衰期增加），配对能增大增强隧穿概率（Δ_p>0时半衰期减小）。参数由超重核实验数据拟合得到。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将计算得到的半衰期（0.001 s和0.01 s）与已知实验数据（如核素表中对应核的α衰变半衰期测量值）进行直接对比，验证在相同核素和衰变能条件下公式的预测精度。其次，对经验公式（如modified Viola-Seaborg公式）进行量纲分析，确认其指数项中衰变能Q与半衰期对数之间的线性关系在物理上合理，并检查在极端Q值（如接近0或极大）时公式是否发散或给出非物理结果。最后，使用独立方法（如基于微观核势的WKB穿透计算）交叉验证同一核素的半衰期，若结果在数量级上一致则增强可信度，若偏差超过一个数量级则提示经验公式的适用性可能受核形变或对效应影响而失效。",
+    "metrics": {
+      "half_life": {
+        "value": "0.01 s",
+        "unit": "Z=114, N=172, 使用修正Brown定标律",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：modified_viola_seaborg_formula；modified_scaling_law_brown_formula。"
+  },
+  "paper_methods": [
+    "relativistic_mean_field",
+    "constant_gap_bcs_method",
+    "modified_viola_seaborg_formula",
+    "modified_scaling_law_brown_formula",
+    "yibin_et_al_formula"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "relativistic_mean_field",
+        "desc": "使用NL3*参数集的轴向形变RMF计算超重核结合能，提供微观输入"
+      },
+      {
+        "name": "constant_gap_bcs_method",
+        "desc": "采用常数对能隙的BCS方法处理对关联效应"
+      },
+      {
+        "name": "modified_viola_seaborg_formula",
+        "desc": "基于Viola-Seaborg公式，引入同位旋不对称性修正的半衰期经验公式"
+      },
+      {
+        "name": "modified_scaling_law_brown_formula",
+        "desc": "基于Brown定标律，引入形变和壳效应修正的半衰期经验公式"
+      },
+      {
+        "name": "yibin_et_al_formula",
+        "desc": "Yibin等人提出的包含形变和同位旋依赖的半衰期经验公式"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "\\log_{10} T_{1/2} = a Z Q_\\alpha^{-1/2} + b Z + c"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "\\log_{10} T_{1/2} = a Z Q_\\alpha^{-1/2} + b Z + c I + d I^2 + e"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "0.001 s",
+        "condition": "Z=114, N=172, 使用修正Viola-Seaborg公式"
+      },
+      {
+        "quantity": "half_life",
+        "value": "0.01 s",
+        "condition": "Z=114, N=172, 使用修正Brown定标律"
+      }
+    ],
+    "failure_points": [
+      "modified_viola_seaborg_formula",
+      "modified_scaling_law_brown_formula"
+    ]
+  }
+}

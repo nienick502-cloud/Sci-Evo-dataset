@@ -1,0 +1,537 @@
+{
+  "id": "NPP_0105",
+  "meta": {
+    "id": "NPP_0105",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_double_folding",
+    "source": {
+      "type": "paper",
+      "title": "Folding model analysis of alpha radioactivity",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_nucl-th_0206035"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T17:53:05.137440",
+      "generated_by": "Lenovo"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "α衰变半衰期与α团簇预形成概率",
+    "input_data": "已知条件：广泛的α发射体核素；使用M3Y有效相互作用；包含半现实显式密度依赖关系。",
+    "user_intent": "现有理论模型（如ASAFM和CM）使用的核相互作用势是唯象的，旨在拟合实验数据，而非基于微观基础。ASAFM使用抛物线势近似，CM使用奇特的cos-双曲形式，这些都不是理想的α-核相互作用势。需要一种更微观、更彻底的理论方法来描述α-核相互作用。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s），提取α团簇预形成概率 P_\\alpha（无量纲）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 本推导旨在通过双折叠模型和WKB近似计算α衰变半衰期。第一步需要构建α-核相互作用势，这是后续所有计算的基础。双折叠模型通过积分核物质密度分布和有效核子-核子相互作用来得到核势。根据论文方法，使用M3Y有效相互作用，并考虑半现实显式密度依赖关系（DDM3Y）。[Gap] 目前尚未定义核物质密度分布和有效相互作用的参数形式，需要先确定这些输入。[Decision] 因此，第一步选择构建双折叠核势，使用double_folding_integral工具，基于M3Y有效相互作用和核物质密度分布来计算核势。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": "1.0"
+      },
+      "parameters": {
+        "projectile": "alpha_particle",
+        "target_nucleus": "daughter_nucleus",
+        "effective_interaction": "M3Y",
+        "density_dependence": "DDM3Y",
+        "density_model": "Fermi_distribution"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = ∫∫ ρ_α(r1) ρ_d(r2) v_eff(s, ρ) d^3r1 d^3r2, where s = |r + r2 - r1|"
+      },
+      "observation": "构建了基于DDM3Y有效相互作用的双折叠核势，核势为α粒子和子核密度分布与有效相互作用的双重积分。该势在短距离内为强吸引，符合核力物理图像（规则084）。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 双折叠核势 V_N(r) 已构建，但完整的 α-核相互作用势还需包含库仑势和离心势。库仑势对于 α 衰变势垒的形成至关重要，离心势则影响角动量相关的势垒高度。[Gap] 当前仅有核势表达式，尚未构建完整的有效势 V_eff(r) = V_N(r) + V_C(r) + V_l(r)。[Decision] 下一步应计算库仑势，采用均匀带电球模型，其中 α 粒子和子核视为点电荷与均匀带电球，然后与核势相加得到有效势。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "alpha_charge": 2,
+        "daughter_charge": "Z-2",
+        "radius_model": "uniform_sphere",
+        "radius_constant": 1.2,
+        "unit": "MeV"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(r) = (2*(Z-2)*e^2)/(4π ε_0 r) for r > R_C, and (2*(Z-2)*e^2)/(4π ε_0 R_C) * (3/2 - r^2/(2R_C^2)) for r ≤ R_C",
+        "coulomb_radius": "R_C = 1.2 * (A_d^(1/3) + 4^(1/3)) fm",
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)"
+      },
+      "observation": "库仑势采用均匀带电球模型计算，其中 α 粒子电荷为 2e，子核电荷为 (Z-2)e。库仑半径取 R_C = 1.2*(A_d^(1/3) + 4^(1/3)) fm。有效势由核势、库仑势和离心势三项之和构成，离心势将在后续步骤中根据角动量量子数 l 构建。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 当前已构建了有效势 V_eff(r) = V_N(r) + V_C(r) + V_l(r)，其中核势 V_N(r) 基于 DDM3Y 有效相互作用的双折叠模型，库仑势 V_C(r) 采用均匀带电球模型，离心势 V_l(r) 尚未显式给出。下一步需要构建离心势，以完成有效势的组装。[Gap] 离心势依赖于角动量量子数 l，而 l 由 α 衰变的角动量选择定则决定，需要从初态和末态的核自旋宇称推导。目前尚未确定 l 的具体值。[Decision] 根据核物理规则，α 衰变的角动量由母核自旋 J_i、子核自旋 J_f 和 α 粒子自旋 0 决定，满足 |J_i - J_f| ≤ l ≤ J_i + J_f，且宇称守恒 π_i = π_f * (-1)^l。由于论文未指定具体核素，此处先保留 l 为符号参数，构建离心势的通用形式 V_l(r) = (ħ^2 l(l+1))/(2μ r^2)，其中 μ 为约化质量。此步骤属于模型构建，工具选择 centrifugal_potential_construction。",
+      "action": "model_building",
+      "tool": {
+        "name": "centrifugal_potential_construction",
+        "version": ""
+      },
+      "parameters": {
+        "angular_momentum": "l (symbolic, determined by spin-parity selection rules)",
+        "reduced_mass": "μ = m_α * m_d / (m_α + m_d)",
+        "expression": "V_l(r) = (ħ^2 l(l+1))/(2μ r^2)"
+      },
+      "output_state": {
+        "centrifugal_potential": "V_l(r) = (ħ^2 l(l+1))/(2μ r^2)",
+        "reduced_mass": "μ = m_α * m_d / (m_α + m_d)",
+        "angular_momentum": "l (to be determined from spin-parity conservation)"
+      },
+      "observation": "离心势 V_l(r) 已构建为离心势的标准形式，其中约化质量 μ 由 α 粒子和子核质量计算，角动量 l 需根据具体衰变道的自旋宇称守恒确定。离心势在 r→0 时发散，在 r→∞ 时趋于零，与核势和库仑势共同构成有效势 V_eff(r)。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 我们已经构建了有效势的三个组成部分：核势 V_N(r)（基于DDM3Y双折叠模型）、库仑势 V_C(r)（均匀带电球模型）和离心势 V_l(r)（标准形式）。有效势 V_eff(r) = V_N(r) + V_C(r) + V_l(r) 是后续WKB隧穿计算的基础。 [Gap] 目前我们只有势能的形式，但尚未确定具体参数（如核势的强度、密度分布参数）以及角动量 l 的值。此外，为了求解WKB作用积分，我们需要找到有效势的转折点，这需要先确定衰变能 Q_α 和角动量 l。 [Decision] 下一步应计算衰变能 Q_α，这是隧穿问题的能量参数。同时，根据自旋宇称守恒确定角动量 l。我将使用Q_value_calculation工具计算Q值，并基于自旋宇称规则确定l。",
+      "action": "rule_application",
+      "tool": {
+        "name": "Q_value_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "parent_nucleus": "Z, A",
+        "daughter_nucleus": "Z-2, A-4",
+        "alpha_particle": "He-4",
+        "mass_excess_data": "AME2020"
+      },
+      "output_state": {
+        "Q_value": "Q_α = [M(Z,A) - M(Z-2,A-4) - M_α]c^2",
+        "angular_momentum": "l = determined by spin-parity conservation: |J_i - J_f| ≤ l ≤ J_i + J_f, π_i = π_f * (-1)^l"
+      },
+      "observation": "衰变能 Q_α 通过母核、子核和α粒子的质量过剩计算得到。对于偶偶核基态到基态衰变，通常 J_i^π = J_f^π = 0^+，因此 l = 0（s波衰变）。对于一般情况，l 由自旋宇称守恒规则确定。Q_α 将作为WKB隧穿计算中的能量参数 E = Q_α。",
+      "step_mode": "physical_argument",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经构建了有效势（核势、库仑势、离心势）和衰变能Q_α，并确定了角动量l。下一步需要求解WKB隧穿过程中的转折点，这是计算穿透概率的关键步骤。[Gap] 转折点由方程E=Q_α=V_eff(r)确定，通常存在三个转折点：内转折点r1位于核表面附近，外转折点r2和r3位于库仑势垒两侧。我们需要明确转折点的物理位置和求解方法。[Decision] 使用turning_point_solver工具，基于有效势和Q_α值数值求解转折点，并确保内转折点位于核表面附近（规则115）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": "1.0"
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "energy": "Q_α",
+        "angular_momentum": "l",
+        "nuclear_radius_estimate": "R_N ≈ 1.2 * A_d^(1/3) fm",
+        "physical_constraint": "内转折点r1应位于核表面附近（~R_N），而非远小于核半径的内部"
+      },
+      "output_state": {
+        "turning_points": "r1 (inner), r2 (outer), r3 (outermost) 满足 V_eff(r_i) = Q_α",
+        "inner_turning_point": "r1 ≈ R_N + δ (δ为小量，约0-1 fm)",
+        "outer_turning_points": "r2和r3由库仑势垒形状决定"
+      },
+      "observation": "通过数值求解方程V_eff(r)=Q_α，得到三个转折点：内转折点r1位于核表面附近（约1.2*A_d^(1/3) fm），外转折点r2和r3位于库仑势垒两侧。对于偶偶核基态衰变（l=0），离心势为零，转折点仅由核势和库仑势决定。内转折点的位置与核结构图像一致（规则115），为后续WKB作用积分计算提供了正确的积分区间。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null,
+      "dfs_warning": "unmet_requires"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前推导路径已构建了有效势（核势+库仑势+离心势）、确定了Q值和角动量l、并求解了转折点。下一步需要计算α粒子隧穿库仑势垒的穿透概率，这是WKB近似方法的核心步骤。[Gap] 穿透概率P_α需要通过WKB作用量积分计算，该积分在转折点r2和r3之间进行，但当前尚未明确r2和r3的具体数值，且需要确认是否已获得核势V_N(r)的具体形式（双折叠模型结果）。[Decision] 由于核势V_N(r)尚未通过双折叠模型显式计算，无法直接进行WKB积分。因此，第6步应首先完成核势的构建，使用双折叠模型基于M3Y有效相互作用计算α-核相互作用势，为后续WKB穿透概率计算提供完整的势能输入。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": "1.0"
+      },
+      "parameters": {
+        "projectile": "alpha_particle",
+        "target": "daughter_nucleus",
+        "effective_interaction": "M3Y_Paris",
+        "density_dependence": "DDM3Y",
+        "integration_method": "numerical_quadrature"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = ∫∫ ρ_α(r_1) ρ_d(r_2) v_eff(s, ρ) d^3r_1 d^3r_2, where s = |r + r_2 - r_1|",
+        "effective_interaction": "v_eff(s, ρ) = v_M3Y(s) * F(ρ), with v_M3Y(s) = [7999*exp(-4s)/(4s) - 2134*exp(-2.5s)/(2.5s)] MeV",
+        "density_dependence": "F(ρ) = C * [1 + α*exp(-β*ρ) - γ*ρ] for DDM3Y",
+        "alpha_density": "ρ_α(r) = 0.4229 * exp(-0.7024*r^2) fm^{-3} (Gaussian form)",
+        "daughter_density": "ρ_d(r) = ρ_0 / [1 + exp((r - R_d)/a)] (Fermi form), with R_d = 1.07*A_d^{1/3} fm, a = 0.54 fm"
+      },
+      "observation": "双折叠核势V_N(r)已通过双折叠积分构建，使用M3Y有效相互作用（Paris参数化）并引入DDM3Y密度依赖因子。α粒子密度采用高斯分布参数化，子核密度采用Fermi分布。该核势在短距离内为强吸引，符合核力物理图像（规则084）。核势的具体数值需通过数值积分计算得到，将作为有效势V_eff(r)的组成部分用于后续WKB穿透概率计算。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "incorrect_derivation",
+      "error_reason": "预测在第6步重新调用double_folding_integral工具，声称核势尚未显式计算，但第1步已经声明构建了双折叠核势。这种重复调用在物理推导逻辑上自相矛盾，导致步骤顺序混乱，破坏了推导的连贯性。正确的物理流程应在第1步完成核势构建后，后续步骤直接使用该结果，无需再次构建。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已构建了离心势、Q值、转折点和双折叠核势的表达式。双折叠核势V_N(r)已通过M3Y有效相互作用和DDM3Y密度依赖因子构建，但尚未与库仑势和离心势组合成有效势。有效势是WKB穿透概率计算的核心输入，必须包含核势、库仑势和离心势三部分。[Gap] 需要将双折叠核势与库仑势、离心势组合成总有效势，以便后续求解WKB作用积分。[Decision] 使用effective_potential_assembly工具，将核势、库仑势和离心势相加，构建有效势V_eff(r)。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(r) = ∫∫ ρ_α(r_1) ρ_d(r_2) v_M3Y(s) F(ρ) d^3r_1 d^3r_2",
+        "coulomb_potential": "V_C(r) = (Z_α Z_d e^2)/(4π ε_0 r) for r ≥ R_C, with R_C = 1.2*(A_α^(1/3)+A_d^(1/3)) fm",
+        "centrifugal_potential": "V_l(r) = (ħ^2 l(l+1))/(2μ r^2)",
+        "Q_value": "Q_α = [M(Z,A) - M(Z-2,A-4) - M_α]c^2"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "potential_components": "nuclear_potential=V_N(r) (attractive, short-range), coulomb_potential=V_C(r) (repulsive, long-range), centrifugal_potential=V_l(r) (repulsive, centrifugal barrier)"
+      },
+      "observation": "有效势V_eff(r)已构建为核势、库仑势和离心势之和。核势V_N(r)来自双折叠模型（M3Y+DDM3Y），在短距离内为强吸引；库仑势V_C(r)为点电荷库仑势，在核半径外主导；离心势V_l(r)在r→0时发散，对l>0的衰变道贡献额外势垒。对于偶偶核基态衰变（l=0），离心势为零。有效势的形状决定了隧穿概率，其峰值（势垒高度）和宽度直接影响WKB作用积分。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前已构建有效势 V_eff(r) = V_N(r) + V_C(r) + V_l(r)，并求解了转折点 r1, r2, r3。下一步需要计算α粒子隧穿库仑势垒的穿透概率，这是半经典WKB近似的核心步骤。穿透概率 P 由WKB作用积分 S = ∫_{r2}^{r3} sqrt(2μ/ħ² (V_eff(r) - Q_α)) dr 决定，即 P = exp(-2S)。[Gap] 虽然转折点已确定，但WKB积分尚未执行，需要数值计算从 r2 到 r3 的积分值。[Decision] 选择 WKB_action_integral 工具，基于有效势和衰变能计算作用积分 S，进而得到穿透概率 P。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": "1.0"
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "Q_value": "Q_α",
+        "reduced_mass": "μ = (m_α * m_d) / (m_α + m_d)",
+        "turning_points": "r2, r3 (outer turning points)",
+        "angular_momentum": "l"
+      },
+      "output_state": {
+        "WKB_action": "S = ∫_{r2}^{r3} √(2μ/ħ² (V_eff(r) - Q_α)) dr",
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "通过数值积分计算WKB作用积分 S，从外转折点 r2 到 r3。穿透概率 P = exp(-2S) 是α粒子隧穿库仑势垒的量子力学概率。对于偶偶核基态衰变（l=0），离心势项为零，积分仅由核势和库仑势决定。该步骤严格遵循半经典WKB近似，结果将用于后续半衰期计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：重新调用double_folding_integral工具构建核势，当时已知的条件包括：第1步已声明构建了双折叠核势，且后续步骤（第2-5步）均基于该核势进行推导。。[Gap] 错过的信号：步骤6的thought中明确提到“核势V_N(r)尚未通过双折叠模型显式计算”，但步骤1的observation已给出核势的构建结果。决策时已知步骤1的observation内容，本应触发“检查步骤1是否已完成核势构建”的警觉。。[Decision] 正确判断方式：面对步骤1已声明核势构建完成的情况，应首先检查步骤1的observation是否包含核势的具体信息。如果observation已给出核势构建结果，则直接使用该结果，无需重复调用工具。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对先前步骤observation的回顾检查，导致重复构建已完成的核势。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在物理推导中，每一步都应基于前一步的observation进行，避免重复构建已完成的物理量。这要求推理过程中保持对已获结果的清晰记忆和检查，防止因疏忽导致步骤冗余和逻辑混乱。"
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 7, 8 分别使用 double_folding_integral -> coulomb_potential_calculation -> centrifugal_potential_construction -> Q_value_calculation -> turning_point_solver -> effective_potential_assembly -> WKB_action_integral 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 论文旨在通过双折叠模型和WKB近似计算α衰变半衰期，需要从核子的有效相互作用出发构建α-核相互作用势。M3Y有效相互作用是双折叠模型的基础，而半现实显式密度依赖关系（DDM3Y）能更准确地描述核物质中的核子-核子相互作用。[Gap] 当前尚未定义具体的有效相互作用形式，需要明确M3Y相互作用及其密度依赖的表达式，作为后续双折叠积分的输入。[Decision] 因此，第一步是引入M3Y有效相互作用，并给出其密度依赖形式（DDM3Y），这是构建α-核势的起点。",
+      "action": "model_building",
+      "tool": {
+        "name": "NN_effective_interaction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "interaction_type": "M3Y",
+        "density_dependence": "DDM3Y",
+        "energy_dependence": "none",
+        "exchange_term": "included"
+      },
+      "output_state": {
+        "effective_interaction": "v_{DDM3Y}(r, \\rho) = t^{M3Y}(r) \\cdot g(\\rho)",
+        "m3y_interaction": "t^{M3Y}(r) = \\sum_{i=1}^3 A_i \\frac{e^{-\\mu_i r}}{\\mu_i r}",
+        "density_dependence_factor": "g(\\rho) = C \\left[ 1 + \\alpha e^{-\\beta \\rho} \\right]",
+        "parameters": "A_i, \\mu_i, C, \\alpha, \\beta 为拟合参数"
+      },
+      "observation": "定义了DDM3Y有效相互作用，包含M3Y形式的直接项和交换项，以及密度依赖因子g(ρ)，用于后续双折叠积分计算α-核势。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在定义了DDM3Y有效相互作用后，下一步需要构建α-核相互作用势。根据双折叠模型，α-核势由α粒子密度和核子密度通过有效相互作用折叠积分得到。 [Gap] 当前状态已有有效相互作用表达式，但尚未定义α粒子和靶核的密度分布函数，这是进行双折叠积分的前提。 [Decision] 因此，选择使用mean_field_density_calculation工具来定义α粒子的密度分布（通常采用高斯形式）和靶核的密度分布（采用费米分布或双参数费米分布），为后续双折叠积分做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "alpha_density": "\\rho_\\alpha(\\mathbf{r}) = 4 \\left(\\frac{1}{\\pi b_\\alpha^2}\\right)^{3/2} e^{-r^2/b_\\alpha^2}",
+        "target_density": "\\rho_T(\\mathbf{r}) = \\frac{\\rho_0}{1 + \\exp\\left(\\frac{r - R_T}{a_T}\\right)}",
+        "density_parameters": "b_\\alpha = 1.28 \\text{ fm}, \\rho_0 = 0.165 \\text{ fm}^{-3}, R_T = 1.1 A^{1/3} \\text{ fm}, a_T = 0.54 \\text{ fm}"
+      },
+      "observation": "定义了α粒子的高斯密度分布（宽度参数b_α=1.28 fm）和靶核的费米密度分布（饱和密度ρ_0=0.165 fm^{-3}，半径R_T=1.1A^{1/3} fm，弥散度a_T=0.54 fm），这些是双折叠模型的标准参数化形式。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 在定义了DDM3Y有效相互作用和α粒子及靶核的密度分布后，下一步需要计算α-核相互作用势。双折叠模型通过积分有效相互作用与密度分布来构建势能，这是论文方法中的核心步骤。[Gap] 当前已定义了相互作用形式和密度分布，但尚未进行双折叠积分计算，因此需要执行双折叠积分来得到α-核势。[Decision] 选择double_folding_integral工具，基于DDM3Y相互作用和密度分布计算α-核势的实部，包括直接项和交换项。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "interaction": "v_{DDM3Y}(r, \\rho) = t^{M3Y}(r) \\cdot g(\\rho)",
+        "alpha_density": "\\rho_\\alpha(\\mathbf{r}) = 4 \\left(\\frac{1}{\\pi b_\\alpha^2}\\right)^{3/2} e^{-r^2/b_\\alpha^2}",
+        "target_density": "\\rho_T(\\mathbf{r}) = \\frac{\\rho_0}{1 + \\exp\\left(\\frac{r - R_T}{a_T}\\right)}",
+        "density_parameters": "b_\\alpha = 1.28 \\text{ fm}, \\rho_0 = 0.165 \\text{ fm}^{-3}, R_T = 1.1 A^{1/3} \\text{ fm}, a_T = 0.54 \\text{ fm}",
+        "m3y_parameters": "A_i, \\mu_i \\text{ 来自M3Y相互作用}"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(R) = \\int d\\mathbf{r}_\\alpha \\int d\\mathbf{r}_T \\rho_\\alpha(\\mathbf{r}_\\alpha) \\rho_T(\\mathbf{r}_T) v_{DDM3Y}(|\\mathbf{R} + \\mathbf{r}_T - \\mathbf{r}_\\alpha|, \\rho)",
+        "potential_components": "V_N(R) = V_D(R) + V_{EX}(R), \\text{ 其中直接项 } V_D(R) = \\int d\\mathbf{r}_\\alpha \\int d\\mathbf{r}_T \\rho_\\alpha(\\mathbf{r}_\\alpha) \\rho_T(\\mathbf{r}_T) t^{M3Y}(s) g(\\rho), \\text{ 交换项 } V_{EX}(R) = \\int d\\mathbf{r}_\\alpha \\int d\\mathbf{r}_T \\rho_\\alpha(\\mathbf{r}_\\alpha) \\rho_T(\\mathbf{r}_T) t^{M3Y}_{EX}(s) g(\\rho) j_0(k s)"
+      },
+      "observation": "通过双折叠积分，构建了α-核势的实部V_N(R)，包含直接项和交换项。直接项使用M3Y直接相互作用，交换项使用M3Y交换相互作用并包含零阶球贝塞尔函数j_0(ks)以考虑核子交换效应。该势能是后续构建有效势和计算隧穿概率的基础。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 前几步已构建了DDM3Y有效相互作用和双折叠核势V_N(R)，这是α-核相互作用势的实部。为了计算α衰变的半衰期，需要构建总的有效势能V_eff(R)，它包含核势、库仑势和离心势。库仑势描述α粒子与子核之间的静电排斥，离心势来自α粒子的轨道角动量。 [Gap] 目前仅有核势V_N(R)，缺少库仑势和离心势的显式表达式，无法形成完整有效势。 [Decision] 下一步应构建库仑势和离心势，并组装有效势。使用coulomb_potential_calculation工具计算库仑势，使用centrifugal_potential_construction工具构建离心势，然后使用effective_potential_assembly工具组装有效势。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "charge_number_Z": "Z",
+        "alpha_charge": 2,
+        "daughter_charge": "Z-2",
+        "radius_parameter": "R_C = 1.2 A^{1/3} fm"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(R) = \\frac{(2e)((Z-2)e)}{4\\pi\\epsilon_0 R} = \\frac{2(Z-2)e^2}{R} \\quad (R \\geq R_C), \\quad V_C(R) = \\frac{2(Z-2)e^2}{2R_C} \\left(3 - \\frac{R^2}{R_C^2}\\right) \\quad (R < R_C)"
+      },
+      "observation": "库仑势V_C(R)由点电荷近似给出，当R大于库仑半径R_C时采用库仑势形式，当R小于R_C时采用均匀带电球体的内部势形式。该势与核势V_N(R)共同构成有效势的实部。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 前四步已构建了DDM3Y有效相互作用、α粒子和靶核密度分布、双折叠核势V_N(R)以及库仑势V_C(R)。[Gap] 为了计算α衰变的半衰期，需要构建α粒子在核势和库仑势共同作用下的有效势V_eff(R)，并确定其离心势贡献，从而得到完整的势垒形状，用于后续WKB穿透概率计算。[Decision] 因此，下一步应构建有效势，包括核势、库仑势和离心势，为后续的隧穿计算做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": "1.0"
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(R) from double_folding_integral",
+        "coulomb_potential": "V_C(R) from coulomb_potential_calculation",
+        "centrifugal_potential": "V_l(R) = \\frac{\\hbar^2 l(l+1)}{2\\mu R^2}",
+        "reduced_mass": "\\mu = \\frac{m_\\alpha m_T}{m_\\alpha + m_T}",
+        "angular_momentum": "l = 0 for ground-state to ground-state α decay of even-even nuclei"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)",
+        "centrifugal_potential": "V_l(R) = \\frac{\\hbar^2 l(l+1)}{2\\mu R^2}",
+        "reduced_mass": "\\mu = \\frac{4(A-4)}{A} m_n (approximately)",
+        "angular_momentum_selection": "l = 0 for ground-state to ground-state transitions in even-even nuclei"
+      },
+      "observation": "构建了有效势V_eff(R)，包含核势V_N(R)、库仑势V_C(R)和离心势V_l(R)。对于偶偶核基态到基态的α衰变，角动量l=0，离心势为零，因此有效势简化为V_eff(R)=V_N(R)+V_C(R)。该有效势将用于后续的转折点求解和WKB作用量积分计算穿透概率。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 有效势V_eff(R)已构建完成，包含核势、库仑势和离心势。对于偶偶核基态到基态的α衰变，l=0，离心势为零。下一步需要求解WKB近似中的转折点，以计算作用积分和穿透概率。[Gap] 转折点由方程E=Q=V_eff(R)确定，其中Q是衰变能。需要先计算Q值，然后求解内转折点R_in和外转折点R_out。[Decision] 使用Q_value_calculation工具计算衰变能，然后使用turning_point_solver工具求解转折点。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Q_value_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "parent_mass": "A",
+        "parent_charge": "Z",
+        "daughter_mass": "A-4",
+        "daughter_charge": "Z-2",
+        "alpha_mass": 4,
+        "alpha_charge": 2,
+        "mass_excess_source": "AME2020"
+      },
+      "output_state": {
+        "Q_value": "Q = M_parent - (M_daughter + M_alpha) = B_daughter + B_alpha - B_parent",
+        "binding_energy_parent": "B_parent = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + delta",
+        "binding_energy_daughter": "B_daughter = a_v (A-4) - a_s (A-4)^{2/3} - a_c (Z-2)(Z-3)/(A-4)^{1/3} - a_sym ((N-2)-(Z-2))^2/(A-4) + delta'",
+        "binding_energy_alpha": "B_alpha = 28.3 MeV"
+      },
+      "observation": "通过质量过剩或结合能公式计算Q值。对于偶偶核，Q值通常在4-9 MeV范围内。Q值将用于后续转折点求解和穿透概率计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "thought": "[Background] 当前已构建有效势V_eff(R)并计算了Q值。下一步需要求解隧穿过程中的内转折点R_in和外转折点R_out，这是WKB近似计算穿透概率的前提。内转折点对应α粒子在核表面形成的位置，外转折点对应库仑势垒顶部。对于偶偶核基态到基态衰变，l=0，有效势仅由核势和库仑势组成。[Gap] 目前已有V_eff(R)的表达式和Q值，但尚未确定转折点的具体位置。需要求解方程V_eff(R) = Q，得到两个实数解R_in和R_out。[Decision] 使用turning_point_solver工具，基于有效势V_eff(R)和Q值，数值求解转折点。由于核势V_N(R)由双折叠模型给出，通常具有复杂的形状，转折点需通过数值方法确定。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)",
+        "Q_value": "Q",
+        "angular_momentum": "l = 0",
+        "nuclear_potential_type": "double_folding_M3Y",
+        "coulomb_potential_type": "point_charge_approximation"
+      },
+      "output_state": {
+        "inner_turning_point": "R_in",
+        "outer_turning_point": "R_out",
+        "turning_point_condition": "V_eff(R_in) = V_eff(R_out) = Q"
+      },
+      "observation": "通过求解V_eff(R) = Q，得到两个转折点：内转折点R_in位于核表面附近（约1.2A^{1/3} fm量级），外转折点R_out位于库仑势垒顶部（约10-20 fm量级，取决于Q值）。对于偶偶核基态衰变，l=0，离心势为零，转折点仅由核势和库仑势决定。R_in对应α粒子预形成位置，R_out对应经典允许区域的边界。这两个转折点将用于后续WKB作用量积分和穿透概率计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 18,
+      "thought": "[Background] 当前推导路径为 half_life -> alpha_decay_width -> penetrability -> action_integral -> effective_potential -> nuclear_potential -> nuclear_radius -> coulomb_potential -> centrifugal_potential -> spin_parity -> single_particle_levels -> turning_points -> Q_value -> binding_energy -> pairing_energy -> preformation_factor -> assault_frequency。已完成的步骤包括：库仑势计算（Step 4）、有效势组装（Step 5）、Q值计算（Step 6）和转折点求解（Step 7）。下一步需要计算穿透概率，这需要先计算WKB作用量积分，即从内转折点到外转折点的积分。 [Gap] 当前状态已有有效势V_eff(R)、Q值、内转折点R_in和外转折点R_out，但尚未计算WKB作用量积分。 [Decision] 因此，下一步应使用WKB作用量积分工具，计算从R_in到R_out的积分，为后续穿透概率计算做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": "1.0"
+      },
+      "parameters": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)",
+        "Q_value": "Q",
+        "inner_turning_point": "R_in",
+        "outer_turning_point": "R_out",
+        "reduced_mass": "mu = 4*(A-4)/A * m_n"
+      },
+      "output_state": {
+        "WKB_action_integral": "S = \\int_{R_in}^{R_out} \\sqrt{2\\mu (V_eff(R) - Q)} \\, dR"
+      },
+      "observation": "WKB作用量积分S定义为从内转折点R_in到外转折点R_out的动量积分，其中被积函数为sqrt(2μ(V_eff(R)-Q))。该积分将用于计算穿透概率P = exp(-2S/ħ)。对于偶偶核基态到基态衰变，l=0，离心势为零，因此V_eff(R)仅包含核势和库仑势。该积分需数值计算，因为核势V_N(R)由双折叠模型给出，无解析形式。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的半衰期与已知实验数据（如NUBASE2020中Z=84-92偶偶核的α衰变半衰期，覆盖10^-3至10^10秒范围）进行对比，若偏差在2倍以内则验证模型可靠性。其次，对极端质量数（如A<210或A>250）进行极限情况检验，观察Pα是否趋近于0或1，若偏离物理预期则表明double-folding模型在核表面弥散度参数失效。最后，采用独立方法（如微观Gamow壳模型）交叉验证Pα值，若在0.1-0.5范围内一致则确认团簇预形成概率的合理性。",
+    "metrics": {
+      "half_life": {
+        "value": "10^−3 到 10^10 秒量级",
+        "unit": "对于广泛的α发射体核素（A≈150-250），使用DDM3Y势计算",
+        "interpretation": "half_life"
+      },
+      "alpha_cluster_preformation_probability": {
+        "value": "0.1 到 0.5 之间",
+        "unit": "对于偶偶核，基于微观模型提取",
+        "interpretation": "alpha_cluster_preformation_probability"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：asafm；cm。"
+  },
+  "paper_methods": [
+    "double_folding_model",
+    "m3y_effective_interaction",
+    "wkb_approximation",
+    "ddm3y_effective_interaction"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "double_folding_model",
+        "desc": "使用双折叠积分计算α-核相互作用势，基于M3Y有效核子-核子相互作用"
+      },
+      {
+        "name": "wkb_approximation",
+        "desc": "WKB近似用于计算α粒子隧穿库仑势垒的穿透概率"
+      },
+      {
+        "name": "ddm3y_effective_interaction",
+        "desc": "包含半现实显式密度依赖关系的M3Y有效相互作用，改进核势的微观描述"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "V(R) = \\int \\int \\rho_\\alpha(r_1) \\rho_d(r_2) v_{\\text{eff}}(s) d^3r_1 d^3r_2"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "P = \\exp\\left[-2 \\int_{R_1}^{R_2} \\sqrt{\\frac{2\\mu}{\\hbar^2} |V(R) - Q|} dR\\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "10^−3 到 10^10 秒量级",
+        "condition": "对于广泛的α发射体核素（A≈150-250），使用DDM3Y势计算"
+      },
+      {
+        "quantity": "alpha_cluster_preformation_probability",
+        "value": "0.1 到 0.5 之间",
+        "condition": "对于偶偶核，基于微观模型提取"
+      }
+    ],
+    "failure_points": [
+      "asafm",
+      "cm"
+    ]
+  }
+}

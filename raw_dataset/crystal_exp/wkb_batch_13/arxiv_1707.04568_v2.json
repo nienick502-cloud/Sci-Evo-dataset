@@ -1,0 +1,433 @@
+{
+  "id": "NPP_0011",
+  "meta": {
+    "id": "NPP_0011",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "Systematic study of α decay using different versions of proximity formalism",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_1707.04568"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T12:39:43.585902",
+      "generated_by": "Lenovo"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "α衰变半衰期的系统研究",
+    "input_data": "核素范围 52≤Z≤107，共344个同位素；实验α衰变半衰期数据；28种邻近势模型版本（如Prox. 77-set 4, Prox. 77-set 5, Dutt 2011等）",
+    "user_intent": "现有研究通常只限于少数邻近势模型版本或有限的α发射体范围，缺乏对多种邻近势模型预测α衰变半衰性能的系统性比较，需要确定最适合预测α衰变半衰期的模型。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是计算α衰变半衰期，根据前提层，采用WKB近似计算势垒穿透概率，核势采用邻近势形式。初始条件包含质量数A、电荷数Z、中子数N、形变参数和Q值。\n[Gap] 第一步需要构建α-核相互作用势，这需要先确定核半径。核半径是邻近势模型的基础输入，通常依赖于质量数A。\n[Decision] 因此，第一步使用核半径估计工具，基于质量数A计算核半径，为后续构建核势做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "nuclear_radius_estimation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "deformation_parameter": "β2"
+      },
+      "output_state": {
+        "nuclear_radius_R": "R = R0 * A^(1/3) * (1 + β2 * Y20(θ)) 或等效球形半径近似",
+        "radius_parameter_R0": "待定（通常取1.2 fm左右）"
+      },
+      "observation": "核半径估计完成，得到半径表达式 R = R0 * A^(1/3)，对于形变核需考虑形变修正。此步为后续构建邻近势和库仑势提供几何参数。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在α衰变模型中，α-核相互作用势是决定势垒穿透概率的核心。邻近势模型（Proximity Potential）是一种基于核表面间相互作用的唯象势，适用于描述α粒子与剩余核之间的核势部分。该势依赖于核半径、表面间距以及形变参数。 [Gap] 上一步已获得核半径表达式，但尚未构建具体的核势形式。需要根据邻近势模型，结合形变参数，写出核势的解析表达式。 [Decision] 因此，下一步应使用邻近势模型构建核势，即采用 proximity_potential_calculation 工具，得到核势 V_N(s) 作为表面间距 s 的函数，并考虑形变修正。",
+      "action": "model_building",
+      "tool": {
+        "name": "proximity_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "Proximity 1977 (Blocki et al.)",
+        "nuclear_radius": "R = R0 * A^(1/3) (球形近似，形变效应后续通过形变参数β2修正表面间距)",
+        "deformation_parameter": "β2 (来自初始条件)",
+        "surface_distance": "s = r - R1 - R2, 其中R1为α粒子半径，R2为剩余核半径",
+        "proximity_function": "Φ(s/b) 为通用邻近函数，b≈1 fm"
+      },
+      "output_state": {
+        "nuclear_potential_V_N": "V_N(s) = 4πγ b R_bar Φ(s/b), 其中R_bar = R1 R2/(R1+R2) 为约化半径，γ为表面张力系数",
+        "surface_tension_coefficient": "γ = γ0 * (1 - ks * (N-Z)^2/A^2) MeV/fm^2, γ0≈0.9517, ks≈1.7826 (Prox. 77参数)"
+      },
+      "observation": "采用Proximity 1977模型构建核势。核势V_N(s)由表面张力系数γ、约化半径R_bar和通用邻近函数Φ(s/b)的乘积给出。对于形变核，表面间距s需根据形变参数β2修正，但此处先给出球形近似形式。此步为后续构建总有效势（核势+库仑势+离心势）提供核势部分。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在核势构建完成后，需要构建库仑势和离心势，以形成完整的有效势。库仑势描述α粒子与子核之间的静电排斥，离心势则来自角动量贡献。对于形变核，库仑势需考虑形变修正，但论文中采用点状+均匀分布模型（point-like plus uniform model），即α粒子视为点电荷，子核视为均匀带电球（或椭球）。[Gap] 当前已得到核势表达式，但尚未构建库仑势和离心势，无法组装有效势。[Decision] 下一步应使用coulomb_potential_calculation工具构建库仑势，采用点状+均匀带电球模型，并考虑形变参数β2对库仑势的修正（若形变显著）。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "model": "point_like_plus_uniform",
+        "deformation_correction": true,
+        "deformation_parameter": "β2"
+      },
+      "output_state": {
+        "coulomb_potential_V_C": "V_C(r) = (Z_d * Z_α * e^2) / r  for r ≥ R_C;  V_C(r) = (Z_d * Z_α * e^2) / (2R_C) * (3 - r^2/R_C^2)  for r < R_C",
+        "coulomb_radius_R_C": "R_C = R_d + R_α, 其中 R_d = R0 * A_d^(1/3) * (1 + β2 * Y20(θ)), R_α = 1.2 * 4^(1/3) ≈ 1.9 fm",
+        "deformation_correction": "对于形变核，库仑势在角度方向依赖，需在有效势中做平均或采用等效球形近似"
+      },
+      "observation": "库仑势构建完成，采用点状α粒子与均匀带电椭球子核模型。对于形变核，库仑势在r较小时需考虑形变修正，但后续有效势组装时可采用角度平均或保持角度依赖。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 当前已构建核势V_N(s)和库仑势V_C(r)，接下来需要构建离心势以完成有效势的组装。离心势来源于α粒子与子核的相对运动角动量，对于α衰变，角动量量子数l由母核和子核的自旋宇称决定。在邻近势框架下，离心势通常采用标准形式V_l(r) = ℏ^2 l(l+1)/(2μ r^2)。[Gap] 需要确定角动量l的值，这依赖于母核和子核的自旋宇称，但当前步骤中尚未给出具体核素，因此l作为参数保留。同时需要计算约化质量μ = m_α * m_d / (m_α + m_d)。[Decision] 选择离心势构建工具，写出离心势表达式，并明确l和μ的物理意义，为后续有效势组装做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "centrifugal_potential_construction",
+        "version": ""
+      },
+      "parameters": {
+        "angular_momentum_l": "l (由自旋宇称决定，作为参数保留)",
+        "reduced_mass_mu": "μ = m_α * m_d / (m_α + m_d)",
+        "hbar_squared_over_2mu": "ℏ^2/(2μ)"
+      },
+      "output_state": {
+        "centrifugal_potential_V_l": "V_l(r) = ℏ^2 l(l+1) / (2μ r^2)",
+        "angular_momentum_l": "l (待定，取决于具体核素的自旋宇称)",
+        "reduced_mass_mu": "μ = m_α * m_d / (m_α + m_d)"
+      },
+      "observation": "离心势构建完成，表达式为标准形式。角动量量子数l和约化质量μ作为参数保留，将在后续针对具体核素时确定。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已经构建了核势、库仑势和离心势，下一步需要将它们组装成总有效势，这是WKB计算势垒穿透概率的前提。有效势是α粒子在子核场中感受到的径向势能，包括核吸引、库仑排斥和离心排斥三部分。对于形变核，库仑势和核势在角度方向有依赖，但通常采用球对称近似或角度平均处理以简化计算。[Gap] 当前已分别得到V_N(s)、V_C(r)和V_l(r)的表达式，但尚未将它们组合成统一的径向有效势V_eff(r)，且对于形变核，核势和库仑势的径向依赖需明确与r的关系（特别是表面间距s与r的转换）。[Decision] 采用标准有效势组装方法，将核势、库仑势和离心势相加得到总有效势。对于形变核，采用等效球近似，将形变效应通过平均半径或角度平均势能处理，使有效势仅依赖于径向距离r。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(s) = 4πγ b R_bar Φ(s/b), s = r - R1 - R2 + 形变修正",
+        "coulomb_potential": "V_C(r) = Z_d Z_α e^2 / r (r ≥ R_C), 内部采用均匀带电球势",
+        "centrifugal_potential": "V_l(r) = ℏ^2 l(l+1) / (2μ r^2)",
+        "deformation_treatment": "对于形变核，采用等效球形近似：R_i(θ) = R0_i * A_i^(1/3) * (1 + β2 * Y20(θ))，在有效势中取角度平均或使用等效半径R_eff = R0 * A^(1/3) * (1 + (5/4π) β2^2)^(1/2)"
+      },
+      "output_state": {
+        "effective_potential_V_eff": "V_eff(r) = V_N(s(r)) + V_C(r) + V_l(r)",
+        "surface_distance_s": "s = r - R_α - R_d + 形变修正项（对于形变核，R_d取角度平均或等效半径）",
+        "deformation_correction_note": "形变效应通过核半径的形变参数β2体现，在邻近势的s计算中引入角度依赖，但为简化可先采用等效球形近似"
+      },
+      "observation": "有效势V_eff(r)组装完成。对于球形核，s = r - R_α - R_d；对于形变核，需在s中引入形变修正，或采用等效半径近似。此有效势将用于后续求解势垒穿透概率。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5 分别使用 nuclear_radius_estimation -> proximity_potential_calculation -> coulomb_potential_calculation -> centrifugal_potential_construction -> effective_potential_assembly 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 目标是从给定的初始条件（质量数A、电荷数Z、中子数N、形变参数β2、Q值）出发，沿着合法推导路径Path 1: half_life -> alpha_decay_width -> penetrability -> action_integral -> effective_potential -> nuclear_potential -> nuclear_radius -> coulomb_potential -> centrifugal_potential -> spin_parity -> single_particle_levels -> turning_points -> preformation_factor -> binding_energy -> pairing_energy -> assault_frequency 逐步推导α衰变半衰期。第一步需要从核结构信息出发，计算核半径，这是构建核势和库仑势的基础。论文采用邻近势模型，核半径通常与质量数A和形变参数β2有关。根据论文方法中的'point_like_plus_uniform_model'，核半径可表示为R = R0 * A^(1/3) * (1 + β2 * Y20(θ))，但为简化，通常先计算球形核半径再引入形变修正。这里先计算球形核半径参数R0。 [Gap] 当前没有已生成的步骤，需要从初始条件中提取A、Z、N、β2、Q值，并应用核半径估计工具得到核半径表达式。 [Decision] 使用nuclear_radius_estimation工具，基于质量数A和形变参数β2，计算核半径R。",
+      "action": "rule_application",
+      "tool": {
+        "name": "nuclear_radius_estimation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "deformation_parameter_beta2": "β2",
+        "radius_constant_R0": "1.2 fm (标准值)"
+      },
+      "output_state": {
+        "nuclear_radius_R": "R = R0 * A^(1/3) * (1 + β2 * Y20(θ))，其中Y20(θ)为球谐函数，对于轴对称形变，通常取θ=0方向，Y20(0)=sqrt(5/(4π))。简化球形近似下，R ≈ 1.2 * A^(1/3) fm。"
+      },
+      "observation": "根据邻近势模型，核半径采用R0=1.2 fm，并考虑形变修正。初始步骤得到核半径表达式，为后续构建核势和库仑势提供基础。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 在α衰变理论中，核势是决定势垒形状的关键组成部分。论文采用邻近势模型来描述α粒子与子核之间的核相互作用，该模型基于两核表面间的距离（即邻近度）来计算核势。邻近势的构建需要核半径和表面能系数等参数。 [Gap] 上一步已得到形变修正的核半径表达式，但尚未具体给出邻近势的数学形式。需要明确邻近势的表达式，以便后续与库仑势、离心势组合成有效势。 [Decision] 因此，下一步应引入邻近势模型的标准表达式，包括邻近函数Φ(s)和表面能系数γ，并写出核势V_N(r)作为表面间距s的函数。",
+      "action": "model_building",
+      "tool": {
+        "name": "proximity_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "proximity_version": "Prox. 77-set 4",
+        "nuclear_radius_formula": "R_i = R0 * A_i^(1/3) * (1 + β2_i * Y20(θ_i))",
+        "surface_energy_coefficient": "γ = 0.9517 * (1 - 1.7826 * (N-Z)^2/A^2) MeV/fm^2",
+        "proximity_function": "Φ(s) = -0.5 * (s - 2.54)^2 - 0.0852 * (s - 2.54)^3, for s ≤ 1.2511; Φ(s) = -3.437 * exp(-s/0.75), for s ≥ 1.2511"
+      },
+      "output_state": {
+        "nuclear_potential_V_N": "V_N(r) = 4πγ * (R1*R2/(R1+R2)) * Φ(s), 其中 s = (r - R1 - R2)/b, b=1 fm",
+        "surface_energy_coefficient_γ": "γ = 0.9517 * (1 - 1.7826 * (N-Z)^2/A^2) MeV/fm^2",
+        "proximity_function_Φ": "分段函数：对于s≤1.2511，Φ(s) = -0.5*(s-2.54)^2 - 0.0852*(s-2.54)^3；对于s≥1.2511，Φ(s) = -3.437*exp(-s/0.75)"
+      },
+      "observation": "采用Prox. 77-set 4版本的邻近势模型，核势V_N(r)由表面能系数γ、约化曲率半径R1R2/(R1+R2)和邻近函数Φ(s)的乘积给出。其中s是两核表面间的最小距离，b为扩散度参数（取1 fm）。该表达式将用于后续与库仑势和离心势组合成有效势。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 在α衰变中，α粒子与子核之间的相互作用势包括核势、库仑势和离心势。前两步已经得到了核半径和核势（邻近势）的表达式。为了构建总的有效势，需要计算库仑势和离心势。库仑势描述α粒子与子核之间的静电排斥，离心势则来自α粒子的轨道角动量。 [Gap] 当前尚未得到库仑势和离心势的具体形式，无法组装有效势。 [Decision] 下一步应计算库仑势。根据论文方法中的point_like_plus_uniform_model，采用点α粒子与均匀带电球模型的库仑势公式。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "model": "point_like_plus_uniform_charge_distribution",
+        "alpha_charge": 2,
+        "daughter_charge": "Z-2",
+        "nuclear_radius": "R_daughter = R0 * (A-4)^(1/3) * (1 + β2 * Y20(θ))",
+        "deformation": "included via daughter radius"
+      },
+      "output_state": {
+        "coulomb_potential_V_C": "V_C(r) = (2*(Z-2)*e^2)/(4π ε0 r)  for r ≥ R_daughter; V_C(r) = (2*(Z-2)*e^2)/(4π ε0 R_daughter) * (3/2 - r^2/(2 R_daughter^2))  for r < R_daughter",
+        "coulomb_potential_type": "point_alpha_plus_uniform_sphere"
+      },
+      "observation": "采用点α粒子与均匀带电球模型，库仑势在核外（r ≥ R_daughter）为点电荷库仑势，在核内（r < R_daughter）为谐振子型势。其中R_daughter为子核半径，考虑了形变修正。e为元电荷，ε0为真空介电常数。该表达式为后续有效势组装提供库仑部分。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 在α衰变中，α粒子携带角动量l，因此需要考虑离心势对势垒的影响。离心势与角动量量子数l和约化质量μ有关，其形式为V_l(r) = ℏ^2 l(l+1)/(2μ r^2)。[Gap] 目前已经构建了核势V_N(r)和库仑势V_C(r)，但尚未加入离心势，无法形成完整的有效势用于后续的WKB隧穿计算。[Decision] 因此，下一步需要构建离心势，并明确角动量l的取值规则，为后续有效势的组装做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "centrifugal_potential_construction",
+        "version": ""
+      },
+      "parameters": {
+        "angular_momentum_rule": "l取最小允许值，满足宇称和角动量守恒：|J_i - J_f| ≤ l ≤ J_i + J_f，且π_i π_f = (-1)^l",
+        "reduced_mass": "μ = m_α * M_daughter / (m_α + M_daughter)，其中m_α ≈ 4.0026 u，M_daughter ≈ (A-4) u",
+        "hbar_squared_over_2mu": "ℏ^2/(2μ) ≈ 20.735 MeV·fm^2 / (A-4) * (A/(A-4))? 实际采用精确值"
+      },
+      "output_state": {
+        "centrifugal_potential_V_l": "V_l(r) = ℏ^2 l(l+1) / (2μ r^2)",
+        "angular_momentum_l": "由初末态自旋宇称决定，通常取最小可能值",
+        "reduced_mass_mu": "μ = m_α M_daughter / (m_α + M_daughter)"
+      },
+      "observation": "离心势V_l(r)已构建，其形式为ℏ^2 l(l+1)/(2μ r^2)。角动量l由初态核自旋J_i、宇称π_i和子核自旋J_f、宇称π_f通过角动量守恒和宇称守恒确定：|J_i - J_f| ≤ l ≤ J_i + J_f，且π_i π_f = (-1)^l。在α衰变中，通常取满足条件的最小l值，因为高l会显著降低穿透概率。约化质量μ由α粒子和子核质量计算。该势垒将作为有效势的一部分，与核势和库仑势共同决定势垒形状。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 前四步已经构建了核势、库仑势和离心势，现在需要将它们组合成有效势，这是计算势垒穿透概率的关键中间步骤。有效势是α粒子在核外感受到的总势能，决定了势垒的形状和高度。[Gap] 目前只有各个势能分量的表达式，尚未将它们整合为统一的径向有效势。[Decision] 按照合法推导路径 effective_potential_assembly，将核势、库仑势和离心势相加得到有效势，并明确其分段形式（核内和核外）。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(r) = 4πγ * (R1*R2/(R1+R2)) * Φ(s)",
+        "coulomb_potential": "V_C(r) = (2*(Z-2)*e^2)/(4π ε0 r) for r ≥ R_daughter; harmonic form for r < R_daughter",
+        "centrifugal_potential": "V_l(r) = ℏ^2 l(l+1) / (2μ r^2)",
+        "deformation": "β2 included in radii"
+      },
+      "output_state": {
+        "effective_potential_V_eff": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "potential_regions": "对于r < R_contact（核表面接触区域），核势V_N占主导；对于r > R_contact，库仑势和离心势占主导；势垒峰值出现在r ≈ R1+R2附近",
+        "barrier_height": "由V_eff(r)在r ≈ R1+R2处的最大值决定"
+      },
+      "observation": "有效势V_eff(r)已构建为核势、库仑势和离心势之和。该势函数在r < R_contact区域由核势主导，在r > R_contact区域由库仑势和离心势主导。势垒的峰值位置和高度将由后续的数值计算确定，这是WKB近似计算穿透概率的输入势场。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 我们已经构建了有效势 V_eff(r) = V_N(r) + V_C(r) + V_l(r)，这是计算势垒穿透概率的基础。在WKB近似中，需要确定势垒的内外转折点，以计算作用积分。 [Gap] 目前尚未确定转折点的具体位置，而转折点是计算WKB作用积分的必要输入。 [Decision] 下一步应使用数值方法求解转折点，即求解方程 V_eff(r) = Q_value 的根，其中Q_value是α衰变的衰变能。内转折点r_in位于核表面附近，外转折点r_out位于库仑势垒之外。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "Q_value": "Q_value (从初始条件获取)",
+        "method": "数值求解方程 V_eff(r) = Q_value",
+        "initial_guess": "r_in ≈ R1 + R2 (核表面接触距离), r_out ≈ 2*(Z-2)*e^2/(4π ε0 Q_value) (库仑势垒外转折点近似)"
+      },
+      "output_state": {
+        "inner_turning_point_r_in": "数值解，满足 V_eff(r_in) = Q_value",
+        "outer_turning_point_r_out": "数值解，满足 V_eff(r_out) = Q_value",
+        "turning_points_status": "已确定"
+      },
+      "observation": "通过数值求解方程 V_eff(r) = Q_value，得到内转折点 r_in 和外转折点 r_out。内转折点通常位于核表面附近（r ≈ R1 + R2），外转折点位于库仑势垒之外（r >> R1 + R2）。这两个转折点将用于后续的WKB作用积分计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 根据论文的WKB近似方法，在确定了有效势V_eff(r)和转折点r_in、r_out之后，下一步需要计算势垒穿透概率P。穿透概率通过WKB作用量积分得到，这是α衰变半衰期计算的核心步骤。[Gap] 当前已获得有效势和转折点，但尚未计算WKB作用量积分和穿透概率。[Decision] 因此，下一步应使用WKB作用量积分工具，计算从内转折点到外转折点的作用量S，进而得到穿透概率P。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "Q_value": "Q_value",
+        "reduced_mass": "μ"
+      },
+      "output_state": {
+        "WKB_action_S": "S = ∫_{r_in}^{r_out} √(2μ|V_eff(r) - Q_value|) dr",
+        "penetrability_P": "P = exp(-2S/ℏ)"
+      },
+      "observation": "WKB作用量积分S已通过数值积分计算，穿透概率P由P = exp(-2S/ℏ)给出。该概率反映了α粒子穿过势垒的量子隧穿几率，是后续计算衰变宽度和半衰期的关键中间量。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 当前已通过WKB作用量积分计算了势垒穿透概率P，这是α衰变半衰期计算中的核心量子隧穿因子。接下来需要结合α粒子在核表面的形成概率（preformation factor）和撞击频率（assault frequency）来得到衰变宽度，进而计算半衰期。根据合法推导路径Path 1，在penetrability之后应依次计算preformation_factor和assault_frequency，然后通过decay_width_formula得到衰变宽度，最后用halflife_from_width得到半衰期。 [Gap] 当前已有穿透概率P，但缺少α粒子在核表面的形成概率P_α和撞击频率f。 [Decision] 因此下一步应计算α粒子的形成概率（preformation factor），这通常基于核结构模型（如壳模型或BCS理论）得到，对于偶偶核通常取经验值~0.1-1，对于奇A核或奇奇核则需考虑配对效应和阻塞效应。这里采用经验模型结合壳修正的方法来估算P_α。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": "1.0"
+      },
+      "parameters": {
+        "Z": "charge_number_Z",
+        "N": "neutron_number_N",
+        "A": "mass_number_A",
+        "parity": "由初态核自旋宇称决定",
+        "pairing_energy": "由配对关联BCS理论计算或经验公式给出"
+      },
+      "output_state": {
+        "preformation_factor_P_alpha": "P_α = 经验公式或壳模型计算值，对于偶偶核通常取0.1-1，奇A核取0.01-0.1，奇奇核取0.001-0.01",
+        "preformation_model": "经验模型，考虑壳效应和配对效应"
+      },
+      "observation": "α粒子形成概率P_α已通过经验模型估算。对于偶偶核，P_α ≈ 0.1-1（通常取~0.3-0.5）；对于奇A核，由于未配对核子的阻塞效应，P_α减小约一个数量级；对于奇奇核，进一步减小。具体数值需根据核的质子数和中子数相对于幻数的位置进行调整。该因子将用于后续衰变宽度计算。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将wkb_approximation与proximity_formalism结合的计算结果，与NUBASE2020实验数据库中的α衰变半衰期进行对比，验证在Z≥82、中子数N≥126的重核区域偏差是否在0.5个数量级内。其次，对点电荷加均匀模型进行量纲分析，检查离心势能项在低角动量(l=0)时是否自然退化为纯库仑势，若l>0时偏差增大则表明模型在低能区失效。最后，将point_like_plus_uniform_model的计算结果与已知系统学趋势（如Geiger-Nuttall定律）对比，若在超重核区(Z>100)出现系统性偏离，则提示该模型忽略了核形变效应。",
+    "metrics": {
+      "half_life": {
+        "value": "log10(T1/2) 计算值与实验值偏差在0.8以内",
+        "unit": "对于52≤Z≤107的344个同位素，使用Dutt 2011模型",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：point_like_plus_uniform_model；centrifugal_potential。"
+  },
+  "paper_methods": [
+    "wkb_approximation",
+    "proximity_formalism",
+    "point_like_plus_uniform_model",
+    "centrifugal_potential"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "wkb_approximation",
+        "desc": "WKB近似用于计算α粒子穿过势垒的穿透概率"
+      },
+      {
+        "name": "proximity_formalism",
+        "desc": "邻近势形式描述α-核相互作用核势部分"
+      },
+      {
+        "name": "point_like_plus_uniform_model",
+        "desc": "点电荷加均匀电荷分布模型描述库仑势"
+      },
+      {
+        "name": "centrifugal_potential",
+        "desc": "离心势考虑α粒子轨道角动量贡献"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\ln 2}{\\lambda} = \\frac{\\ln 2}{\\nu P}"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "P = \\exp\\left[-\\frac{2}{\\hbar}\\int_{R_{in}}^{R_{out}} \\sqrt{2\\mu(V(r)-Q)} dr\\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "log10(T1/2) 计算值与实验值偏差在0.5以内",
+        "condition": "对于52≤Z≤107的344个同位素，使用Prox. 77-set 4模型"
+      },
+      {
+        "quantity": "half_life",
+        "value": "log10(T1/2) 计算值与实验值偏差在0.8以内",
+        "condition": "对于52≤Z≤107的344个同位素，使用Dutt 2011模型"
+      }
+    ],
+    "failure_points": [
+      "point_like_plus_uniform_model",
+      "centrifugal_potential"
+    ]
+  }
+}

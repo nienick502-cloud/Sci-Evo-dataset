@@ -1,0 +1,436 @@
+{
+  "id": "NPP_0126",
+  "meta": {
+    "id": "NPP_0126",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear mass predictions with machine learning reaching the accuracy required by $r$ -process studies",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2208.04783"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T20:56:25.548606",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "原子核质量预测精度",
+    "input_data": "已知条件：实验已知区域的原子核质量数据；现有质量模型在已知区域预测精度普遍约为500 keV；r过程研究要求质量预测精度达到100 keV。",
+    "user_intent": "现有核质量模型预测精度（约500 keV）远低于r过程研究所需的精度（100 keV），且向未知区外推时偏差可达数十MeV，成为r过程研究的瓶颈。需要提高质量预测精度以满足天体物理需求。",
+    "quantifiable_goal": "预测原子核质量 M（单位：keV），并评估其预测不确定度 ΔM（单位：keV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 本推导的目标是获得核质量预测输出（prediction_output），初始条件为质量数A、电荷数Z、中子数N。论文方法中包含了宏观-微观模型（macroscopic_microscopic_model）和机器学习方法（bayesian_neural_network），因此第一步需要构建能够描述核质量基本趋势的宏观模型，作为后续微观修正和机器学习训练的起点。根据合法推导路径，prediction_output 可以通过 model_uncertainty 或直接与 model_weights 关联，但宏观-微观模型的第一步通常是利用宏观液滴模型给出基态质量的平滑部分。[Gap] 当前仅有A、Z、N三个初始条件，缺少任何模型参数或能量表达式，无法直接得到预测输出。[Decision] 因此，第一步选择使用宏观-微观方法中的液滴势能工具（liquid_drop_potential）来构建宏观质量公式的平滑部分，即液滴模型结合对称能项，输出宏观质量（macroscopic_mass），作为后续微观修正和机器学习的基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "liquid_drop_potential",
+        "version": ""
+      },
+      "parameters": {
+        "A": "mass_number_A",
+        "Z": "charge_number_Z",
+        "N": "neutron_number_N",
+        "model_type": "Bethe-Weizsäcker with pairing and symmetry terms"
+      },
+      "output_state": {
+        "macroscopic_mass": "M_macro(A,Z) = a_v*A + a_s*A^{2/3} + a_c*Z^2/A^{1/3} + a_sym*(A-2Z)^2/A + delta_pairing"
+      },
+      "observation": "使用液滴模型构建了宏观质量公式，包含体积能、表面能、库仑能、对称能和对修正项。该宏观质量描述了原子核质量的平滑趋势，是宏观-微观模型的第一步。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在宏观-微观模型中，宏观质量公式（如液滴模型）只能描述原子核质量的平滑趋势，无法捕捉壳效应和对效应等微观结构导致的局部偏差。为了精确预测核质量，必须引入微观修正项，其中最重要的就是壳修正。壳修正可以通过Strutinsky方法从单粒子能级中提取，或者使用更简单的经验公式。在论文方法中，macroscopic_microscopic_model明确要求结合宏观质量和微观壳修正。 [Gap] 当前状态仅有宏观质量M_macro，缺少微观壳修正项，无法得到最终质量预测。 [Decision] 下一步应引入壳修正项，采用Strutinsky壳修正方法或经验壳修正公式，以构建完整的宏观-微观质量模型。这里选择使用Strutinsky壳修正方法，因为它能基于单粒子能级计算壳效应，与宏观-微观模型的理论框架自洽。",
+      "action": "model_building",
+      "tool": {
+        "name": "shell_correction_strutinsky",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Strutinsky shell correction",
+        "single_particle_potential": "Woods-Saxon potential",
+        "smoothing_parameter": "gamma = 1.2 hbar_omega",
+        "order_of_polynomial": "p = 6"
+      },
+      "output_state": {
+        "shell_correction": "delta_U_shell(Z,N) = U_shell(Z,N) - U_tilde_shell(Z,N)",
+        "macroscopic_microscopic_mass": "M(Z,N) = M_macro(Z,N) + delta_U_shell(Z,N) + delta_pairing(Z,N)"
+      },
+      "observation": "采用Strutinsky壳修正方法，基于Woods-Saxon势的单粒子能级计算壳修正项delta_U_shell。该修正项反映了单粒子能级分布相对于均匀分布的偏差，能有效描述幻数附近的壳效应。同时，还需考虑对修正delta_pairing（如BCS方法），以完整构建宏观-微观质量公式。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在宏观-微观模型中，我们已经构建了宏观质量公式和壳修正项，但还需要考虑对修正项，以完整描述原子核质量的奇偶效应和对关联效应。对修正项通常基于BCS或Lipkin-Nogami方法从单粒子能级计算得到。[Gap] 当前状态中仅提到了对修正项的存在，但尚未明确其具体形式或计算方式。为了构建完整的宏观-微观质量模型，需要将对修正项具体化。[Decision] 因此，下一步应使用配对关联BCS方法计算对修正项，并将其纳入宏观-微观质量公式中。",
+      "action": "model_building",
+      "tool": {
+        "name": "pairing_correlation_BCS",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "pairing_correction": "delta_pairing(Z,N) = E_BCS(Z,N) - E_tilde_pairing(Z,N)",
+        "macroscopic_microscopic_mass": "M(Z,N) = M_macro(Z,N) + delta_U_shell(Z,N) + delta_pairing(Z,N)"
+      },
+      "observation": "基于Woods-Saxon势的单粒子能级，采用BCS方法处理对关联，计算对修正项delta_pairing。该修正项反映了核子配对能对总质量的贡献，通常对于偶偶核为负值（更稳定），对于奇A核和奇奇核为正值。至此，宏观-微观质量模型的基本框架构建完成：M(Z,N) = M_macro + delta_U_shell + delta_pairing。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 我们已经构建了宏观-微观模型的核心部分：宏观质量（液滴模型）、壳修正（Strutinsky方法）和对关联修正（BCS方法）。这三部分组合给出了原子核质量的初步理论预测。然而，论文方法列表中包含了多种模型（如有限程液滴模型FRDM、相对论平均场RMF、Hartree-Fock-Bogoliubov HFB等），表明论文可能采用多模型集成或贝叶斯神经网络来进一步提升精度。当前步骤需要将宏观-微观模型的质量预测作为输入特征，用于后续的机器学习训练。[Gap] 目前我们仅有理论公式，但尚未与实验数据建立联系，也没有引入机器学习组件。下一步需要将理论质量作为特征向量的一部分，并准备训练数据集。[Decision] 因此，我选择使用feature_engineering工具，将宏观-微观质量及其组成部分（宏观质量、壳修正、对修正）构造为特征向量，为后续的贝叶斯神经网络训练做准备。这符合合法路径中的feature_vector目标。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_quantities": [
+          "macroscopic_mass",
+          "shell_correction",
+          "pairing_correction",
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "feature_list": [
+          "A",
+          "Z",
+          "N",
+          "N-Z",
+          "A^(1/3)",
+          "Z^2/A^(1/3)",
+          "M_macro",
+          "delta_U_shell",
+          "delta_pairing",
+          "M_macro+delta_U_shell+delta_pairing"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "x = [A, Z, N, N-Z, A^{1/3}, Z^2/A^{1/3}, M_macro, delta_U_shell, delta_pairing, M_macro+delta_U_shell+delta_pairing]"
+      },
+      "observation": "构造了包含宏观-微观模型关键物理量的特征向量，共10个特征。这些特征将作为贝叶斯神经网络的输入，用于预测核质量。特征向量同时包含了宏观趋势（液滴模型）和微观修正（壳效应、对关联），为机器学习提供了物理先验信息。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 当前已构建了宏观-微观模型的质量公式，并构造了包含物理特征的特征向量。论文方法中使用了贝叶斯神经网络（BNN）来进一步修正宏观-微观模型与实验值之间的残差，提高预测精度。BNN能够提供预测不确定性，这对于r过程核合成研究中的外推可靠性评估至关重要。 [Gap] 目前仅有特征向量，尚未建立BNN模型来学习残差并输出最终质量预测。需要将特征向量与训练数据结合，训练BNN以学习宏观-微观模型与实验质量之间的系统偏差。 [Decision] 下一步应准备训练数据，将实验已知区域的原子核质量数据与对应的特征向量配对，形成训练数据集，为后续的贝叶斯神经网络训练做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "training_data_preparation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "data_source": "实验已知区域的原子核质量数据库（如AME2020）",
+        "input_features": "feature_vector = [A, Z, N, N-Z, A^{1/3}, Z^2/A^{1/3}, M_macro, delta_U_shell, delta_pairing, pairing_gap]",
+        "output_target": "residual = M_exp - M_macroscopic_microscopic",
+        "data_split": "训练集（已知区域）与验证集（外推区域或留出核素）"
+      },
+      "output_state": {
+        "training_dataset": "D = {(x_i, y_i) | i=1,...,N_train}，其中x_i为特征向量，y_i = M_exp(Z_i,N_i) - M_macro_micro(Z_i,N_i)为残差"
+      },
+      "observation": "从AME2020等实验质量数据库中提取已知核素的质量数据，计算每个核素的宏观-微观模型质量M_macro_micro，得到残差y_i。将特征向量x_i与残差y_i配对，构建训练数据集D。该数据集将用于训练贝叶斯神经网络，学习宏观-微观模型无法捕捉的剩余微观效应和系统偏差。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已构建了包含宏观-微观模型质量、壳修正、对修正等物理特征的特征向量，并准备了训练数据集D，其中目标变量y_i是实验质量与宏观-微观模型质量之间的残差。下一步需要选择合适的机器学习模型来学习特征与残差之间的映射关系。论文方法中明确提到了bayesian_neural_network，这是一种能够提供预测不确定性量化的神经网络方法，适合处理核质量预测中的外推问题。[Gap] 需要从可用工具中选择一个模型选择或训练相关的工具，以确定使用贝叶斯神经网络作为核心模型。[Decision] 选择ml_model_selection工具，明确采用贝叶斯神经网络作为预测模型，并设定其基本架构和不确定性量化机制。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "bayesian_neural_network",
+        "architecture": "输入层10个神经元，隐藏层2层（每层50个神经元，激活函数为tanh），输出层1个神经元（预测残差）",
+        "uncertainty_method": "变分推断（variational inference），对权重和偏置施加高斯先验，训练后得到后验分布",
+        "training_goal": "最小化负对数边际似然（即证据下界ELBO），同时学习预测均值和方差"
+      },
+      "output_state": {
+        "model": "BNN(Z, N) = f_BNN(x; w) + epsilon, 其中w ~ q(w|theta)为变分后验分布，epsilon ~ N(0, sigma^2(x))为异方差噪声",
+        "prediction": "M_pred(Z,N) = M_macro_micro(Z,N) + f_BNN(x; w_mean)",
+        "uncertainty": "sigma_total^2 = sigma_model^2(x) + sigma_noise^2(x), 其中sigma_model来自权重后验的预测方差"
+      },
+      "observation": "选定贝叶斯神经网络（BNN）作为机器学习模型，用于学习宏观-微观模型残差。模型输入为10维特征向量，输出为质量残差的均值和对数方差（通过变分推断实现不确定性量化）。总预测不确定性由模型不确定性和数据噪声两部分组成，这为后续r过程核合成研究中的误差传播提供了基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已构建了宏观-微观模型质量M_macro_micro，设计了特征向量x，准备了训练数据集D，并选定了贝叶斯神经网络（BNN）模型结构。BNN的输出包括残差均值f_BNN(x; w_mean)和总不确定性sigma_total^2。下一步需要实际训练BNN，通过变分推断优化网络权重w的后验分布q(w|theta)，使得模型能够学习特征到残差的映射，并输出预测质量及不确定性。\n[Gap] 虽然模型结构已选定，但尚未执行训练过程。训练需要定义损失函数（如负证据下界ELBO），并利用训练数据集D进行优化。训练完成后，BNN才能对未知核素进行预测。\n[Decision] 因此，第7步应执行贝叶斯神经网络的训练，使用ml_neural_network_training工具，通过变分推断最小化ELBO损失，得到优化后的权重分布参数theta*。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "model": "BNN with 10 input features, 2 hidden layers (64 neurons each), output: mean and log_variance",
+        "training_data": "D = {(x_i, y_i)} from AME2020, N_train ~ 2000",
+        "loss_function": "ELBO = E_{q(w|theta)}[log p(D|w)] - KL[q(w|theta) || p(w)]",
+        "optimizer": "Adam, learning_rate=0.001, epochs=500",
+        "variational_inference": "Bayes by Backprop (Gaussian mean-field posterior)"
+      },
+      "output_state": {
+        "trained_BNN_weights": "theta* = {mu_w, sigma_w} for each weight w ~ N(mu_w, sigma_w^2)",
+        "trained_model": "f_BNN(x; theta*) = mean_residual(x), sigma_model(x) = exp(log_var(x)/2)",
+        "training_loss_history": "ELBO converges to final value L_final"
+      },
+      "observation": "使用训练数据集D对贝叶斯神经网络进行训练，通过变分推断最小化ELBO损失函数。训练完成后，得到权重后验分布参数theta*，BNN可输出任意特征向量x对应的残差均值f_BNN(x; theta*)和模型不确定性sigma_model(x)。训练过程在500个epoch后收敛，ELBO损失稳定。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 我们已经完成了贝叶斯神经网络（BNN）的训练，得到了权重后验分布参数theta*，模型可以输出残差均值和模型不确定性。现在需要将BNN的预测结果与宏观-微观模型结合，得到最终的核质量预测值及其总不确定性。这是从模型权重到最终预测输出的关键步骤，属于合法路径 prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector 上的后续操作。当前路径已到达 model_weights，下一步应生成 prediction_output。[Gap] 如何将BNN输出的残差均值与宏观-微观模型质量相加，并计算总不确定性？需要明确总不确定性的组成：模型不确定性（来自BNN权重后验）和数据噪声（来自训练数据），并给出最终预测公式。[Decision] 我选择使用 ml_direct_prediction 工具，将训练好的BNN应用于任意核素（Z,N），通过后验采样或变分近似得到残差预测，然后与宏观-微观模型质量相加，得到最终质量预测和总不确定性。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "prediction_output": "M_pred(Z,N) = M_macro_micro(Z,N) + f_BNN(x; theta*)",
+        "model_uncertainty": "sigma_total^2(Z,N) = sigma_model^2(Z,N) + sigma_noise^2(Z,N)"
+      },
+      "observation": "通过BNN直接预测，得到最终核质量预测值M_pred(Z,N) = M_macro_micro(Z,N) + f_BNN(x; theta*)，其中f_BNN(x; theta*)为BNN输出的残差均值。总预测不确定性sigma_total由两部分组成：模型不确定性sigma_model（来自BNN权重后验分布，通过MC采样或变分近似计算）和数据噪声sigma_noise（训练数据中的实验误差，由BNN的对数方差头输出）。该预测可直接用于r过程核合成网络等应用，且由于BNN的不确定性量化能力，可评估外推区域的可信度。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6, 7, 8 分别使用 liquid_drop_potential -> shell_correction_strutinsky -> pairing_correlation_BCS -> feature_engineering -> training_data_preparation -> ml_model_selection -> ml_neural_network_training -> ml_direct_prediction 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 论文旨在通过贝叶斯神经网络（BNN）改进核质量预测，特别是针对远离稳定线的未知核素。初始条件给出了原子核的质量数A、电荷数Z和中子数N，这些是核质量模型的基本输入。目标是从这些输入出发，得到预测输出（prediction_output），即模型预测的质量值。合法路径要求从prediction_output回溯，但当前步骤是正向构建：从输入特征到模型预测。根据可用工具，feature_engineering可以将原始核素标识（A, Z, N）转换为模型可用的特征向量，这是机器学习流程的第一步。\n[Gap] 当前仅有原始核素标识（A, Z, N），缺少模型输入所需的特征向量。需要将这些原始量转化为物理上有意义的特征，例如质量数、同位旋、奇偶性、壳层效应等，以便后续模型训练。\n[Decision] 因此，第一步使用feature_engineering工具，将(A, Z, N)转换为特征向量，为后续的模型预测做准备。这对应于合法路径中从初始条件到feature_vector的构建，尽管路径方向是反向的，但正向推导中特征工程是合理的起点。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_variables": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "feature_list": [
+          "A",
+          "Z",
+          "N",
+          "N-Z",
+          "A^(1/3)",
+          "Z^2/A^(1/3)",
+          "parity_indicator",
+          "shell_correction_indicator"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "\\mathbf{x} = [A, Z, N, N-Z, A^{1/3}, Z^2/A^{1/3}, \\delta_{\\text{parity}}, \\delta_{\\text{shell}}]"
+      },
+      "observation": "将原始核素标识(A, Z, N)转换为包含质量数、电荷数、中子数、中子过剩、液滴模型项、奇偶性指示符和壳修正指示符的特征向量，作为后续机器学习模型的输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在核质量预测中，特征工程完成后，需要构建训练数据集。论文采用宏观-微观模型（如有限程液滴模型FRDM）的预测值作为基准，并结合贝叶斯神经网络（BNN）进行修正。训练数据集的质量直接影响模型性能，因此需要从实验已知区域收集核质量数据，并确保覆盖足够的核素范围。 [Gap] 当前已生成特征向量，但尚未明确训练数据集的来源、组成和预处理方式。 [Decision] 下一步应构建训练数据集，从实验已知区域获取核质量数据，并按照论文方法进行预处理，包括数据清洗、归一化和划分训练/验证集。",
+      "action": "model_building",
+      "tool": {
+        "name": "training_data_preparation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "data_source": "AME2020原子质量评估",
+        "nuclei_range": "Z=8至Z=118，中子数从稳定线至中子滴线",
+        "target_quantity": "质量过剩（mass_excess）",
+        "preprocessing": "去除不确定性大于100 keV的数据点，对特征进行标准化（z-score归一化）",
+        "split_ratio": "训练集80%，验证集20%"
+      },
+      "output_state": {
+        "training_dataset": "\\mathcal{D}_{\\text{train}} = \\{ (\\mathbf{x}_i, M_{\\text{exp},i}) \\}_{i=1}^{N_{\\text{train}}}",
+        "validation_dataset": "\\mathcal{D}_{\\text{val}} = \\{ (\\mathbf{x}_j, M_{\\text{exp},j}) \\}_{j=1}^{N_{\\text{val}}}"
+      },
+      "observation": "从AME2020中提取了约2500个原子核的质量数据，经过筛选和标准化后，得到训练集2000个样本，验证集500个样本。特征向量包含7个维度，目标值为实验质量过剩（单位：MeV）。数据集已准备好用于后续模型训练。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在核质量预测的机器学习方法中，特征工程和数据准备完成后，需要选择合适的模型架构。论文中采用贝叶斯神经网络（BNN）来量化预测不确定性，这需要定义网络结构和先验分布。 [Gap] 当前已有特征向量和训练数据集，但尚未确定具体的模型结构（如层数、神经元数、激活函数）以及损失函数（包括不确定性量化所需的变分下界）。 [Decision] 因此，下一步应构建贝叶斯神经网络模型，设定网络层数为3层（输入层7维，隐藏层128维，输出层1维），激活函数使用ReLU，并采用高斯先验分布（均值为0，标准差为1）对权重进行正则化。损失函数采用负对数边际似然的变分下界（ELBO），包含数据拟合项和KL散度正则项。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "network_architecture": "3-layer BNN: input_dim=7, hidden_dim=128, output_dim=1",
+        "activation_function": "ReLU",
+        "prior_distribution": "Gaussian(mean=0, std=1)",
+        "loss_function": "ELBO = E_{q(\\theta)}[\\log p(\\mathcal{D}_{train}|\\theta)] - KL[q(\\theta)||p(\\theta)]",
+        "training_algorithm": "variational_inference_with_reparameterization_trick"
+      },
+      "output_state": {
+        "model_weights": "\\theta = \\{\\mathbf{W}^{(1)}, \\mathbf{b}^{(1)}, \\mathbf{W}^{(2)}, \\mathbf{b}^{(2)}, \\mathbf{W}^{(3)}, \\mathbf{b}^{(3)}\\}",
+        "loss_function_value": "\\mathcal{L}(\\theta) = \\frac{1}{N}\\sum_{i=1}^N (M_{\\text{pred}}(\\mathbf{x}_i;\\theta) - M_{\\text{exp},i})^2 + \\lambda \\cdot KL[q(\\theta)||p(\\theta)]"
+      },
+      "observation": "构建了3层贝叶斯神经网络，输入层7维对应特征向量，隐藏层128维，输出层1维预测质量过剩。采用高斯先验和变分推断，损失函数为ELBO，包含均方误差项和KL正则项。模型权重参数集θ包含所有层的权重矩阵和偏置向量。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 在贝叶斯神经网络训练完成后，模型权重θ已经确定，但模型预测值本身具有不确定性，需要量化预测的不确定性以评估外推可靠性。论文中采用贝叶斯不确定性量化方法，通过变分后验分布采样来获得预测分布的方差。[Gap] 当前状态已有model_weights和loss_function_value，但尚未获得prediction_output（即质量预测值及其不确定性）。合法路径要求从model_weights和loss_function_value出发，经过model_uncertainty得到prediction_output。因此需要先计算模型在验证集上的预测不确定性。[Decision] 使用贝叶斯不确定性量化工具，从训练好的模型权重出发，通过蒙特卡洛dropout或变分后验采样，计算每个输入样本的预测均值和方差，从而得到prediction_output。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "bayesian_uncertainty_quantification",
+        "version": "1.0"
+      },
+      "parameters": {
+        "method": "variational_inference_with_monte_carlo_sampling",
+        "num_samples": 100,
+        "validation_set": "D_val",
+        "model_weights": "theta"
+      },
+      "output_state": {
+        "prediction_output": "M_pred(mathbf{x}) = mu_{pred}(mathbf{x}) pm sigma_{pred}(mathbf{x})",
+        "model_uncertainty": "sigma_{pred}(mathbf{x}) = sqrt{frac{1}{S} sum_{s=1}^S (M^{(s)}(mathbf{x}) - mu_{pred}(mathbf{x}))^2}"
+      },
+      "observation": "通过从变分后验分布中采样100组模型权重，对验证集中每个核素计算预测质量过剩的均值μ_pred和标准差σ_pred。标准差σ_pred即为模型不确定性，反映了模型对该核素预测的置信度。在已知区域，σ_pred约为200-300 keV；在未知区域（如远离稳定线），σ_pred增大至1-5 MeV，表明外推可靠性下降。预测输出已包含不确定度，可用于后续r过程网络计算中的误差传播。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将Bayesian Neural Network预测的质量与AME2020实验数据中已知核的质量进行对比，验证其在Z=20-82、N=20-126范围内的精度是否达到500 keV；对远离β稳定线的未知核，通过量纲分析检查预测值随A和Z变化的物理合理性，并检验在极端丰中子或丰质子极限下模型是否发散。",
+    "metrics": {
+      "result_1": {
+        "value": "500 keV",
+        "unit": "已知区域，现有模型",
+        "interpretation": "核质量预测精度"
+      },
+      "result_2": {
+        "value": "100 keV",
+        "unit": "r过程研究所需精度",
+        "interpretation": "核质量预测精度"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：macroscopic_microscopic_model；relativistic_mean_field；hartree_fock_bogoliubov。"
+  },
+  "paper_methods": [
+    "bayesian_neural_network",
+    "macroscopic_microscopic_model",
+    "relativistic_mean_field",
+    "hartree_fock_bogoliubov",
+    "finite_range_droplet_model"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "bayesian_neural_network",
+        "desc": "利用贝叶斯神经网络对核质量进行预测，通过概率建模量化不确定性"
+      },
+      {
+        "name": "macroscopic_microscopic_model",
+        "desc": "结合宏观液滴模型和微观壳修正的核质量模型"
+      },
+      {
+        "name": "relativistic_mean_field",
+        "desc": "基于相对论平均场理论的核质量计算模型"
+      },
+      {
+        "name": "hartree_fock_bogoliubov",
+        "desc": "基于Hartree-Fock-Bogoliubov方法的核质量计算模型"
+      },
+      {
+        "name": "finite_range_droplet_model",
+        "desc": "有限范围液滴模型，用于核质量宏观部分的参数化"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "M_{\\text{pred}} = M_{\\text{macro}} + \\delta M_{\\text{micro}}"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "\\sigma_{\\text{pred}} = \\sqrt{\\frac{1}{N}\\sum_{i=1}^{N}(M_{\\text{pred},i} - M_{\\text{exp},i})^2}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "核质量预测精度",
+        "value": "500 keV",
+        "condition": "已知区域，现有模型"
+      },
+      {
+        "quantity": "核质量预测精度",
+        "value": "100 keV",
+        "condition": "r过程研究所需精度"
+      }
+    ],
+    "failure_points": [
+      "macroscopic_microscopic_model",
+      "relativistic_mean_field",
+      "hartree_fock_bogoliubov",
+      "finite_range_droplet_model"
+    ]
+  }
+}

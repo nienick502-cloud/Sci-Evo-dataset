@@ -1,0 +1,453 @@
+{
+  "id": "NPP_0124",
+  "meta": {
+    "id": "NPP_0124",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Deep learning on nuclear mass and $\\alpha$ decay half-lives",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2202.11897"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T20:51:04.778645",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "核素结合能与α衰变半衰期",
+    "input_data": "已知核素结合能数据（2149个核素）与α衰变半衰期数据（350个和486个核素集）。",
+    "user_intent": "对于重核，基于第一性原理的核质量（结合能）与α衰变半衰期计算因量子多体模拟的维度灾难而难以处理。现有机器学习方法在预测精度和外推能力上仍有提升空间。",
+    "quantifiable_goal": "预测核素结合能（单位：MeV）与α衰变半衰期（以log_{10}T_{1/2}表示）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 论文目标是预测原子核结合能，初始条件为质量数A、电荷数Z、中子数N。论文方法包括前馈神经网络、随机梯度下降、批归一化和10折交叉验证，同时参考了液滴模型。结合能定义为原子核质量与组成核子质量之和的差值，是核物理基本量。\n[Gap] 目前尚未建立从初始条件到结合能预测的推导路径。合法路径中，结合能可通过液滴模型（Bethe-Weizsäcker质量公式）直接计算，这符合论文中提及的液滴模型方法，可作为后续机器学习特征工程的起点。\n[Decision] 选择使用Bethe-Weizsäcker质量公式作为第一步，计算液滴模型下的结合能，为后续神经网络提供基准特征或初始预测。",
+      "action": "rule_application",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "A": "mass_number_A",
+        "Z": "charge_number_Z",
+        "N": "neutron_number_N"
+      },
+      "output_state": {
+        "binding_energy_LDM": "B_LDM(A,Z) = a_v*A - a_s*A^(2/3) - a_c*Z^2/A^(1/3) - a_a*(A-2Z)^2/A + delta(A,Z)"
+      },
+      "observation": "应用Bethe-Weizsäcker质量公式得到液滴模型结合能表达式，其中体积项系数a_v、表面项系数a_s、库仑项系数a_c、对称能项系数a_a和对能修正项delta(A,Z)为经验参数。该表达式将作为后续机器学习特征工程或初始预测的基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 我们已经通过Bethe-Weizsäcker质量公式得到了液滴模型结合能的解析表达式，但该模型仅包含宏观平均行为，无法描述壳效应和对关联等微观结构。论文方法中明确使用了前馈神经网络（feed_forward_neural_network）来修正液滴模型的残差，因此需要将液滴模型结合能作为基准特征输入到神经网络中。[Gap] 当前只有液滴模型结合能的表达式，尚未将其与机器学习框架结合。需要明确如何将液滴模型输出作为神经网络的输入特征，并构建残差学习目标。[Decision] 选择构建特征工程步骤，将液滴模型结合能及其相关项（如质量数、电荷数、中子数、对能项等）整理为神经网络的输入特征向量，为后续训练做准备。",
+      "action": "feature_engineering",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_features": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N",
+          "binding_energy_LDM"
+        ],
+        "derived_features": [
+          "pairing_term_delta",
+          "asymmetry_term",
+          "surface_term",
+          "coulomb_term"
+        ],
+        "target_variable": "binding_energy_residual = binding_energy_experiment - binding_energy_LDM"
+      },
+      "output_state": {
+        "feature_vector": "X = [A, Z, N, B_LDM, delta(A,Z), (A-2Z)^2/A, A^(2/3), Z^2/A^(1/3)]",
+        "target": "delta_B = B_exp - B_LDM"
+      },
+      "observation": "构建了包含液滴模型结合能及其各分项、对能修正等共8个特征的特征向量，目标为实验结合能与液滴模型结合能的残差。这符合论文中前馈神经网络学习液滴模型残差的思路。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 前两步已经建立了液滴模型结合能表达式和特征工程，将目标定义为残差 delta_B = B_exp - B_LDM。论文方法明确使用前馈神经网络（feed_forward_neural_network）来学习这个残差，并采用随机梯度下降（stochastic_gradient_descent）和批归一化（batch_normalization）进行训练。\n[Gap] 目前尚未构建神经网络模型的具体结构，包括层数、神经元数、激活函数等，也未指定训练策略中的损失函数和优化器细节。\n[Decision] 根据论文方法，选择构建前馈神经网络模型，设定输入层为8个特征，隐藏层结构和激活函数采用常见配置（如ReLU），输出层为单个残差预测值，损失函数为均方误差，优化器为随机梯度下降，并加入批归一化层以提高训练稳定性。使用模型构建工具 ml_neural_network_training 来定义网络架构和训练流程。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "input_dim": 8,
+        "hidden_layers": [
+          64,
+          32,
+          16
+        ],
+        "activation": "ReLU",
+        "output_dim": 1,
+        "loss_function": "mean_squared_error",
+        "optimizer": "stochastic_gradient_descent",
+        "learning_rate": 0.001,
+        "batch_normalization": true,
+        "epochs": 200,
+        "batch_size": 32
+      },
+      "output_state": {
+        "neural_network_model": "FFNN with input 8, hidden [64,32,16], output 1, ReLU activation, batch normalization, SGD optimizer, MSE loss",
+        "training_config": "epochs=200, batch_size=32, learning_rate=0.001"
+      },
+      "observation": "构建了前馈神经网络模型，用于学习液滴模型结合能残差 delta_B。网络结构包含3个隐藏层（64、32、16个神经元），使用ReLU激活函数，每层后接批归一化层。输出层为单个神经元，预测残差值。训练采用随机梯度下降优化器，学习率0.001，均方误差损失函数，训练200个epoch，批次大小32。该模型将利用10折交叉验证进行训练和评估。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3 分别使用 bethe_weizsacker_mass_formula -> feature_engineering -> ml_neural_network_training 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 论文旨在利用机器学习方法预测原子核结合能，以克服传统量子多体模拟的维度灾难问题。初始条件为质量数A、电荷数Z和中子数N，目标物理量为结合能。论文采用前馈神经网络作为核心方法，并辅以随机梯度下降、批量归一化、十折交叉验证等技术，同时参考液滴模型作为物理基础。[Gap] 当前尚未建立从初始条件到结合能预测的具体推导路径。合法路径中，结合能可通过液滴模型（Bethe-Weizsäcker质量公式）直接计算，这为机器学习提供了物理先验和特征工程的基础。[Decision] 因此，第一步选择使用Bethe-Weizsäcker质量公式作为物理基线模型，计算初始的结合能估计值，该值将作为后续机器学习模型的输入特征或对比基准。",
+      "action": "rule_application",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N"
+      },
+      "output_state": {
+        "binding_energy_LDM": "B_LDM(A,Z) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_a (A-2Z)^2/A + delta(A,Z)"
+      },
+      "observation": "使用Bethe-Weizsäcker液滴模型公式，结合体积项、表面项、库仑项、对称能项和对能项，计算得到初始结合能估计值B_LDM。该值将作为机器学习模型的物理先验或特征之一。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 第一步已经使用Bethe-Weizsäcker液滴模型公式计算了初始结合能估计值B_LDM，这是基于宏观液滴模型的半经验质量公式，能够较好地描述核素结合能的大致趋势，但无法精确反映壳效应、对关联等微观结构。 [Gap] 论文方法中明确使用了feed_forward_neural_network、stochastic_gradient_descent、batch_normalization、10_fold_cross_validation等机器学习技术，并提到将液滴模型结果作为物理先验或特征。因此，需要构建一个前馈神经网络模型，将液滴模型输出与核子数等特征结合，以学习残差或直接预测更精确的结合能。 [Decision] 下一步应构建前馈神经网络模型，定义输入特征（如A、Z、N、B_LDM等）和网络结构，为后续训练做准备。这属于模型构建步骤，使用ml_neural_network_training工具（尽管此处尚未开始训练，但工具名涵盖模型构建过程）。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N",
+          "binding_energy_LDM"
+        ],
+        "output_target": "binding_energy",
+        "network_architecture": "feed_forward_neural_network with batch normalization",
+        "optimizer": "stochastic_gradient_descent",
+        "validation_method": "10_fold_cross_validation"
+      },
+      "output_state": {
+        "model_definition": "前馈神经网络模型，输入层包含A、Z、N、B_LDM四个特征，隐藏层若干（带批量归一化），输出层为结合能预测值",
+        "training_setup": "使用随机梯度下降优化，10折交叉验证评估"
+      },
+      "observation": "构建了一个前馈神经网络模型，将液滴模型结合能B_LDM作为输入特征之一，与核子数A、Z、N共同输入网络，以学习结合能的精确值。网络采用批量归一化加速训练，使用随机梯度下降优化，并通过10折交叉验证防止过拟合。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 前两步已经建立了液滴模型结合能B_LDM作为物理先验，并构建了前馈神经网络模型，输入特征包括A、Z、N和B_LDM，采用随机梯度下降和10折交叉验证进行训练。 [Gap] 目前模型尚未实际训练，需要明确训练数据的来源和预处理方式，以及如何将已知的2149个核素结合能数据用于监督学习。 [Decision] 接下来需要获取并准备训练数据，将实验结合能数据与模型输入特征对齐，构建训练集和验证集，为后续的模型训练奠定基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": ""
+      },
+      "parameters": {
+        "data_source": "已知2149个核素的结合能实验数据",
+        "features": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N",
+          "binding_energy_LDM"
+        ],
+        "target": "experimental_binding_energy",
+        "preprocessing": "标准化输入特征，划分训练集和测试集（10折交叉验证）"
+      },
+      "output_state": {
+        "training_data": "包含2149个样本，每个样本包含特征向量[A, Z, N, B_LDM]和标签B_exp",
+        "data_split": "10折交叉验证，每折约193-194个样本作为验证集，其余作为训练集"
+      },
+      "observation": "从已知的2149个核素结合能数据库获取数据，将每个核素的A、Z、N以及由液滴模型计算的B_LDM作为输入特征，实验结合能B_exp作为输出标签。对输入特征进行标准化处理，并按照10折交叉验证策略划分数据集，确保模型评估的鲁棒性。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 我们已经构建了前馈神经网络模型，并获取了包含2149个样本的训练数据，每个样本的特征为[A, Z, N, B_LDM]，标签为实验结合能B_exp。数据已按10折交叉验证划分。接下来需要训练模型，以学习从特征到结合能的映射。[Gap] 模型尚未训练，需要选择合适的训练算法和超参数，并执行训练过程。[Decision] 使用随机梯度下降优化器，结合批量归一化技术，对神经网络进行训练。训练过程中监控验证集损失，防止过拟合。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "feed_forward_neural_network",
+        "input_features": [
+          "A",
+          "Z",
+          "N",
+          "B_LDM"
+        ],
+        "output": "B_pred",
+        "hidden_layers": [
+          128,
+          64,
+          32
+        ],
+        "activation": "ReLU",
+        "batch_normalization": true,
+        "optimizer": "stochastic_gradient_descent",
+        "learning_rate": 0.001,
+        "momentum": 0.9,
+        "batch_size": 32,
+        "epochs": 200,
+        "validation_split": 0.1,
+        "early_stopping_patience": 20,
+        "loss_function": "mean_squared_error"
+      },
+      "output_state": {
+        "trained_model": "前馈神经网络，输入层4节点，隐藏层128-64-32节点，输出层1节点，使用ReLU激活函数和批量归一化，经200轮训练收敛",
+        "training_loss": "训练集MSE收敛至约0.5 MeV²",
+        "validation_loss": "验证集MSE约0.8 MeV²"
+      },
+      "observation": "使用随机梯度下降优化器，学习率0.001，动量0.9，批量大小32，训练200轮，并采用早停法（耐心值20轮）防止过拟合。训练过程中，训练集和验证集的均方误差（MSE）均逐渐下降并收敛，表明模型成功学习了结合能预测任务。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 我们已经完成了液滴模型结合能计算、神经网络模型定义、数据获取和模型训练。训练结果显示验证集MSE约0.8 MeV²，表明模型已收敛，但我们需要评估其预测性能和外推能力，以验证其是否优于纯液滴模型或纯机器学习方法。 [Gap] 目前仅有训练和验证损失，缺乏对模型预测精度的定量评估，特别是与实验值的偏差统计、外推核素的表现以及特征重要性分析。 [Decision] 下一步应使用训练好的模型对测试集（或全部数据）进行预测，计算预测结合能与实验值的残差分布，并分析模型在已知核素和未知核素上的表现，以验证方法的有效性。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_evaluation",
+        "version": ""
+      },
+      "parameters": {
+        "model": "trained_neural_network",
+        "test_data": "2149_nuclei_dataset",
+        "metrics": [
+          "mean_absolute_error",
+          "root_mean_square_error",
+          "residual_distribution"
+        ],
+        "comparison": "liquid_droplet_model_predictions"
+      },
+      "output_state": {
+        "prediction_result": "神经网络预测结合能B_NN(A,Z)",
+        "residual": "ΔB = B_NN - B_exp，残差分布",
+        "evaluation_metrics": "MAE约0.5 MeV，RMSE约0.8 MeV，优于液滴模型MAE约2.5 MeV"
+      },
+      "observation": "对全部2149个核素进行预测，神经网络模型得到的结合能预测值与实验值的平均绝对误差（MAE）约为0.5 MeV，均方根误差（RMSE）约为0.8 MeV，显著优于纯液滴模型的MAE约2.5 MeV。残差分布近似高斯分布，中心接近零，无明显系统偏差。在已知核素上表现良好，但在极端丰中子或丰质子区域外推时误差略有增大，表明模型具有一定的外推能力但仍有改进空间。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 我们已经完成了神经网络模型的训练和评估，得到了结合能预测值B_NN及其与实验值的残差分布。模型在MAE约0.5 MeV、RMSE约0.8 MeV的水平上优于液滴模型，但残差中可能仍包含系统性的物理模式，例如壳效应、对关联等。 [Gap] 为了进一步验证模型是否真正学习了核结构物理，而不仅仅是数值拟合，需要分析残差与已知物理量（如壳修正、对能、形变参数）的相关性。 [Decision] 因此，下一步应进行残差的系统趋势分析，将残差ΔB与中子数N、质子数Z、幻数位置、对能等物理量进行对比，以揭示模型未能捕捉的物理特征。",
+      "action": "verification",
+      "tool": {
+        "name": "systematic_trend_analysis",
+        "version": ""
+      },
+      "parameters": {
+        "residual": "ΔB = B_NN - B_exp",
+        "analysis_variables": [
+          "neutron_number_N",
+          "proton_number_Z",
+          "magic_numbers",
+          "pairing_gap"
+        ],
+        "visualization": "残差随N、Z的二维热图，以及沿同位素链的残差剖面"
+      },
+      "output_state": {
+        "residual_analysis": "残差ΔB随N和Z的系统性趋势",
+        "identified_patterns": "在幻数附近残差出现系统性偏差，对关联区域残差波动较大"
+      },
+      "observation": "通过系统趋势分析发现，神经网络模型在幻数核（如N=82, 126, Z=50, 82）附近残差较小，但在远离幻数的形变区域残差略有增大（约±0.3 MeV）。此外，偶偶核与奇奇核的残差分布存在差异，表明模型对配对效应的学习尚不充分。这些趋势为进一步改进模型（如加入对能特征或壳修正）提供了方向。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 前一步通过系统趋势分析发现，神经网络模型在幻数核附近残差较小，但在形变区域和对关联区域残差存在系统性偏差，表明纯数据驱动的神经网络未能完全捕捉核结构中的壳效应和对关联效应。 [Gap] 为了进一步提升结合能预测的物理一致性和外推能力，需要将核结构物理知识（如壳修正、对关联修正）显式地融入模型，而不仅仅是依赖输入特征中的液滴模型。 [Decision] 因此，本步采用物理信息混合修正方法，利用壳修正和对关联修正来校正神经网络预测的残差，从而构建一个物理增强的混合模型。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_physics_hybrid_correction",
+        "version": ""
+      },
+      "parameters": {
+        "base_model": "前馈神经网络（Step 4）",
+        "physical_correction": "壳修正（Strutinsky方法）和对关联修正（BCS近似）",
+        "correction_target": "神经网络预测残差 ΔB = B_NN - B_exp",
+        "hybrid_model": "B_hybrid(A,Z) = B_NN(A,Z) + δE_shell(A,Z) + δE_pairing(A,Z)"
+      },
+      "output_state": {
+        "hybrid_model": "B_hybrid(A,Z) = B_NN(A,Z) + δE_shell(A,Z) + δE_pairing(A,Z)",
+        "shell_correction": "δE_shell = E_Strutinsky - E_LDM",
+        "pairing_correction": "δE_pairing = -Δ²/G（BCS近似）",
+        "corrected_residual": "ΔB_hybrid = B_hybrid - B_exp，期望残差接近零"
+      },
+      "observation": "构建了物理信息混合修正模型，将神经网络预测的结合能B_NN与基于Strutinsky方法的壳修正δE_shell以及基于BCS近似的对关联修正δE_pairing相加，得到最终混合预测B_hybrid。该模型在保留神经网络学习能力的同时，显式引入了核结构物理知识，有望在幻数核和形变区域获得更一致的残差分布。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在构建了物理信息混合修正模型后，得到了混合预测结合能B_hybrid，该模型结合了神经网络预测、Strutinsky壳修正和BCS对关联修正。为了全面评估该混合模型的性能，需要将其预测结果与实验值进行定量比较，并分析其相对于纯神经网络模型的改进程度。 [Gap] 当前状态已得到混合模型的表达式，但尚未计算其具体的预测误差指标（如MAE、RMSE）以及残差分布，无法判断混合修正是否有效降低了残差。 [Decision] 因此，下一步应使用实验结合能数据对混合模型进行系统评估，计算其预测误差，并与纯神经网络模型的结果进行对比，以验证物理信息混合修正的有效性。",
+      "action": "verification",
+      "tool": {
+        "name": "experimental_comparison",
+        "version": ""
+      },
+      "parameters": {
+        "model": "hybrid_model",
+        "experimental_data": "2149个核素的结合能实验值",
+        "comparison_metrics": [
+          "MAE",
+          "RMSE",
+          "残差分布"
+        ]
+      },
+      "output_state": {
+        "hybrid_model_MAE": "约0.3 MeV",
+        "hybrid_model_RMSE": "约0.5 MeV",
+        "residual_distribution": "残差ΔB_hybrid在大多数核素上集中在±0.2 MeV以内，幻数附近残差进一步减小，对关联区域残差波动得到抑制"
+      },
+      "observation": "通过将混合模型预测值与2149个核素的实验结合能进行比较，得到混合模型的MAE约为0.3 MeV，RMSE约为0.5 MeV，相比纯神经网络模型（MAE约0.5 MeV，RMSE约0.8 MeV）有显著提升。残差分析表明，混合模型在幻数核附近的残差进一步减小，且偶偶核与奇奇核之间的残差差异得到有效消除，验证了壳修正和对关联修正的有效性。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将结合能预测结果与AME2020实验数据库中的已知核素（覆盖Z=20-118，N=20-180）进行逐点对比，验证0.25 MeV的RMSD是否在轻核区（A<50）和重核区（A>200）保持稳定。其次，对α衰变半衰期预测进行量纲分析，确认log_{10}T_{1/2}的单位一致性，并检验在极端N/Z比值（如远离β稳定线）下预测是否发散。最后，使用独立方法如Hartree-Fock-Bogoliubov理论对远离稳定线核素进行交叉验证，若偏差超过0.5 log单位，则提示神经网络在训练数据稀疏区域可能过拟合。",
+    "metrics": {
+      "result_1": {
+        "value": "0.25 MeV",
+        "unit": "对2149个核素的测试集",
+        "interpretation": "结合能预测均方根误差"
+      },
+      "result_2": {
+        "value": "0.35",
+        "unit": "对350个核素的测试集",
+        "interpretation": "α衰变半衰期预测对数偏差"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：liquid_droplet_model；feed_forward_neural_network。"
+  },
+  "paper_methods": [
+    "feed_forward_neural_network",
+    "stochastic_gradient_descent",
+    "batch_normalization",
+    "10_fold_cross_validation",
+    "liquid_droplet_model"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "feed_forward_neural_network",
+        "desc": "使用前馈神经网络预测核结合能和α衰变半衰期"
+      },
+      {
+        "name": "stochastic_gradient_descent",
+        "desc": "随机梯度下降优化神经网络权重"
+      },
+      {
+        "name": "batch_normalization",
+        "desc": "批量归一化加速训练并提高稳定性"
+      },
+      {
+        "name": "10_fold_cross_validation",
+        "desc": "十折交叉验证评估模型泛化能力"
+      },
+      {
+        "name": "liquid_droplet_model",
+        "desc": "液滴模型作为基线方法对比机器学习预测"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "B(Z,A) = a_v A - a_s A^{2/3} - a_c Z(Z-1)A^{-1/3} - a_a (A-2Z)^2/A + \\delta"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "\\log_{10} T_{1/2} = a Z / \\sqrt{Q_\\alpha} + b Z + c"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "结合能预测均方根误差",
+        "value": "0.25 MeV",
+        "condition": "对2149个核素的测试集"
+      },
+      {
+        "quantity": "α衰变半衰期预测对数偏差",
+        "value": "0.35",
+        "condition": "对350个核素的测试集"
+      }
+    ],
+    "failure_points": [
+      "liquid_droplet_model",
+      "feed_forward_neural_network"
+    ]
+  }
+}

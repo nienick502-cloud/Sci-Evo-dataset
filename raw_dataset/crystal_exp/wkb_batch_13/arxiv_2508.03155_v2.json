@@ -1,0 +1,485 @@
+{
+  "id": "NPP_0016",
+  "meta": {
+    "id": "NPP_0016",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "Machine Learning-Driven High-Precision Model for",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2508.03155"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T12:59:11.163567",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变能与半衰期",
+    "input_data": "已知条件：评估核数据与形变表；关键结构相关特征包括幻数邻近度、最小轨道角动量转移、同位旋不对称性和四极形变。",
+    "user_intent": "现有广泛使用的经验关系（如Royer公式和普适衰变定律）存在预测误差，需要一种在实验数据稀缺区域也能准确预测α衰变系统学的方法。",
+    "quantifiable_goal": "预测α衰变能 Q_α（单位：MeV）与α衰变半衰期 T_{1/2}（单位：s）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 本推导的目标是从核的基本参数（质量数A、电荷数Z、中子数N、形变参数）出发，计算α衰变半衰期。论文方法结合了WKB近似、Gamow理论、XGBoost算法和特征工程。根据合法路径，半衰期可以通过α衰变宽度计算，而宽度依赖于穿透概率和预形成因子等。第一步需要确定衰变能Q值，这是后续所有隧穿计算的基础。Q值定义为母核与子核加α粒子的质量差，可由质量公式或实验质量计算得到。由于我们处于半盲预测模式，需要从基本核参数出发，利用Bethe-Weizsäcker质量公式或类似方法估算Q值。[Gap] 当前仅有A、Z、N和形变参数，没有直接的质量数据，因此需要利用质量公式计算结合能，进而得到Q值。[Decision] 选择使用Bethe-Weizsäcker质量公式（液滴模型加对称能、库仑能、对能修正）来计算母核和子核的质量，从而得到Q值。这是合法路径Path 1和Path 2的起点。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "deformation_parameter": "beta2",
+        "calculation_type": "Q_value_alpha_decay"
+      },
+      "output_state": {
+        "Q_value": "Q_alpha = [M_parent - (M_daughter + M_alpha)]c^2，其中M由Bethe-Weizsäcker公式计算"
+      },
+      "observation": "利用Bethe-Weizsäcker质量公式，输入母核的(A,Z,N)和形变参数，计算母核结合能；子核为(A-4, Z-2, N-2)，同样计算结合能；α粒子质量取实验值。得到Q_alpha的数值表达式。此步骤为后续计算势垒穿透和半衰期提供了关键输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 根据前提层假设，α衰变是α粒子穿透库仑势垒的量子隧穿过程，需要构建势垒模型。核势采用Woods-Saxon形式，并考虑形变效应。当前已通过质量公式得到Q值，下一步需要构建α粒子与子核之间的相互作用势，包括核势、库仑势和离心势，以形成有效势垒。[Gap] 目前仅有Q值，尚未构建势垒的势能函数。势垒的形状和高度直接影响隧穿概率，进而影响半衰期。需要从核势参数化开始，逐步构建有效势。[Decision] 选择使用Woods-Saxon参数化工具来构建核势部分，这是势垒构建的第一步。输入参数包括质量数、电荷数和形变参数，输出Woods-Saxon势的径向形式。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "deformation_parameter": "deformation_parameter",
+        "potential_type": "nuclear",
+        "output_form": "radial_function"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = -V_0 / [1 + exp((r - R_0)/a)]，其中V_0为势阱深度，R_0 = r_0 A^{1/3}为半径参数，a为弥散度。考虑形变时，半径参数需修正为R(θ) = R_0 [1 + β_2 Y_{20}(θ)]，势垒在角度上非球对称"
+      },
+      "observation": "构建了Woods-Saxon核势的径向形式，并引入了四极形变参数β_2对半径进行角度依赖修正。势阱深度V_0、半径参数r_0和弥散度a为待定参数，需后续通过实验数据或系统学确定。此势将作为有效势垒的核部分。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 根据α衰变的量子隧穿图像，α粒子在母核内部预形成后，需穿透由核势、库仑势和离心势共同构成的有效势垒。有效势垒的形状直接决定了隧穿概率。当前已获得Q值和Woods-Saxon核势，下一步需要构建完整的有效势垒，包括库仑势和离心势的贡献。[Gap] 目前仅有核势的表达式，尚未考虑库仑排斥和角动量带来的离心势垒，无法进行隧穿计算。[Decision] 因此，本步选择使用coulomb_potential_calculation工具计算库仑势，并同时引入离心势，为后续组装有效势垒做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Z_daughter": "Z-2",
+        "Z_alpha": 2,
+        "radius_parameter": "R_c = r_c * A^(1/3)",
+        "deformation": "beta_2"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(r) = (Z_daughter * Z_alpha * e^2) / r，对于r >= R_c；当r < R_c时，采用均匀带电球体的势能形式V_C(r) = (Z_daughter * Z_alpha * e^2)/(2R_c) * (3 - r^2/R_c^2)",
+        "centrifugal_potential": "V_l(r) = (hbar^2 * l * (l+1)) / (2 * mu * r^2)，其中mu为α粒子与子核的约化质量，l为α粒子携带的最小轨道角动量，由母核与子核的自旋宇称决定"
+      },
+      "observation": "构建了库仑势和离心势的解析表达式。库仑势在核半径外取标准点电荷形式，核半径内考虑有限大小修正；离心势依赖于角动量量子数l，该值需后续从自旋宇称守恒确定。至此，有效势垒的三个组成部分（核势、库仑势、离心势）均已具备，下一步可组装有效势垒并求解隧穿转折点。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 当前已构建了α衰变能Q_alpha和有效势垒的三个组成部分：Woods-Saxon核势、库仑势和离心势。下一步需要将这些势能分量组合成完整的有效势垒，以便后续求解隧穿概率。有效势垒是α粒子在母核外感受到的总相互作用势，是量子隧穿计算的核心输入。[Gap] 目前三个势能分量是独立的表达式，尚未组合成统一的径向有效势，且核势与库仑势在核表面区域的衔接方式（如是否考虑核势的形变修正对库仑势的影响）需要明确。[Decision] 选择使用effective_potential_assembly工具，将核势、库仑势和离心势按径向坐标r相加，并考虑形变参数对核势半径的角度依赖修正，得到有效势垒V_eff(r, θ)的完整表达式。此步骤是合法路径Path 1中从nuclear_potential到effective_potential的必要环节。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": "1.0"
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(r, θ) = -V_0 / [1 + exp((r - R_0(θ))/a)]",
+        "coulomb_potential": "V_C(r) = Z_d * Z_α * e^2 / r, for r ≥ R_c; finite-size correction for r < R_c",
+        "centrifugal_potential": "V_l(r) = ℏ² l(l+1) / (2μ r²)",
+        "deformation_parameter": "β_2",
+        "radius_angular_dependence": "R_0(θ) = R_0 * [1 + β_2 * Y_{20}(θ)]"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r, θ) = V_N(r, θ) + V_C(r) + V_l(r)"
+      },
+      "observation": "成功组装了有效势垒的完整表达式。核势半径R_0(θ)通过四极形变参数β_2和球谐函数Y_{20}(θ)引入角度依赖，使得有效势垒在赤道方向（θ=90°）和极轴方向（θ=0°）具有不同形状。库仑势在核半径外取标准点电荷形式，离心势依赖于待定角动量l。此有效势将用于后续求解隧穿概率的WKB作用量积分。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经构建了有效势垒 V_eff(r, θ) = V_N(r, θ) + V_C(r) + V_l(r)，其中核势具有 Woods-Saxon 形式并包含四极形变，库仑势和离心势也已明确。下一步需要求解 α 粒子隧穿势垒的量子隧穿概率，这需要先确定经典转折点（turning points），即 V_eff(r) = Q_α 的根。转折点将势垒分为内部区域（r < r_in）、势垒区域（r_in < r < r_out）和外部区域（r > r_out），其中 r_in 和 r_out 分别是内转折点和外转折点。\n[Gap] 当前我们只有 Q_α 的数值表达式和 V_eff 的解析形式，但尚未实际求解转折点的具体数值。转折点的位置依赖于 Q_α、形变参数 β_2、角动量 l 以及核势参数 V_0、r_0、a。由于形变导致势垒具有角度依赖，转折点也将是 θ 的函数。\n[Decision] 我将使用 turning_point_solver 工具，基于已构建的有效势垒和 Q_α 值，数值求解内转折点 r_in(θ) 和外转折点 r_out(θ)。求解时需考虑形变引起的角度依赖，在赤道方向（θ=90°）和极轴方向（θ=0°）分别计算，以评估形变对隧穿路径的影响。这将为后续 WKB 作用量积分提供积分限。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r, θ) = V_N(r, θ) + V_C(r) + V_l(r)",
+        "Q_value": "Q_α = [M_parent - (M_daughter + M_α)]c²",
+        "deformation": "β₂",
+        "angular_momentum": "l",
+        "nuclear_potential_params": "V_0, r_0, a"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in(θ) = {r: V_eff(r, θ) = Q_α, r < R_0}",
+        "outer_turning_point": "r_out(θ) = {r: V_eff(r, θ) = Q_α, r > R_0}"
+      },
+      "observation": "通过数值求解方程 V_eff(r, θ) = Q_α，得到了内转折点 r_in(θ) 和外转折点 r_out(θ) 作为角度 θ 的函数。由于形变效应，赤道方向（θ=90°）的核半径较大，导致内转折点位置较深（r_in 较小），势垒宽度较窄；极轴方向（θ=0°）的核半径较小，内转折点较浅（r_in 较大），势垒宽度较宽。外转折点主要由库仑势决定，受形变影响较小。这两个转折点将作为 WKB 作用量积分的积分下限和上限。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null,
+      "dfs_warning": "unmet_requires"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已构建了包含形变Woods-Saxon核势、库仑势和离心势的有效势垒V_eff(r,θ)，并求解了内、外转折点r_in(θ)和r_out(θ)作为角度的函数。下一步需要计算α粒子穿透该势垒的概率，这是量子隧穿理论的核心步骤。根据Gamow理论和WKB近似，穿透概率P(θ)由作用量积分S(θ)决定：P(θ) = exp[-2S(θ)]，其中S(θ) = ∫_{r_in(θ)}^{r_out(θ)} √(2μ/ℏ²)[V_eff(r,θ) - Q_α] dr。由于形变导致势垒在不同角度不同，穿透概率需对角度进行平均或沿最优路径计算。\n[Gap] 目前尚未计算作用量积分和穿透概率。需要选择合适的数值积分方法（如高斯-勒让德求积）来高效计算WKB积分，并考虑形变引起的角度依赖。\n[Decision] 选择WKB_action_integral工具，对每个角度θ数值计算作用量积分S(θ)，为后续计算角度平均穿透概率做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "integration_method": "Gauss-Legendre_quadrature",
+        "angular_grid": "10_points_from_0_to_pi/2",
+        "reduced_mass_mu": "μ = m_α * M_daughter / (m_α + M_daughter)",
+        "Q_value": "Q_α (待后续从质量公式计算)"
+      },
+      "output_state": {
+        "action_integral": "S(θ) = ∫_{r_in(θ)}^{r_out(θ)} √(2μ/ℏ²)[V_eff(r,θ) - Q_α] dr",
+        "penetrability_angular": "P(θ) = exp[-2S(θ)]"
+      },
+      "observation": "采用数值积分方法，在角度θ的离散网格上计算了WKB作用量积分S(θ)。由于形变效应，赤道方向（θ=90°）的势垒较薄，S(θ)较小，穿透概率P(θ)较大；极轴方向（θ=0°）的势垒较厚，穿透概率较小。后续需对角度进行加权平均或采用最优路径近似得到总穿透概率。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null,
+      "dfs_warning": "temporal_logic_break"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 我们已经通过WKB作用量积分得到了每个角度θ下的穿透概率P(θ)，但实际α衰变是三维空间中的量子隧穿过程，总穿透概率需要对所有出射方向进行加权平均。由于形变核的势垒具有轴对称性（四极形变），穿透概率在方位角φ方向是均匀的，只需对极角θ进行积分。[Gap] 目前只有角度分辨的穿透概率P(θ)，尚未得到总穿透概率P_total，这是计算衰变宽度和半衰期的关键中间量。[Decision] 采用球面平均方法，对P(θ)在立体角上积分并归一化，得到总穿透概率P_total。这属于严格的数学推导步骤，使用数值积分工具。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_integration",
+        "version": ""
+      },
+      "parameters": {
+        "method": "angular_averaging",
+        "integrand": "P(θ) * sin(θ)",
+        "limits": "θ from 0 to π",
+        "normalization": "1/(4π)"
+      },
+      "output_state": {
+        "total_penetrability": "P_total = (1/2) ∫_0^π P(θ) sin(θ) dθ"
+      },
+      "observation": "通过数值积分，在θ的离散网格上对P(θ) sin(θ)进行梯形法积分，并乘以1/2（因为方位角积分已给出因子2π，与4π归一化分母约去后剩余1/2），得到总穿透概率P_total。该值介于最小穿透概率（极轴方向）和最大穿透概率（赤道方向）之间，反映了形变核势垒的各向异性对隧穿概率的综合影响。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 我们已经通过WKB方法计算了形变势垒下的总穿透概率P_total。根据Gamow衰变理论，α衰变宽度Γ与穿透概率P_total、α粒子预形成因子S_α以及撞击频率f_0有关，具体关系为Γ = ℏ f_0 S_α P_total。其中撞击频率f_0 = v/(2R_0)，v是α粒子在核内的速度，R_0是核半径。预形成因子S_α描述了α粒子在母核表面形成的概率，对于超重核区，S_α通常通过经验公式或微观模型（如BCS配对理论）估算。 [Gap] 当前我们已有P_total，但还缺少预形成因子S_α和撞击频率f_0的具体数值。论文方法中提到了Gamow理论，因此需要从核结构信息中计算这两个量。 [Decision] 下一步计算α粒子的预形成因子S_α。由于超重核的α预形成概率通常与核子配对关联和壳效应密切相关，我将采用基于BCS配对理论的预形成因子模型，利用配对能Δ和单粒子能级密度来估算S_α。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {
+        "method": "BCS_pairing_based",
+        "mass_number_A": "mass_number_A",
+        "proton_number_Z": "charge_number_Z",
+        "neutron_number_N": "neutron_number_N",
+        "pairing_gap": "Δ_p, Δ_n from Bethe-Weizsäcker formula or empirical systematics",
+        "deformation_parameter": "deformation_parameter"
+      },
+      "output_state": {
+        "preformation_factor": "S_α = S_α(Δ_p, Δ_n, A, Z, N, β_2)"
+      },
+      "observation": "采用BCS配对理论框架，α预形成因子S_α可表示为S_α = exp(-λ·G)，其中G是有效配对强度，λ是经验参数。对于超重核区，典型值S_α ≈ 0.1-0.3。考虑到形变效应，形变核的α预形成概率通常比球形核略大，因为形变降低了核子关联的对称性约束。此处取S_α = 0.15作为初始估计，后续可通过与实验数据对比进行微调。",
+      "step_mode": "empirical_approximation",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将预形成因子S_α解释为BCS配对理论下的指数形式S_α = exp(-λ·G)，并取固定值0.15。然而在α衰变中，预形成因子是α粒子在母核表面形成的概率，其物理来源是核子关联（如对关联和α集团化），而非简单的BCS配对强度指数。论文实际步骤中S_α是通过经验或微观模型（如BCS配对）估算，但并未采用这种指数形式，且预测中给出的具体数值0.15缺乏物理依据——对于超重核，S_α通常远小于0.1（典型值在10^{-2}~10^{-3}量级），0.15的估计过高，会导致半衰期被严重低估。这种对预形成因子的物理理解和数值选择是错误的。"
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤8：采用BCS配对理论下的指数形式S_α = exp(-λ·G)并取固定值0.15，已知条件包括：超重核区、形变效应、Gamow衰变理论框架。[Gap] 错过的信号：超重核的α预形成因子通常远小于0.1（典型值10^{-2}~10^{-3}量级），决策时已知因为这是核物理常识（超重核中α集团化概率极低），本应触发对0.15这一数值的警觉，并检查其物理合理性。[Decision] 正确判断方式：面对超重核区，应首先检查S_α的典型量级范围，如果经验估计值（0.15）与已知系统学（10^{-2}~10^{-3}）相差超过一个数量级，则需重新评估模型或采用更可靠的微观估算。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对预形成因子量级的物理直觉检查，直接采用了与超重核区已知系统学不符的数值",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在核物理推理中，任何经验参数或模型输出都必须先与已知的系统学趋势进行量级对比，尤其是当参数跨越核区时，直觉检查（如典型值范围）是防止数值错误的第一道防线。"
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6, 7 分别使用 bethe_weizsacker_mass_formula -> woods_saxon_parameterization -> coulomb_potential_calculation -> effective_potential_assembly -> turning_point_solver -> WKB_action_integral -> numerical_integration 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 根据前提层，α衰变半衰期T_{1/2}与衰变宽度Γ的关系为T_{1/2} = ℏ ln2 / Γ，这是从量子衰变理论导出的基本关系。要计算半衰期，需要先获得衰变宽度Γ。在Gamow理论框架下，衰变宽度Γ与α粒子穿透库仑势垒的几率P以及α粒子在核表面的碰撞频率（即预形成因子与轰击频率的乘积）有关。\n[Gap] 当前尚未定义衰变宽度Γ的具体表达式，需要从Gamow理论出发，将Γ与穿透几率P、预形成因子S_α和轰击频率f联系起来。\n[Decision] 采用Gamow理论中的衰变宽度公式：Γ = S_α · f · P，其中S_α为α粒子预形成因子，f为α粒子在核表面的轰击频率，P为库仑势垒穿透几率。这是后续计算半衰期的核心桥梁。",
+      "action": "rule_application",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": "1.0"
+      },
+      "parameters": {
+        "formula_type": "gamow",
+        "relation": "Gamma = S_alpha * f * P"
+      },
+      "output_state": {
+        "decay_width_Gamma": "S_alpha * f * P",
+        "half_life_T12": "hbar * ln2 / (S_alpha * f * P)"
+      },
+      "observation": "应用Gamow衰变宽度公式，将半衰期表达为预形成因子S_α、轰击频率f和穿透几率P的函数。后续步骤需要分别计算S_α、f和P。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 根据Gamow衰变宽度公式，半衰期T_{1/2} = ℏ ln2 / (S_α * f * P)，其中穿透几率P是决定衰变速率的关键量子隧穿因子。在WKB近似下，P由作用量积分S决定：P = exp(-2S)，其中S = ∫_{r_in}^{r_out} √(2μ/ℏ² (V(r) - Q_α)) dr。要计算P，需要先确定隧穿路径上的有效势V(r)和内外转折点r_in、r_out。 [Gap] 当前尚未定义有效势的形式，也未计算转折点。 [Decision] 首先构建α-子核系统的有效势V(r)，它由库仑势、核势和离心势组成：V(r) = V_C(r) + V_N(r) + V_l(r)。然后通过求解V(r) = Q_α的方程得到转折点。由于论文采用Woods-Saxon核势并考虑形变，需要先参数化核势。因此，本步选择构建有效势，为后续转折点求解和WKB积分做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "potential_components": [
+          "coulomb_potential",
+          "nuclear_potential",
+          "centrifugal_potential"
+        ],
+        "nuclear_potential_form": "Woods-Saxon with deformation",
+        "angular_momentum": "l = minimum orbital angular momentum transfer"
+      },
+      "output_state": {
+        "effective_potential_V(r)": "V_C(r) + V_N(r) + V_l(r)",
+        "coulomb_potential_V_C(r)": "Z_d * Z_α * e^2 / r for r > R_C, with R_C = 1.2 * A_d^{1/3} fm",
+        "nuclear_potential_V_N(r)": "-V_0 / [1 + exp((r - R_N)/a)] with deformed radius R_N = R_0 * (1 + β_2 * Y_{20}(θ))",
+        "centrifugal_potential_V_l(r)": "ℏ^2 l(l+1) / (2μ r^2)",
+        "reduced_mass_μ": "m_α * m_d / (m_α + m_d)",
+        "Q_alpha": "待从质量差计算"
+      },
+      "observation": "构建了α-子核系统的有效势V(r)，包含库仑势（点电荷近似）、Woods-Saxon核势（含四极形变修正）和离心势（l为最小轨道角动量转移）。该势将用于求解转折点并计算WKB作用量积分。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 根据Gamow衰变宽度公式，半衰期T_{1/2} = ℏ ln2 / (S_α * f * P)，其中穿透几率P是决定半衰期的关键量。在WKB近似下，穿透几率P由作用量积分S_action决定：P = exp(-2S_action/ℏ)。作用量积分S_action = ∫_{r_in}^{r_out} √(2μ|V(r) - Q_α|) dr，其中r_in和r_out是有效势V(r)等于Q_α的两个转折点。\n[Gap] 当前已构建有效势V(r)的表达式，但尚未计算转折点r_in和r_out，也未计算作用量积分。需要先求解转折点方程V(r) = Q_α，然后进行数值积分。\n[Decision] 选择使用turning_point_solver工具，基于已构建的有效势V(r)和Q_α值（需从质量差计算），数值求解内转折点r_in和外转折点r_out。由于Q_α尚未具体计算，此处先假设Q_α已知（后续步骤可补充），并给出转折点求解的通用方法。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": "1.0"
+      },
+      "parameters": {
+        "potential": "V(r) = V_C(r) + V_N(r) + V_l(r)",
+        "Q_alpha": "待从质量差计算",
+        "method": "二分法求解V(r) = Q_alpha",
+        "initial_guess_inner": "0.5 fm",
+        "initial_guess_outer": "10 fm"
+      },
+      "output_state": {
+        "turning_point_inner_r_in": "满足V(r_in) = Q_alpha的最小r值（约在核表面附近）",
+        "turning_point_outer_r_out": "满足V(r_out) = Q_alpha的最大r值（库仑势垒顶部）"
+      },
+      "observation": "通过数值求解V(r) = Q_α，得到内转折点r_in（通常位于核半径附近，约1.2A_d^{1/3} fm）和外转折点r_out（由库仑势决定，r_out ≈ Z_d Z_α e^2 / Q_α）。这两个转折点确定了α粒子隧穿势垒的区间[r_in, r_out]，用于后续WKB作用量积分计算。注意：实际计算中Q_α需从质量差或经验公式获得，此处先保留为符号。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: Q_value",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 根据Gamow衰变宽度公式，半衰期T_{1/2} = ℏ ln2 / (S_α f P)，其中穿透几率P是决定衰变速率的关键量子隧穿因子。在WKB近似下，穿透几率P = exp(-2G)，其中G是Gamow因子（即作用量积分）。[Gap] 当前已获得有效势V(r)和转折点r_in、r_out，但尚未计算Gamow因子G和穿透几率P。[Decision] 下一步应使用WKB作用量积分公式计算Gamow因子G，进而得到穿透几率P。这是沿合法路径Path 1从turning_points到penetrability的关键步骤。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "effective_potential": "V(r)",
+        "Q_value": "Q_alpha",
+        "reduced_mass": "μ"
+      },
+      "output_state": {
+        "Gamow_factor_G": "∫_{r_in}^{r_out} √(2μ/ℏ²) √(V(r) - Q_α) dr",
+        "penetrability_P": "exp(-2G)"
+      },
+      "observation": "在WKB近似下，Gamow因子G = (√(2μ)/ℏ) ∫_{r_in}^{r_out} √(V(r) - Q_α) dr，穿透几率P = exp(-2G)。该积分需数值计算，但解析近似（如抛物线势垒）可给出G ≈ (2π Z_d Z_α e²)/(ℏ v) - 8√(μ R_N³ V_0)/ℏ等形式的修正。后续步骤将结合核势参数和形变修正进行数值积分。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 当前已通过WKB近似建立了穿透几率P与Gamow因子G的关系，P = exp(-2G)，其中G = (√(2μ)/ℏ) ∫_{r_in}^{r_out} √(V(r) - Q_α) dr。为了实际计算P，需要处理该积分。由于有效势V(r)包含库仑势、Woods-Saxon核势和离心势，积分通常无法解析求解，但可采用抛物线势近似对库仑势垒顶部进行简化，从而得到解析表达式，便于后续数值拟合和机器学习特征构建。[Gap] 需要将Gamow因子G转化为可计算的数值形式，特别是考虑形变修正和离心势贡献。[Decision] 采用抛物线势近似（Hill-Wheeler公式）对库仑势垒顶部进行解析处理，同时保留形变参数对核势半径的影响，从而得到穿透几率P的近似表达式。",
+      "action": "approximation",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {
+        "approximation_method": "parabolic_barrier_approximation",
+        "deformation_correction": "included_in_nuclear_radius"
+      },
+      "output_state": {
+        "penetrability_P": "exp(-2G) ≈ exp( - (2π/ℏ) * (Z_d Z_α e^2 √(2μ) / √(Q_α)) * (1/√(V_barrier) - 1/√(Q_α)) )",
+        "Gamow_factor_G_parabolic": "(π/ℏ) * (Z_d Z_α e^2 √(2μ) / √(Q_α)) * (1/√(V_barrier) - 1/√(Q_α))",
+        "barrier_height_V_barrier": "V_C(r_out) + V_N(r_out) + V_l(r_out) ≈ V_C(r_out) + V_l(r_out) (核势在r_out处可忽略)",
+        "note": "采用抛物线势近似，将库仑势垒顶部近似为抛物线，得到穿透几率P的解析表达式。形变效应通过修正核势半径R_N影响内转折点r_in，进而影响G的数值，但在抛物线近似中主要体现为对V_barrier的修正。"
+      },
+      "observation": "应用抛物线势近似（Hill-Wheeler公式）对Gamow因子G进行解析处理，得到穿透几率P的近似表达式。该表达式将P显式表示为Q_α、Z_d、Z_α、μ和势垒高度V_barrier的函数，便于后续数值计算和机器学习特征构建。形变参数β_2通过影响核势半径R_N = R_0(1 + β_2 Y_{20})间接修正内转折点r_in和势垒形状，但在抛物线近似中，主要影响体现在V_barrier的取值上。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 当前已构建有效势V(r)，求解了内转折点r_in和外转折点r_out，并在WKB近似下通过抛物线势近似得到了穿透几率P的解析表达式。根据合法推导路径，下一步应计算α衰变宽度Γ，其与穿透几率P、预形成因子S_α和撞击频率f相关。 [Gap] 目前尚未引入预形成因子S_α和撞击频率f，且未将P与Γ建立联系。 [Decision] 采用经验近似，基于Gamow理论引入预形成因子S_α（反映α粒子在母核表面的形成概率）和撞击频率f（α粒子在势阱内撞击势垒的频率），从而计算衰变宽度Γ = S_α * f * P，并进一步得到半衰期T_{1/2}。",
+      "action": "approximation",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": ""
+      },
+      "parameters": {
+        "preformation_factor_model": "empirical_constant_S_alpha_0.1_to_1.0",
+        "assault_frequency_model": "f = v / (2 * R_N), v = sqrt(2 * Q_alpha / mu)"
+      },
+      "output_state": {
+        "preformation_factor_S_alpha": "经验取值，偶偶核约0.3-1.0，奇A核约0.1-0.3，奇奇核约0.01-0.1",
+        "assault_frequency_f": "f = v / (2 * R_N) = sqrt(2 * Q_alpha / mu) / (2 * R_N)",
+        "decay_width_Gamma": "Γ = S_α * f * P",
+        "half_life_T_half": "T_{1/2} = ℏ ln2 / Γ"
+      },
+      "observation": "基于Gamow衰变理论，将α衰变宽度Γ表示为预形成因子S_α、撞击频率f和穿透几率P的乘积。S_α反映α粒子在核表面的形成概率，通常由经验或微观模型（如BCS配对）给出；f由α粒子在核内的经典速度v和核半径R_N估算。由此得到半衰期T_{1/2} = ℏ ln2 / Γ。该步骤将穿透几率P与可观测的半衰期直接关联，是理论预测的核心环节。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: assault_frequency, preformation_factor",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的Q_α值与实验测量的α衰变能（如来自AME2020数据库）在Z=82-126、N=126-184范围内对比，若偏差超过0.5 MeV则怀疑模型。其次，对半衰期预测进行量纲分析：检查T_{1/2}单位是否为秒，且与Q_α的指数关系（如Geiger-Nuttall定律）趋势一致。最后，用独立方法（如密度泛函理论计算的Q_α）交叉验证，注意xgboost在训练数据外推时可能失效，尤其对超重核区。",
+    "metrics": {
+      "half_life": {
+        "value": "0.69 ms",
+        "unit": "^{293}Og (Z=118, A=293)",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：royer_formula；universal_decay_law。"
+  },
+  "paper_methods": [
+    "wkb_approximation",
+    "gamow_theory",
+    "xgboost_algorithm",
+    "feature_engineering"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "wkb_approximation",
+        "desc": "使用WKB近似计算α粒子穿透库仑势垒的隧穿概率"
+      },
+      {
+        "name": "gamow_theory",
+        "desc": "基于Gamow理论建立α衰变半衰期与衰变能和势垒穿透因子的关系"
+      },
+      {
+        "name": "xgboost_algorithm",
+        "desc": "采用XGBoost集成学习算法，利用特征工程构建的核结构特征预测α衰变半衰期"
+      },
+      {
+        "name": "feature_engineering",
+        "desc": "从核数据中提取幻数邻近度、最小轨道角动量转移、同位旋不对称性和四极形变等特征"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\hbar \\ln 2}{\\Gamma} = \\frac{\\ln 2}{\\nu} P^{-1}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "\\log_{10} T_{1/2} = a Z Q_\\alpha^{-1/2} + b Z + c"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "0.28 ms",
+        "condition": "^{294}Og (Z=118, A=294)"
+      },
+      {
+        "quantity": "half_life",
+        "value": "0.69 ms",
+        "condition": "^{293}Og (Z=118, A=293)"
+      }
+    ],
+    "failure_points": [
+      "royer_formula",
+      "universal_decay_law"
+    ]
+  }
+}

@@ -1,0 +1,430 @@
+{
+  "id": "NPP_0140",
+  "meta": {
+    "id": "NPP_0140",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Probing the refined performance of the Categorical-Boosting algorithm to the Hartree-Fock-Bogoliubov mass model with different Skyrme forces",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2505.10750"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "原子核结合能的预测精度",
+    "input_data": "已知条件：基于六种Skyrme力（SkM*、SkP、SLy4、SV-min、UNEDF0、UNEDF1）的Hartree-Fock-Bogoliubov (HFB)方法计算的结合能；可用的实验数据（AME2020及21个新测量核素）。",
+    "user_intent": "现有基于自洽平均场的微观核质量模型预测精度普遍不足，尤其对于远离稳定线的核素；需要探索如何利用机器学习方法从数据中提取缺失的物理信息以改进模型预测。",
+    "quantifiable_goal": "预测原子核的结合能（单位：MeV），并评估其与实验值的均方根偏差（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知有六种不同的Skyrme力参数化（SkM*、SkP、SLy4、SV-min、UNEDF0、UNEDF1），这些参数化定义了核子-核子有效相互作用的细节。研究目标是预测原子核结合能。[Gap] 需要基于这些Skyrme力，对目标核素（可能包括已知和未知的）进行微观自洽计算，以得到结合能的初始理论预测值。[Decision] 对每个目标核素，使用Hartree-Fock-Bogoliubov (HFB)方法，分别代入六种Skyrme力参数进行计算。HFB方法能够处理对关联，对于远离β稳定线的核素至关重要。预期得到六组基于不同有效相互作用的结合能预测值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "hartree_fock_bogoliubov",
+        "version": ""
+      },
+      "parameters": {
+        "skyrmeforce_set": [
+          "SkM*",
+          "SkP",
+          "SLy4",
+          "SV-min",
+          "UNEDF0",
+          "UNEDF1"
+        ],
+        "nuclei_set": "Target nuclei (including those with experimental data and extrapolation regions)"
+      },
+      "observation": "预期得到对于每个目标核素，六组不同的结合能理论预测值 $B_{th,i}(Z,N)$，其中 $i=1,...,6$ 对应不同的Skyrme力。这些预测值构成了后续分析的初始理论数据集。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得六组基于不同Skyrme力的HFB结合能预测。同时，拥有实验结合能数据（AME2020及21个新测量核素）。[Gap] 需要量化每种Skyrme力参数化在描述已知实验数据时的系统偏差和精度。这有助于理解不同参数化的优缺点，并为后续机器学习提供输入特征。[Decision] 对于每种Skyrme力 $i$，计算其预测值 $B_{th,i}$ 与实验值 $B_{exp}$ 在所有有实验数据的核素上的残差 $\\Delta B_i = B_{th,i} - B_{exp}$。分析这些残差的统计特性（如均方根偏差RMSD）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "residual_calculation_and_rmsd",
+        "theoretical_data": "$B_{th,i}$ from step 1",
+        "experimental_data": "AME2020 + 21 new measurements"
+      },
+      "observation": "预期得到六组残差序列 $\\{\\Delta B_i\\}$ 以及对应的均方根偏差 $RMSD_i$。这些残差反映了每种Skyrme力参数化系统性地高估或低估结合能的模式，可能包含与核子数 $Z$, $N$ 相关的结构信息。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已获得六种Skyrme力预测的残差。研究动机指出，需要利用机器学习从数据中提取缺失的物理信息以改进模型。[Gap] 需要构建一个机器学习模型，其输入应包含核素的基本信息（如 $Z$, $N$）以及不同理论模型的预测信息，输出是对理论残差的修正量或最终结合能的预测。[Decision] 选择CatBoost算法（一种梯度提升决策树GBDT的实现）作为核心机器学习模型。模型的输入特征将包括：原子序数 $Z$、中子数 $N$、六种Skyrme力的结合能预测值 $B_{th,i}$，可能还包括由这些预测值衍生的特征（如不同预测之间的差异）。输出目标是实验结合能 $B_{exp}$，或者更可能是理论预测的残差 $\\Delta B$。这里假设以残差为目标，因为修正理论偏差是常见策略。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "catboost_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "GradientBoostingDecisionTree",
+        "input_features": [
+          "Z",
+          "N",
+          "B_th_SkM*",
+          "B_th_SkP",
+          "B_th_SLy4",
+          "B_th_SV-min",
+          "B_th_UNEDF0",
+          "B_th_UNEDF1",
+          "derived_features"
+        ],
+        "target_variable": "Residual_Delta_B (or B_exp)"
+      },
+      "observation": "预期定义一个机器学习模型 $f_{ML}(\\mathbf{x})$，其中特征向量 $\\mathbf{x}$ 包含核素标识和多种理论预测。模型经过训练后，能够输出对理论结合能残差的预测值 $\\Delta B_{pred}$。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已定义CatBoost模型的结构和目标。[Gap] 需要准备训练、验证和测试数据集，并训练模型。关键是如何划分数据集以评估模型对未知核素（尤其是远离稳定线的核素）的预测能力。[Decision] 使用有实验数据的核素作为训练和验证集。可能采用时间顺序划分（将新测量的21个核素作为测试集的一部分）或基于核素在核图位置的交叉验证。将数据集划分为训练集和测试集，在训练集上训练CatBoost模型，优化其超参数以最小化预测残差与真实残差之间的损失函数（如均方误差）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "catboost_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "task": "model_training_and_validation",
+        "data_splitting": "Based on experimental availability (e.g., hold out new measurements)",
+        "loss_function": "RMSE or MAE",
+        "hyperparameter_tuning": "Performed via cross-validation"
+      },
+      "observation": "预期得到一个训练好的CatBoost模型 $f_{ML}^{trained}$。通过验证集可以评估该模型在“已知区域”内插的精度。模型学习到了从多种理论输入和核素坐标到结合能残差的复杂、非线性的映射关系。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已训练好一个CatBoost模型，可以预测结合能残差 $\\Delta B_{pred}$。[Gap] 需要生成对所有目标核素（包括训练集内和训练集外，即需要外推的核素）的最终结合能预测。[Decision] 对于任意一个核素 $(Z,N)$，首先用六种Skyrme力通过HFB计算得到 $B_{th,i}(Z,N)$（步骤1）。然后，将这些 $B_{th,i}$ 连同 $Z$, $N$ 输入训练好的CatBoost模型，得到该核素的残差预测 $\\Delta B_{pred}(Z,N)$。最终结合能预测 $B_{final}(Z,N)$ 可以通过对某个特定的理论值进行修正得到，例如 $B_{final} = B_{th, \\, ref} + \\Delta B_{pred}$，其中 $B_{th, \\, ref}$ 是选定的某个Skyrme力的预测值或它们的某种平均。另一种策略是让模型直接预测 $B_{exp}$。这里假设采用修正策略。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "catboost_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "task": "inference_and_prediction",
+        "input_for_new_nuclei": "Z, N, and six HFB predictions from step 1",
+        "correction_scheme": "B_final = B_th_ref + Delta_B_pred"
+      },
+      "observation": "预期得到对于所有目标核素（包括已知和未知的）的最终结合能预测值 $B_{final}(Z,N)$。对于训练集内的核素，$B_{final}$ 应更接近实验值；对于训练集外的核素，$B_{final}$ 是模型的外推预测。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "incorrect_derivation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤5中描述的过程是：先用六种Skyrme力通过HFB计算得到理论结合能，然后用CatBoost模型预测残差，最后将理论结合能与预测残差相加得到最终结合能。但论文实际步骤10明确指出：最终结合能是理论结合能减去机器学习预测的残差，即 $B_{ml} = B_{th}(Z, N) - \\delta(Z, N)$。预测步骤中的加法操作与论文的减法操作在数学推导上是相反的，这会导致最终结合能预测值系统性地偏离正确方向，属于推导错误。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已获得基于“HFB + CatBoost”混合模型的最终结合能预测 $B_{final}$。[Gap] 需要按照可量化目标的要求，评估该混合模型的预测精度，并与纯HFB模型的精度进行对比。[Decision] 在拥有实验数据的核素集合（测试集）上，计算最终预测 $B_{final}$ 与实验值 $B_{exp}$ 的残差，并计算其均方根偏差 $RMSD_{final}$。同时，回顾步骤2中计算的纯HFB模型的 $RMSD_i$。通过比较 $RMSD_{final}$ 与 $\\min(RMSD_i)$ 或 $\\operatorname{mean}(RMSD_i)$，来量化机器学习修正带来的精度提升。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "accuracy_evaluation",
+        "predictions": "$B_{final}$ from step 5",
+        "benchmarks": "$RMSD_i$ from step 2 for pure HFB",
+        "metric": "Root Mean Square Deviation (RMSD)"
+      },
+      "observation": "预期得到混合模型的均方根偏差 $RMSD_{final}$（单位：MeV）。预期 $RMSD_{final}$ 将显著低于任何单一Skyrme力HFB计算的 $RMSD_i$，表明机器学习成功提取并修正了系统偏差，提高了结合能的预测精度。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文拥有实验结合能数据集（AME2020）和基于六种Skyrme参数集（SkM*、SkP、SLy4、SV-min、UNEDF0、UNEDF1）的HFB理论计算结果。[Gap] 需要量化理论模型预测与实验测量之间的系统偏差，以作为机器学习的目标变量。[Decision] 定义质量残差（residual）为理论结合能与实验结合能之差。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "Skyrme_HFB_method",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "\\delta(Z, N) \\equiv B_{th}(Z, N) - B_{exp}(Z, N)",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 已定义质量残差。[Gap] 需要评估不同Skyrme参数集下HFB理论计算的整体预测精度。[Decision] 计算理论预测与实验值之间的均方根偏差（RMSD）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Skyrme_HFB_method",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "\\sigma_{rms} \\equiv \\sqrt{\\frac{1}{n} \\sum_{i=1}^{n} (B_{th}^{i} - B_{exp}^{i})^{2}}，对于不同的Skyrme参数集，该偏差在1-7 MeV范围内。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 已知理论预测存在系统偏差（残差）。[Gap] 目标是利用机器学习方法从数据中提取信息，以修正这些理论残差，从而获得更精确的结合能预测。[Decision] 应用CatBoost算法，通过迭代组合弱回归器来学习残差模式。",
+      "action": "rule_application",
+      "tool": {
+        "name": "CatBoost_algorithm",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "在训练过程中，算法通过最小化损失函数来迭代地构建模型：h^{t} = \\underset{h \\in H}{\\arg \\min} \\mathbb{E} \\left\\{L \\left(y, F^{t-1}(\\mathbf{x}) + h(\\mathbf{x})\\right) \\right\\}，其中每个弱回归器是决策树的组合：h(\\mathbf{x}) = \\sum_{j=1}^{J} b_{j} \\mathbb{1}_{\\left\\{\\mathbf{x} \\in R_{j}\\right\\}}。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] CatBoost模型已训练完成，能够预测给定原子核（特征Z, N等）的理论残差δ(Z, N)。[Gap] 需要生成最终的、改进后的结合能预测值。[Decision] 将机器学习预测的残差从原始HFB理论结合能中减去，得到修正后的结合能。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "CatBoost_algorithm",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "B_{ml} = B_{th}(Z, N) - \\delta(Z, N)",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：决定最终结合能预测公式为 $B_{final} = B_{th, \\, ref} + \\Delta B_{pred}$。[Gap] 错过的信号：在定义残差 $\\delta(Z, N) \\equiv B_{th}(Z, N) - B_{exp}(Z, N)$ 时，$\\delta$ 的符号是明确的：理论值减去实验值。这意味着当理论值高估时，$\\delta$ 为正，需要从理论值中减去一个正数来修正。因此，修正公式的符号应与残差定义直接对应。。[Decision] 正确判断方式：经验丰富的物理学家会注意到残差定义 $\\delta = B_{th} - B_{exp}$ 直接决定了修正方向：为了得到更接近实验值的 $B_{ml}$，必须从理论值 $B_{th}$ 中减去预测的残差 $\\delta$，即 $B_{ml} = B_{th} - \\delta$。这是一个基于定义和物理意义（修正偏差）的直接代数推导，无需额外假设。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：在从残差定义推导修正公式时，忽略了符号的物理含义，进行了错误的代数操作。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "物理量定义（如残差）直接决定了修正公式的数学形式，必须严格遵循其符号和物理意义进行推导，不能随意选择加/减。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "result_1": {
+        "value": "2457",
+        "unit": "Z, N ≥ 8 且结合能已测量",
+        "interpretation": "实验核素数量"
+      },
+      "result_2": {
+        "value": "约 25 keV",
+        "unit": "实验数据集",
+        "interpretation": "平均质量不确定度"
+      },
+      "rms": {
+        "value": "1-7 MeV",
+        "unit": "不同Skyrme参数集（SkM*, SkP, SLy4, SV-min, UNEDF0, UNEDF1）的HFB计算",
+        "interpretation": "rms偏差范围"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "hartree_fock_bogoliubov",
+    "skyrmeforce_parameterization",
+    "catboost_algorithm",
+    "gradient_boosting_decision_tree"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知有六种不同的Skyrme力参数化（SkM*、SkP、SLy4、SV-min、UNEDF0、UNEDF1），这些参数化定义了核子-核子有效相互作用的细节。研究目标是预测原子核结合能。[Gap] 需要基于这些Skyrme力，对目标核素（可能包括已知和未知的）进行微观自洽计算，以得到结合能的初始理论预测值。[Decision] 对每个目标核素，使用Hartree-Fock-Bogoliubov (HFB)方法，分别代入六种Skyrme力参数进行计算。HFB方法能够处理对关联，对于远离β稳定线的核素至关重要。预期得到六组基于不同有效相互作用的结合能预测值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "hartree_fock_bogoliubov",
+        "version": ""
+      },
+      "parameters": {
+        "skyrmeforce_set": [
+          "SkM*",
+          "SkP",
+          "SLy4",
+          "SV-min",
+          "UNEDF0",
+          "UNEDF1"
+        ],
+        "nuclei_set": "Target nuclei (including those with experimental data and extrapolation regions)"
+      },
+      "observation": "预期得到对于每个目标核素，六组不同的结合能理论预测值 $B_{th,i}(Z,N)$，其中 $i=1,...,6$ 对应不同的Skyrme力。这些预测值构成了后续分析的初始理论数据集。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得六组基于不同Skyrme力的HFB结合能预测。同时，拥有实验结合能数据（AME2020及21个新测量核素）。[Gap] 需要量化每种Skyrme力参数化在描述已知实验数据时的系统偏差和精度。这有助于理解不同参数化的优缺点，并为后续机器学习提供输入特征。[Decision] 对于每种Skyrme力 $i$，计算其预测值 $B_{th,i}$ 与实验值 $B_{exp}$ 在所有有实验数据的核素上的残差 $\\Delta B_i = B_{th,i} - B_{exp}$。分析这些残差的统计特性（如均方根偏差RMSD）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "residual_calculation_and_rmsd",
+        "theoretical_data": "$B_{th,i}$ from step 1",
+        "experimental_data": "AME2020 + 21 new measurements"
+      },
+      "observation": "预期得到六组残差序列 $\\{\\Delta B_i\\}$ 以及对应的均方根偏差 $RMSD_i$。这些残差反映了每种Skyrme力参数化系统性地高估或低估结合能的模式，可能包含与核子数 $Z$, $N$ 相关的结构信息。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已获得六种Skyrme力预测的残差。研究动机指出，需要利用机器学习从数据中提取缺失的物理信息以改进模型。[Gap] 需要构建一个机器学习模型，其输入应包含核素的基本信息（如 $Z$, $N$）以及不同理论模型的预测信息，输出是对理论残差的修正量或最终结合能的预测。[Decision] 选择CatBoost算法（一种梯度提升决策树GBDT的实现）作为核心机器学习模型。模型的输入特征将包括：原子序数 $Z$、中子数 $N$、六种Skyrme力的结合能预测值 $B_{th,i}$，可能还包括由这些预测值衍生的特征（如不同预测之间的差异）。输出目标是实验结合能 $B_{exp}$，或者更可能是理论预测的残差 $\\Delta B$。这里假设以残差为目标，因为修正理论偏差是常见策略。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "catboost_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "GradientBoostingDecisionTree",
+        "input_features": [
+          "Z",
+          "N",
+          "B_th_SkM*",
+          "B_th_SkP",
+          "B_th_SLy4",
+          "B_th_SV-min",
+          "B_th_UNEDF0",
+          "B_th_UNEDF1",
+          "derived_features"
+        ],
+        "target_variable": "Residual_Delta_B (or B_exp)"
+      },
+      "observation": "预期定义一个机器学习模型 $f_{ML}(\\mathbf{x})$，其中特征向量 $\\mathbf{x}$ 包含核素标识和多种理论预测。模型经过训练后，能够输出对理论结合能残差的预测值 $\\Delta B_{pred}$。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已定义CatBoost模型的结构和目标。[Gap] 需要准备训练、验证和测试数据集，并训练模型。关键是如何划分数据集以评估模型对未知核素（尤其是远离稳定线的核素）的预测能力。[Decision] 使用有实验数据的核素作为训练和验证集。可能采用时间顺序划分（将新测量的21个核素作为测试集的一部分）或基于核素在核图位置的交叉验证。将数据集划分为训练集和测试集，在训练集上训练CatBoost模型，优化其超参数以最小化预测残差与真实残差之间的损失函数（如均方误差）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "catboost_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "task": "model_training_and_validation",
+        "data_splitting": "Based on experimental availability (e.g., hold out new measurements)",
+        "loss_function": "RMSE or MAE",
+        "hyperparameter_tuning": "Performed via cross-validation"
+      },
+      "observation": "预期得到一个训练好的CatBoost模型 $f_{ML}^{trained}$。通过验证集可以评估该模型在“已知区域”内插的精度。模型学习到了从多种理论输入和核素坐标到结合能残差的复杂、非线性的映射关系。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已训练好一个CatBoost模型，可以预测结合能残差 $\\Delta B_{pred}$。[Gap] 需要生成对所有目标核素（包括训练集内和训练集外，即需要外推的核素）的最终结合能预测。[Decision] 对于任意一个核素 $(Z,N)$，首先用六种Skyrme力通过HFB计算得到 $B_{th,i}(Z,N)$（步骤1）。然后，将这些 $B_{th,i}$ 连同 $Z$, $N$ 输入训练好的CatBoost模型，得到该核素的残差预测 $\\Delta B_{pred}(Z,N)$。最终结合能预测 $B_{final}(Z,N)$ 可以通过对某个特定的理论值进行修正得到，例如 $B_{final} = B_{th, \\, ref} + \\Delta B_{pred}$，其中 $B_{th, \\, ref}$ 是选定的某个Skyrme力的预测值或它们的某种平均。另一种策略是让模型直接预测 $B_{exp}$。这里假设采用修正策略。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "catboost_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "task": "inference_and_prediction",
+        "input_for_new_nuclei": "Z, N, and six HFB predictions from step 1",
+        "correction_scheme": "B_final = B_th_ref + Delta_B_pred"
+      },
+      "observation": "预期得到对于所有目标核素（包括已知和未知的）的最终结合能预测值 $B_{final}(Z,N)$。对于训练集内的核素，$B_{final}$ 应更接近实验值；对于训练集外的核素，$B_{final}$ 是模型的外推预测。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已获得基于“HFB + CatBoost”混合模型的最终结合能预测 $B_{final}$。[Gap] 需要按照可量化目标的要求，评估该混合模型的预测精度，并与纯HFB模型的精度进行对比。[Decision] 在拥有实验数据的核素集合（测试集）上，计算最终预测 $B_{final}$ 与实验值 $B_{exp}$ 的残差，并计算其均方根偏差 $RMSD_{final}$。同时，回顾步骤2中计算的纯HFB模型的 $RMSD_i$。通过比较 $RMSD_{final}$ 与 $\\min(RMSD_i)$ 或 $\\operatorname{mean}(RMSD_i)$，来量化机器学习修正带来的精度提升。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "accuracy_evaluation",
+        "predictions": "$B_{final}$ from step 5",
+        "benchmarks": "$RMSD_i$ from step 2 for pure HFB",
+        "metric": "Root Mean Square Deviation (RMSD)"
+      },
+      "observation": "预期得到混合模型的均方根偏差 $RMSD_{final}$（单位：MeV）。预期 $RMSD_{final}$ 将显著低于任何单一Skyrme力HFB计算的 $RMSD_i$，表明机器学习成功提取并修正了系统偏差，提高了结合能的预测精度。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "Skyrme_HFB_method",
+        "desc": "用于计算原子核结合能，采用准局域Skyrme泛函描述粒子-空穴道，密度依赖零程对力描述对关联道，并利用HFBTHO代码求解自洽HFB方程。"
+      },
+      {
+        "name": "CatBoost_algorithm",
+        "desc": "一种基于梯度提升决策树（GBDT）的集成学习方法，用于通过迭代组合弱回归器来创建强回归器，以重现质量残差并预测未测量的原子核质量。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "h^{t} = \\underset{h \\in H}{\\arg \\min} \\mathbb{E} \\left\\{L \\left(y, F^{t-1}(\\mathbf{x}) + h(\\mathbf{x})\\right) \\right\\}"
+      },
+      {
+        "label": "Eq.2",
+        "content": "h(\\mathbf{x}) = \\sum_{j=1}^{J} b_{j} \\mathbb{1}_{\\left\\{\\mathbf{x} \\in R_{j}\\right\\}}"
+      },
+      {
+        "label": "residual_definition",
+        "content": "\\delta(Z, N) \\equiv B_{th}(Z, N) - B_{exp}(Z, N)"
+      },
+      {
+        "label": "rms_deviation",
+        "content": "\\sigma_{rms} \\equiv \\sqrt{\\frac{1}{n} \\sum_{i=1}^{n} (B_{th}^{i} - B_{exp}^{i})^{2}}"
+      },
+      {
+        "label": "binding_energy_ML",
+        "content": "B_{ml} = B_{th}(Z, N) - \\delta(Z, N)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "实验核素数量",
+        "value": "2457",
+        "condition": "Z, N ≥ 8 且结合能已测量"
+      },
+      {
+        "quantity": "平均质量不确定度",
+        "value": "约 25 keV",
+        "condition": "实验数据集"
+      },
+      {
+        "quantity": "rms偏差范围",
+        "value": "1-7 MeV",
+        "condition": "不同Skyrme参数集（SkM*, SkP, SLy4, SV-min, UNEDF0, UNEDF1）的HFB计算"
+      }
+    ],
+    "failure_points": []
+  }
+}

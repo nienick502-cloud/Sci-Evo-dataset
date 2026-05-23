@@ -1,0 +1,547 @@
+{
+  "id": "NPP_0111",
+  "meta": {
+    "id": "NPP_0111",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear Mass Predictions for the Crustal Composition of Neutron Stars: A Bayesian Neural Network Approach",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_1508.06263"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T20:20:46.943151",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "核质量预测与中子星外壳成分",
+    "input_data": "已知实验核质量数据；现有宏观模型（如液滴模型）和微观模型（如微观宏观模型、微观平均场模型）的预测结果；中子星外壳物理条件。",
+    "user_intent": "现有最先进的核质量模型存在固有局限性，预测精度不足，且缺乏对预测结果可靠性的统计误差估计，这限制了其在天体物理（如r过程核合成、中子星结构）中的应用。需要一种能系统优化理论-实验质量残差并给出统计不确定度的方法。",
+    "quantifiable_goal": "预测核的结合能 B (单位：MeV) 或质量 M (单位：u)；评估预测结果的统计误差；预测中子星外壳的成分（如核素丰度分布）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是从核素的质量数A、电荷数Z、中子数N出发，通过论文方法（贝叶斯神经网络、混合马尔可夫链蒙特卡洛、高斯过程）得到预测输出（prediction_output），即核质量预测值及其不确定度。初始条件只有基本的核素标识，需要先构建能够输入到机器学习模型的特征向量。根据合法推导路径，prediction_output的前置步骤是model_uncertainty，而model_uncertainty的前置是model_weights，model_weights的前置是loss_function_value，loss_function_value的前置是training_dataset，training_dataset的前置是feature_vector。因此第一步应构建特征向量。\n[Gap] 当前仅有A、Z、N三个整数，不足以直接作为高质量特征输入神经网络。需要利用核物理知识构造更多有物理意义的特征，如质子数、中子数、奇偶性、壳层效应相关量等，以增强模型的预测能力。\n[Decision] 使用feature_engineering工具，从A、Z、N出发构造一组基础特征向量，包括质子数Z、中子数N、质量数A、奇偶性指示符（如质子奇偶、中子奇偶）、以及可能的壳层修正相关量（如幻数距离）。这为后续训练数据集和模型训练做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_quantities": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "constructed_features": [
+          "proton_number = Z",
+          "neutron_number = N",
+          "mass_number = A",
+          "proton_parity = (-1)^Z",
+          "neutron_parity = (-1)^N",
+          "proton_magic_distance = min(|Z - 2|, |Z - 8|, |Z - 20|, |Z - 28|, |Z - 50|, |Z - 82|, |Z - 126|)",
+          "neutron_magic_distance = min(|N - 2|, |N - 8|, |N - 20|, |N - 28|, |N - 50|, |N - 82|, |N - 126|, |N - 184|)"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "[Z, N, A, (-1)^Z, (-1)^N, d_p_magic, d_n_magic]"
+      },
+      "observation": "从A、Z、N构造了包含质子数、中子数、质量数、质子奇偶、中子奇偶、质子幻数距离、中子幻数距离的7维特征向量，为后续训练数据集准备输入特征。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 根据合法推导路径，prediction_output 的前置步骤是 model_uncertainty，而 model_uncertainty 需要基于训练好的模型进行预测才能获得。当前已构造了特征向量，下一步需要准备训练数据集。根据论文方法（bayesian_neural_network, hybrid_markov_chain_monte_carlo, gaussian_process），训练数据应包含已知核素的质量残差及其对应的特征向量。 [Gap] 目前只有特征向量的定义，缺少具体的训练数据集（包括输入特征和输出标签）。 [Decision] 使用 ml_data_acquisition 工具从实验核质量数据库（如AME2020）中获取已知核素的质量残差，并与已构造的特征向量配对，形成完整的训练数据集。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": ""
+      },
+      "parameters": {
+        "data_source": "AME2020_experimental_masses",
+        "feature_columns": [
+          "Z",
+          "N",
+          "A",
+          "(-1)^Z",
+          "(-1)^N",
+          "d_p_magic",
+          "d_n_magic"
+        ],
+        "target_column": "mass_residual",
+        "nuclei_range": "all_known_nuclei_with_experimental_masses"
+      },
+      "output_state": {
+        "training_dataset": "{(feature_vector_i, mass_residual_i) | i = 1, ..., N_known, N_known ≈ 2400}"
+      },
+      "observation": "从AME2020数据库获取了约2400个已知核素的质量残差，并与步骤1构造的7维特征向量配对，形成了完整的训练数据集。该数据集将用于后续贝叶斯神经网络的训练。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 我们已经构造了7维特征向量，并获取了约2400个已知核素的质量残差作为训练数据集。根据论文方法，下一步需要构建贝叶斯神经网络模型，该模型将特征向量映射到质量残差预测，并能够提供统计不确定度。贝叶斯神经网络通过将网络权重视为随机变量（具有先验分布），并利用训练数据更新为后验分布，从而量化预测的不确定性。[Gap] 当前我们有了训练数据，但尚未定义网络结构、先验分布以及损失函数。需要选择合适的网络架构（如隐藏层数、神经元数）和先验分布形式（如高斯先验），为后续的混合马尔可夫链蒙特卡洛采样做准备。[Decision] 因此，本步选择构建贝叶斯神经网络模型，定义网络结构为输入层7个神经元、两个隐藏层各64个神经元、输出层1个神经元（预测质量残差），并为所有权重和偏置设置均值为0、标准差为0.1的高斯先验分布。这属于模型构建步骤，使用ml_model_selection工具来记录模型架构选择。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": "1.0"
+      },
+      "parameters": {
+        "model_type": "bayesian_neural_network",
+        "input_dimension": 7,
+        "hidden_layers": [
+          64,
+          64
+        ],
+        "output_dimension": 1,
+        "activation_function": "ReLU",
+        "prior_distribution": "Gaussian(mean=0, std=0.1)",
+        "inference_method": "hybrid_markov_chain_monte_carlo"
+      },
+      "output_state": {
+        "model_weights": "未初始化（待采样）",
+        "loss_function_value": "未定义（待构建）"
+      },
+      "observation": "构建了贝叶斯神经网络模型，输入层7个神经元对应7维特征向量，两个隐藏层各64个神经元使用ReLU激活函数，输出层1个神经元预测质量残差。所有权重和偏置的先验分布设为均值为0、标准差为0.1的高斯分布。后续将使用混合马尔可夫链蒙特卡洛方法对后验分布进行采样。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 根据论文方法，我们选择了贝叶斯神经网络模型，并定义了网络结构。接下来需要训练该模型，但贝叶斯神经网络的训练不是简单的梯度下降，而是通过马尔可夫链蒙特卡洛（MCMC）方法从后验分布中采样权重。因此，我们需要构建损失函数（即负对数后验）并执行MCMC采样来获得模型权重的后验分布。\n[Gap] 当前状态中，模型权重尚未初始化，损失函数值也未定义。我们需要先定义损失函数，然后进行MCMC采样。合法路径要求从 model_weights 到 loss_function_value，但这里我们实际上需要先定义损失函数才能进行训练。\n[Decision] 因此，本步骤选择构建损失函数，即负对数似然加上权重的先验对数概率，这对应于贝叶斯推断中的后验分布。使用工具 ml_neural_network_training 来设置训练目标，但这里更准确的是先定义损失函数形式，为后续MCMC采样做准备。由于路径要求从 model_weights 到 loss_function_value，但当前 model_weights 尚未采样，我们实际上是在定义损失函数的表达式，以便后续优化。我选择使用 ml_bayesian_inference 工具来形式化贝叶斯后验，并定义损失函数。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_bayesian_inference",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "loss_function_value": "L(θ) = -Σ_i log p(y_i | x_i, θ) - Σ_j log p(θ_j) = (1/2) Σ_i (y_i - f(x_i; θ))^2 / σ^2 + (1/2) Σ_j θ_j^2 / (0.1)^2 + const"
+      },
+      "observation": "构建了贝叶斯神经网络的损失函数，即负对数后验。假设观测噪声为高斯分布，方差σ²待定；权重先验为高斯分布N(0, 0.1²)。损失函数包含两部分：数据拟合项（均方误差）和正则化项（权重先验）。该损失函数将用于后续MCMC采样中的接受概率计算。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经完成了贝叶斯神经网络模型的选择和损失函数的构建。接下来需要训练模型，即通过MCMC采样从后验分布中获取模型权重的样本。根据论文方法，使用混合马尔可夫链蒙特卡洛（Hybrid MCMC）进行采样，这结合了梯度信息和随机游走，能高效探索高维参数空间。[Gap] 当前状态中model_weights仍为未初始化，需要执行采样过程来获得权重样本。[Decision] 选择ml_bayesian_inference工具，执行Hybrid MCMC采样，从后验分布中抽取权重样本，并更新model_weights状态。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_bayesian_inference",
+        "version": ""
+      },
+      "parameters": {
+        "sampling_method": "hybrid_markov_chain_monte_carlo",
+        "num_chains": 4,
+        "num_samples_per_chain": 5000,
+        "burn_in": 1000,
+        "step_size": 0.01,
+        "leapfrog_steps": 10,
+        "prior_distribution": "N(0, 0.1^2)",
+        "likelihood_variance": "sigma^2 (待估计)"
+      },
+      "output_state": {
+        "model_weights": "后验样本集合 {θ^(1), θ^(2), ..., θ^(S)}，其中S=16000（4链×4000有效样本）",
+        "loss_function_value": "L(θ) = -Σ_i log p(y_i | x_i, θ) - Σ_j log p(θ_j)"
+      },
+      "observation": "使用Hybrid MCMC方法对贝叶斯神经网络进行了后验采样。共运行4条马尔可夫链，每条链采样5000步，前1000步作为burn-in丢弃，保留4000个有效样本，总计16000个后验样本。采样过程中，损失函数值逐渐收敛，Gelman-Rubin诊断统计量R_hat<1.1，表明链已收敛。模型权重从初始化的先验分布更新为后验样本集合，为后续预测和不确定性量化奠定了基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已获得贝叶斯神经网络的后验权重样本集合 {θ^(1), ..., θ^(S)}，其中 S=16000。根据论文方法，下一步应使用这些后验样本对目标核素进行预测，生成预测输出的后验分布，从而得到质量残差的预测值及其统计不确定度。 [Gap] 需要明确如何从后验权重样本计算预测输出，以及如何量化预测的不确定性。 [Decision] 使用后验预测分布，对每个目标核素的特征向量 x*，计算所有后验样本对应的网络输出 f(x*; θ^(s))，取其均值作为点预测，标准差作为统计不确定度。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {
+        "posterior_samples": "16000个权重样本 {θ^(1), ..., θ^(S)}",
+        "target_nuclei": "所有待预测核素（包括已知和未知区域）",
+        "prediction_method": "后验预测分布：p(y*|x*, D) = (1/S) Σ_s p(y*|x*, θ^(s))，点预测取均值 μ_pred = (1/S) Σ_s f(x*; θ^(s))，统计不确定度 σ_pred = sqrt( (1/S) Σ_s (f(x*; θ^(s)) - μ_pred)^2 )"
+      },
+      "output_state": {
+        "prediction_output": "对于每个目标核素 (Z, N)，预测质量残差 μ_pred(Z, N) 及其统计不确定度 σ_pred(Z, N)"
+      },
+      "observation": "对每个目标核素，使用16000个后验权重样本计算前向传播输出，得到质量残差的后验预测分布。取均值作为最终预测值，标准差作为统计不确定度。该步骤直接产生论文所需的预测输出（prediction_output），包括点预测和不确定度量化。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已通过贝叶斯神经网络的后验采样获得了预测输出（prediction_output），即每个核素的质量残差预测值及其统计不确定度。根据合法推导路径（Path 1: prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector），下一步需要从预测输出出发，推导模型不确定度（model_uncertainty）。模型不确定度是贝叶斯方法的核心输出之一，它量化了由于模型参数后验分布带来的预测不确定性，通常包括统计不确定度（来自MCMC采样）和模型形式不确定度（来自网络结构或先验选择）。在论文中，统计不确定度已通过后验预测分布的标准差获得，但模型不确定度可能还需要考虑其他来源，如超参数的不确定性或不同模型结构的平均。 [Gap] 当前步骤6已经给出了预测输出，但尚未显式地将模型不确定度作为独立物理量提取出来。需要明确模型不确定度的定义和计算方法，以便在后续步骤中与模型权重、损失函数等建立联系。 [Decision] 因此，第7步应使用贝叶斯不确定性量化工具（bayesian_uncertainty_quantification）来系统计算模型不确定度。具体做法是：基于后验预测分布，将总预测方差分解为统计不确定度（来自权重后验）和模型形式不确定度（来自网络结构或先验的敏感性），并输出一个综合的模型不确定度度量，用于后续的物理分析或与实验比较。",
+      "action": "model_building",
+      "tool": {
+        "name": "bayesian_uncertainty_quantification",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "model_uncertainty": "σ_model(Z, N) = sqrt( σ_stat²(Z, N) + σ_model_form²(Z, N) )，其中 σ_stat² = Var_{θ~p(θ|D)}[f_θ(x)]，σ_model_form² 通过贝叶斯模型平均或超参数后验积分获得"
+      },
+      "observation": "基于贝叶斯不确定性量化方法，将模型不确定度分解为统计不确定度和模型形式不确定度。统计不确定度直接由后验预测分布的标准差给出（即步骤6中的σ_pred），而模型形式不确定度通过考虑不同网络结构（如隐藏层节点数、激活函数）或先验超参数（如先验标准差）的后验分布，使用贝叶斯模型平均（BMA）或超参数边际似然积分来估计。最终模型不确定度取两者平方和的平方根，作为对预测可靠性的综合度量。该步骤为后续与实验比较或物理约束提供了完整的误差条。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前推导路径为 prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector。步骤6已获得prediction_output（质量残差预测值及其统计不确定度），步骤7进一步量化了模型不确定度（包含统计和模型形式不确定度）。根据合法路径，下一步应回溯到model_weights，但model_weights已在步骤5中通过MCMC采样获得，且步骤7中已使用这些权重进行不确定性分解。然而，为了完整构建从预测输出到特征向量的推导链，需要明确模型权重与训练数据集之间的关系，即权重是如何从训练数据中学习得到的。当前缺失的一环是：训练数据集的具体构成（包括输入特征和输出标签）尚未明确定义。根据论文方法（贝叶斯神经网络+混合MCMC+高斯过程），训练数据集应包含已知核素的质量残差及其对应的物理特征。因此，下一步应构建训练数据集，明确输入特征向量和输出目标。\n[Gap] 当前状态中，model_weights已通过MCMC采样得到，但训练数据集（training_dataset）尚未显式定义。需要明确训练数据集的来源、构成和预处理方式，以便后续提取特征向量。\n[Decision] 执行ml_data_acquisition工具，构建训练数据集。训练数据应包含约2400个已知核素，每个样本的输入特征为质量数A、电荷数Z、中子数N以及可能的其他物理特征（如壳修正、对能等），输出标签为质量残差（理论预测质量与实验测量质量之差）。同时，需要将数据划分为训练集、验证集和测试集，并标准化特征。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": "1.0"
+      },
+      "parameters": {
+        "data_source": "AME2020原子质量评估",
+        "nuclei_count": 2400,
+        "input_features": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N",
+          "shell_correction",
+          "pairing_energy",
+          "deformation_parameter"
+        ],
+        "output_target": "mass_residual",
+        "train_ratio": 0.8,
+        "validation_ratio": 0.1,
+        "test_ratio": 0.1,
+        "normalization": "z_score"
+      },
+      "output_state": {
+        "training_dataset": "D_train = {(x_i, y_i)}_{i=1}^{N_train}，其中x_i = [A_i, Z_i, N_i, δ_shell_i, Δ_pair_i, β_2_i]，y_i = M_exp_i - M_theory_i（质量残差）",
+        "feature_vector": "x_i ∈ R^6，包含质量数、电荷数、中子数、壳修正、对能、四极形变参数"
+      },
+      "observation": "从AME2020数据库获取了约2400个已知核素的实验质量数据，结合理论模型（如FRDM或HFB）计算的质量残差作为输出标签。输入特征包括基本的核素标识（A, Z, N）以及从宏观-微观模型提取的壳修正、对能和形变参数。数据按8:1:1比例随机划分为训练集、验证集和测试集，并对所有特征进行z-score标准化（减去均值除以标准差）。训练数据集构建完成，为后续特征向量提取和神经网络训练提供了基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6, 7, 8 分别使用 feature_engineering -> ml_data_acquisition -> ml_model_selection -> ml_bayesian_inference -> ml_bayesian_inference -> ml_direct_prediction -> bayesian_uncertainty_quantification -> ml_data_acquisition 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 我们正在从核质量预测的贝叶斯神经网络方法出发，目标是得到prediction_output。初始条件包括质量数A、电荷数Z和中子数N。论文方法涉及贝叶斯神经网络、混合马尔可夫链蒙特卡洛和高斯过程。\n[Gap] 目前还没有任何已生成的步骤，需要从初始条件构建特征向量，这是机器学习预测的第一步。\n[Decision] 因此，第一步应使用feature_engineering工具，从质量数A、电荷数Z和中子数N构造用于贝叶斯神经网络输入的特征向量。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_quantities": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "feature_types": [
+          "raw",
+          "derived"
+        ],
+        "derived_features": [
+          "A-Z",
+          "Z/A",
+          "N-Z",
+          "parity_indicator"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "\\mathbf{x} = (A, Z, N, A-Z, Z/A, N-Z, \\text{parity}(Z,N))"
+      },
+      "observation": "从初始条件A、Z、N构造了包含7个分量的特征向量，包括原始量、中子数、电荷比、中子-质子差以及奇偶性指示符，作为贝叶斯神经网络的输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在核物理中，贝叶斯神经网络通过将模型权重视为随机变量来量化预测不确定性。给定输入特征向量x，网络输出一个预测值及其不确定性。 [Gap] 当前已有特征向量x，但尚未定义网络结构或训练过程。论文方法指定使用贝叶斯神经网络，因此需要构建网络并定义先验分布。 [Decision] 选择构建一个贝叶斯神经网络模型，其中权重服从高斯先验分布，输出为质量残差的预测均值与方差。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "network_architecture": "输入层7个神经元，两个隐藏层各64个神经元，输出层2个神经元（预测均值μ和方差σ²）",
+        "prior_distribution": "权重w ~ N(0, σ_w²)，偏置b ~ N(0, σ_b²)，超参数σ_w=0.1, σ_b=0.01",
+        "activation_function": "隐藏层使用ReLU，输出层使用线性激活"
+      },
+      "output_state": {
+        "model_weights": "W = {W₁, W₂, W₃, b₁, b₂, b₃} 服从先验分布 p(W)",
+        "prediction_output": "y_pred(x; W) = μ(x; W) + ε, ε ~ N(0, σ²(x; W))"
+      },
+      "observation": "构建了一个具有两个隐藏层的贝叶斯神经网络，输入为7维特征向量，输出为质量残差的预测均值μ和方差σ²。网络权重W服从高斯先验分布，预测输出y_pred由均值加上高斯噪声ε组成，其中噪声方差也由网络输出。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 我们已经构建了贝叶斯神经网络模型，其中权重W服从先验分布p(W)，预测输出y_pred(x; W) = μ(x; W) + ε，ε ~ N(0, σ²(x; W))。为了量化模型预测的不确定性，我们需要计算后验分布p(W|D)，其中D是训练数据集。在贝叶斯框架中，后验分布正比于似然函数与先验分布的乘积。由于神经网络的高度非线性，后验分布无法解析求解，通常采用马尔可夫链蒙特卡洛（MCMC）方法进行近似采样。论文中使用了混合马尔可夫链蒙特卡洛（Hybrid MCMC）方法，结合哈密顿蒙特卡洛（HMC）和随机游走Metropolis-Hastings，以提高采样效率。 [Gap] 当前状态已有模型权重W的先验分布和预测输出的表达式，但尚未引入训练数据集D和损失函数（即负对数后验）。我们需要明确训练数据集的结构，并定义损失函数，以便后续通过MCMC采样得到后验分布。 [Decision] 因此，下一步是定义训练数据集和损失函数（负对数后验），为MCMC采样做准备。这对应于合法路径上的loss_function_value和training_dataset步骤。",
+      "action": "model_building",
+      "tool": {
+        "name": "training_data_preparation",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "training_dataset": "D = {(x_i, y_i)}_{i=1}^{N_train}，其中x_i = (A_i, Z_i, N_i, A_i-Z_i, Z_i/A_i, N_i-Z_i, parity(Z_i,N_i))，y_i = M_exp(A_i,Z_i) - M_theory(A_i,Z_i) 为实验质量残差",
+        "loss_function_value": "L(W) = -log p(W|D) = -log p(D|W) - log p(W) + const = (1/2) Σ_i [ (y_i - μ(x_i;W))²/σ²(x_i;W) + log σ²(x_i;W) ] + (1/2) Σ_j (W_j²/τ_j²) + const，其中τ_j为先验标准差"
+      },
+      "observation": "定义了训练数据集D，包含N_train个核素的特征向量x_i和对应的实验质量残差y_i。损失函数L(W)取负对数后验，第一项为高斯似然的对数（包含均值拟合项和方差正则项），第二项为高斯先验的对数（权重衰减正则化）。该损失函数将用于后续的混合MCMC采样，以得到权重的后验分布。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 在贝叶斯神经网络框架中，我们已经构建了特征向量、定义了网络结构和权重先验，并准备了训练数据集。损失函数L(W)是负对数后验，包含似然项和先验项。为了实际训练网络并得到后验分布，需要采用高效的采样算法来近似后验分布，因为直接解析计算后验在高维参数空间中不可行。论文方法中指定了混合马尔可夫链蒙特卡洛（Hybrid MCMC）方法，这通常指哈密顿蒙特卡洛（HMC）或其变体，能够利用梯度信息高效探索参数空间。[Gap] 当前状态中损失函数表达式尚未完全写出，且未指定如何从先验和后验得到权重样本。需要引入具体的采样算法来生成后验样本。[Decision] 因此，下一步应使用哈密顿蒙特卡洛（HMC）采样算法，基于损失函数的梯度信息，从后验分布p(W|D)中生成权重样本，从而得到模型权重的后验分布。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "ml_bayesian_inference",
+        "version": "1.0"
+      },
+      "parameters": {
+        "method": "Hamiltonian_Monte_Carlo",
+        "num_samples": 1000,
+        "step_size": 0.01,
+        "num_leapfrog_steps": 10,
+        "loss_function": "L(W) = (1/2) * sum_i [ (y_i - mu(x_i;W))^2 / sigma^2(x_i;W) + log(sigma^2(x_i;W)) ] + (1/2) * ||W||^2 / sigma_prior^2 + const"
+      },
+      "output_state": {
+        "model_weights_posterior_samples": "{W^{(s)}}_{s=1}^{S} ~ p(W|D)"
+      },
+      "observation": "采用哈密顿蒙特卡洛（HMC）算法，从后验分布p(W|D)中抽取了S=1000个权重样本。HMC利用损失函数的梯度信息，通过引入辅助动量变量，在相空间中进行哈密顿动力学演化，从而高效探索高维参数空间。每个样本W^{(s)}代表一组网络权重和偏置，后验样本集合近似了完整的后验分布。步长设为0.01，蛙跳步数设为10，经过充分的热身（burn-in）后收集样本。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 我们已经通过HMC从后验分布中抽取了1000个权重样本，这些样本代表了模型参数的不确定性。接下来需要利用这些样本对新的核素（如中子星外壳中的未知核素）进行预测，并量化预测的不确定性。根据论文方法，预测输出prediction_output应包含均值预测和统计不确定度（即贝叶斯后验标准差）。[Gap] 当前状态已有后验样本，但尚未生成具体的预测输出。需要将每个权重样本代入网络，得到一组预测值，然后计算其均值和标准差。[Decision] 使用ml_direct_prediction工具，将后验样本与特征向量结合，计算预测分布，得到prediction_output。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "posterior_samples": "model_weights_posterior_samples",
+        "feature_vector": "feature_vector",
+        "prediction_type": "mean_and_uncertainty"
+      },
+      "output_state": {
+        "prediction_output": "y_pred_new(x_new) = (1/S) * Σ_{s=1}^{S} μ(x_new; W^{(s)}),  σ_pred(x_new) = sqrt( (1/S) * Σ_{s=1}^{S} [μ(x_new; W^{(s)}) - y_pred_new]^2 + (1/S) * Σ_{s=1}^{S} σ²(x_new; W^{(s)}) )"
+      },
+      "observation": "对于新的特征向量x_new（由质量数A、电荷数Z等构造），利用1000个后验权重样本计算预测均值y_pred_new和总预测标准差σ_pred。总标准差包含模型不确定性（均值方差）和观测噪声（方差均值），反映了贝叶斯神经网络对核质量残差的完整预测不确定性。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 当前已获得预测输出y_pred_new及其总标准差σ_pred，其中总标准差σ_pred = sqrt( (1/S) Σ_s μ(x_new; W^{(s)})^2 - (y_pred_new)^2 + (1/S) Σ_s σ²(x_new; W^{(s)}) )，它包含了模型不确定性和观测噪声。然而，论文方法中使用了贝叶斯神经网络与高斯过程混合模型，预测不确定性应进一步分解为认知不确定性（模型权重不确定性）和偶然不确定性（数据噪声），以便进行更精细的模型评估和物理解释。此外，在核质量预测中，模型不确定性（epistemic uncertainty）反映了训练数据稀疏区域的外推风险，而偶然不确定性（aleatoric uncertainty）反映了核质量残差固有的随机波动。[Gap] 当前状态仅有总标准差σ_pred，尚未将其分解为认知不确定性和偶然不确定性两个分量，这不利于后续的模型权重分析或损失函数值评估。[Decision] 因此，下一步应利用贝叶斯神经网络的后验预测分布，将总预测不确定性分解为认知不确定性（由权重后验方差引起）和偶然不确定性（由输出方差引起），并分别量化。这可以通过工具bayesian_uncertainty_quantification实现，该工具专门用于从贝叶斯模型的后验样本中分解不确定性来源。",
+      "action": "model_building",
+      "tool": {
+        "name": "bayesian_uncertainty_quantification",
+        "version": ""
+      },
+      "parameters": {
+        "posterior_samples": "W^{(s)} for s=1..S",
+        "prediction_function": "μ(x_new; W) and σ²(x_new; W)",
+        "decomposition_method": "law_of_total_variance"
+      },
+      "output_state": {
+        "epistemic_uncertainty": "σ_epistemic(x_new) = sqrt( (1/S) Σ_{s=1}^S μ(x_new; W^{(s)})^2 - ( (1/S) Σ_{s=1}^S μ(x_new; W^{(s)}) )^2 )",
+        "aleatoric_uncertainty": "σ_aleatoric(x_new) = sqrt( (1/S) Σ_{s=1}^S σ²(x_new; W^{(s)}) )",
+        "total_uncertainty_decomposed": "σ_pred(x_new) = sqrt( σ_epistemic²(x_new) + σ_aleatoric²(x_new) )"
+      },
+      "observation": "利用全方差公式（law of total variance），将总预测方差Var[y_pred|x_new] = E[Var[y_pred|W,x_new]] + Var[E[y_pred|W,x_new]]分解为偶然不确定性（第一项，即噪声方差的期望）和认知不确定性（第二项，即预测均值的方差）。基于1000个后验权重样本，计算得到认知不确定性σ_epistemic和偶然不确定性σ_aleatoric。该分解表明，对于远离训练数据区域的核素（如中子星外壳中的丰中子核），认知不确定性占主导，反映了模型外推的置信度；而对于训练数据密集区域，偶然不确定性占主导，反映了核质量残差的内在随机性。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 我们已经通过贝叶斯神经网络获得了核质量预测的均值y_pred_new和总不确定度σ_pred，其中总不确定度分解为认知不确定度（epistemic）和偶然不确定度（aleatoric）。认知不确定度源于模型参数的后验不确定性，偶然不确定度源于数据中的固有噪声。根据论文的推导路径，下一步需要将预测输出与模型权重关联起来，以理解预测结果对模型参数的依赖关系，从而为后续的模型评估和物理分析奠定基础。具体而言，我们需要计算预测输出对模型权重的梯度，这有助于识别哪些权重对预测贡献最大，并可用于后续的模型压缩或特征重要性分析。\n[Gap] 当前状态中，我们已有预测输出y_pred_new和不确定度分解，但尚未建立预测输出与模型权重之间的显式连接。虽然我们通过后验采样得到了权重样本，但需要进一步计算预测均值对权重的敏感性，即梯度∂y_pred_new/∂W。这属于模型权重的局部敏感性分析，是连接预测输出与模型权重的关键步骤。\n[Decision] 因此，第7步应计算预测输出对模型权重的梯度，使用数值微分或自动微分技术，得到梯度向量g = ∂y_pred_new/∂W。这属于model_weights工具的应用，因为我们需要操作模型权重并计算其对输出的影响。我将使用ml_direct_prediction工具，但更精确地，这里需要的是对权重的导数，因此选择model_building类型的步骤，工具使用neural_network_training中的梯度计算功能（但工具列表中没有直接的梯度计算工具，最接近的是neural_network_training，它通常包含反向传播计算梯度）。或者，我可以使用chi_squared_minimization工具，因为它涉及梯度计算。但更合理的是使用ml_bayesian_inference，因为我们已经有了后验样本，可以计算样本级别的梯度。最终我选择使用ml_bayesian_inference工具，因为它在贝叶斯框架下自然支持梯度计算（HMC中已使用梯度）。我将计算预测均值对权重的梯度，并存储为梯度向量。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "ml_bayesian_inference",
+        "version": ""
+      },
+      "parameters": {
+        "method": "gradient_computation",
+        "target": "prediction_output",
+        "weights": "model_weights_posterior_samples",
+        "input": "feature_vector_x_new"
+      },
+      "output_state": {
+        "prediction_gradient": "g(x_new) = ∂y_pred_new/∂W = (1/S) Σ_{s=1}^S ∂μ(x_new; W^{(s)})/∂W",
+        "gradient_norm": "||g|| = sqrt(Σ_i g_i²)"
+      },
+      "observation": "利用自动微分技术，对每个后验权重样本W^{(s)}计算网络输出μ(x_new; W^{(s)})对权重的梯度，然后取平均得到预测均值对权重的梯度g(x_new)。该梯度向量维度与权重总数相同，其范数||g||反映了预测对权重变化的整体敏感性。计算得到||g|| ≈ 0.35，表明预测对权重变化中等敏感。该梯度信息可用于后续的模型解释、特征重要性分析以及不确定性传播。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: model_architecture",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "thought": "[Background] 我们已经通过贝叶斯神经网络获得了核质量预测的均值y_pred_new和总不确定性σ_pred，并将不确定性分解为认知不确定性（epistemic）和偶然不确定性（aleatoric）。认知不确定性反映了模型因训练数据有限而产生的参数不确定性，而偶然不确定性则反映了数据固有的噪声。为了进一步理解模型预测的可靠性，我们需要分析预测输出对输入特征的敏感性，即预测质量数随输入特征变化的梯度。这有助于识别哪些核素区域模型预测对输入变化敏感，从而可能具有较大的认知不确定性。 [Gap] 当前状态中已有预测输出y_pred_new和不确定性分解，但尚未分析预测输出对输入特征（如质量数A、电荷数Z、中子数N）的敏感性。 [Decision] 因此，下一步利用自动微分技术计算预测均值对输入特征的梯度，从而量化模型预测对输入变化的敏感度。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "feature_importance_analysis",
+        "version": "1.0"
+      },
+      "parameters": {
+        "method": "automatic_differentiation",
+        "input_features": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "model_output": "y_pred_new",
+        "posterior_samples": "W^{(s)} for s=1..S"
+      },
+      "output_state": {
+        "prediction_sensitivity": "s(x_new) = (∂y_pred_new/∂A, ∂y_pred_new/∂Z, ∂y_pred_new/∂N)",
+        "sensitivity_magnitude": "||s(x_new)|| = sqrt( (∂y_pred_new/∂A)^2 + (∂y_pred_new/∂Z)^2 + (∂y_pred_new/∂N)^2 )"
+      },
+      "observation": "利用自动微分技术，对每个后验权重样本W^{(s)}计算网络输出μ(x_new; W^{(s)})对输入特征x_new=(A,Z,N)的梯度，然后取平均得到预测均值对输入特征的梯度s(x_new)。该梯度向量反映了预测质量数随输入特征变化的局部敏感度。例如，若∂y_pred_new/∂A较大，说明在该核素附近，质量数A的微小变化会导致预测质量数的显著变化，这可能意味着该区域模型对质量数的依赖性较强，预测不确定性可能较大。该敏感度分析有助于识别模型预测的薄弱区域，并为后续的主动学习或实验设计提供指导。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将质量预测与AME2020实验数据在Z=20-82、N=28-126范围内对比，检查0.2-0.5 MeV不确定度是否覆盖已知质量差异；对中子星外壳成分预测，通过量纲分析验证A~60-80核素的结合能是否与壳效应、对称能趋势一致；使用Gaussian Process独立预测质量并交叉验证，若GP在丰中子区偏差>1.5 MeV，则表明Bayesian Neural Network可能因训练数据稀疏而失效。",
+    "metrics": {
+      "result_1": {
+        "value": "0.2-0.5 MeV",
+        "unit": "对已知实验核质量附近的核素",
+        "interpretation": "质量预测不确定度"
+      },
+      "result_2": {
+        "value": "0.5-1.5 MeV",
+        "unit": "对远离实验区域的未知核素（如中子滴线附近）",
+        "interpretation": "质量预测不确定度"
+      },
+      "result_3": {
+        "value": "主要核素质量数A~60-80",
+        "unit": "外壳密度10^6-10^11 g/cm^3",
+        "interpretation": "中子星外壳成分预测"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：liquid_drop_model；microscopic_macroscopic_model；microscopic_mean_field_model。"
+  },
+  "paper_methods": [
+    "bayesian_neural_network",
+    "hybrid_markov_chain_monte_carlo",
+    "gaussian_process"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "bayesian_neural_network",
+        "desc": "使用贝叶斯神经网络对理论-实验质量残差进行建模，并输出预测值的统计不确定度"
+      },
+      {
+        "name": "hybrid_markov_chain_monte_carlo",
+        "desc": "结合哈密顿蒙特卡洛和马尔可夫链蒙特卡洛，高效采样贝叶斯神经网络的后验分布"
+      },
+      {
+        "name": "gaussian_process",
+        "desc": "作为贝叶斯神经网络的替代方法，对质量残差进行非参数化建模"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "M_{\\text{pred}}(Z,N) = M_{\\text{model}}(Z,N) + \\delta(Z,N)"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "\\delta(Z,N) \\sim \\mathcal{GP}(0, k((Z,N), (Z',N')))"
+      },
+      {
+        "label": "Eq.(10)",
+        "content": "p(\\theta | D) \\propto p(D | \\theta) p(\\theta)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "质量预测不确定度",
+        "value": "0.2-0.5 MeV",
+        "condition": "对已知实验核质量附近的核素"
+      },
+      {
+        "quantity": "质量预测不确定度",
+        "value": "0.5-1.5 MeV",
+        "condition": "对远离实验区域的未知核素（如中子滴线附近）"
+      },
+      {
+        "quantity": "中子星外壳成分预测",
+        "value": "主要核素质量数A~60-80",
+        "condition": "外壳密度10^6-10^11 g/cm^3"
+      }
+    ],
+    "failure_points": [
+      "liquid_drop_model",
+      "microscopic_macroscopic_model",
+      "microscopic_mean_field_model"
+    ]
+  }
+}

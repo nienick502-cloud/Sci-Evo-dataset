@@ -1,0 +1,413 @@
+{
+  "id": "NPP_0114",
+  "meta": {
+    "id": "NPP_0114",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Deep Learning: A Tool for Computational Nuclear Physics",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_1803.03215"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "轻核基态能量与点质子均方根半径",
+    "input_data": "研究对象为 ^6Li；使用从头算无芯壳模型（NCSM）在可计算的小基空间中的结果；核子-核子相互作用采用基于手征有效场论的Daejeon16势。",
+    "user_intent": "从头算核理论在精确求解原子核性质时面临巨大的理论和计算挑战。现有方法（如NCSM）需要处理极限大矩阵，计算成本高昂。需要发展新工具来高效、准确地从有限基空间结果外推得到物理可观测量。",
+    "quantifiable_goal": "预测 ^6Li 的基态能量 E_gs（单位：MeV）和点质子均方根半径 r_p (rms)（单位：fm）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知研究目标是预测 ^6Li 的基态能量和点质子均方根半径。核心方法是使用基于手征有效场论Daejeon16势的无芯壳模型（NCSM）。[Gap] NCSM需要在一个截断的基空间（如Nmax截断）中求解核多体薛定谔方程，但基空间有限会导致结果依赖于截断参数，不是真实的物理极限。[Decision] 首先，使用Lanczos方法在多个不同大小的有限基空间（例如，不同的Nmax值）中，对角化NCSM哈密顿量矩阵，得到每个基空间下的基态能量和波函数。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "lanczos_method",
+        "version": ""
+      },
+      "parameters": {
+        "hamiltonian": "NCSM Hamiltonian with Daejeon16 potential",
+        "basis_states": "Truncated harmonic oscillator basis with varying Nmax",
+        "target_state": "Ground state"
+      },
+      "observation": "预期得到一组依赖于基空间截断参数（如Nmax）的基态能量值 E_gs(Nmax) 和对应的基态波函数 |Psi_gs(Nmax)>。这些结果是后续外推的输入数据。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已通过Lanczos方法得到不同有限基空间下的基态波函数。[Gap] 需要从这些波函数计算另一个目标观测量——点质子均方根半径。该算符依赖于核子坐标，其期望值同样依赖于基空间截断。[Decision] 对于每个Nmax下的基态波函数 |Psi_gs(Nmax)>，计算点质子均方根半径算符的期望值 r_p(Nmax) = sqrt(<Psi_gs| r_p^2 |Psi_gs>)。这通常在NCSM框架内完成。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "no_core_shell_model",
+        "version": ""
+      },
+      "parameters": {
+        "observable": "Point-proton mean-square radius operator",
+        "input_wavefunctions": "|Psi_gs(Nmax)> from step 1"
+      },
+      "observation": "预期得到另一组依赖于基空间截断参数Nmax的点质子均方根半径值 r_p(Nmax)。现在拥有两套数据序列：E_gs(Nmax) 和 r_p(Nmax)。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 现在拥有有限基空间下的能量和半径数据序列。这些序列随Nmax变化，但尚未收敛到物理极限（无限大基空间）。[Gap] 需要一种可靠的方法，从有限的、离散的 {Nmax, E_gs(Nmax)} 和 {Nmax, r_p(Nmax)} 数据点，外推得到Nmax -> ∞时的物理值 E_gs(∞) 和 r_p(∞)。[Decision] 研究者将训练一个人工神经网络（ANN），以基空间特征（如Nmax，可能还包括其他基空间参数如ħΩ）作为输入，以对应的计算值（E_gs或r_p）作为输出目标。ANN将学习从有限基空间到物理极限的映射关系。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "Basis space parameters (e.g., Nmax, ħΩ)",
+        "output_targets": "Computed observables (E_gs(Nmax), r_p(Nmax))",
+        "training_data": "Pairs of (basis parameters, computed values) from steps 1 & 2"
+      },
+      "observation": "预期得到一个训练好的神经网络模型，该模型能够将基空间参数映射到计算出的可观测量。模型的目标是捕捉数据中的趋势，并能够对未见过的、代表更大基空间的输入（或极限情况）进行预测。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤将ANN视为直接从有限基空间数据外推到物理极限的工具，但论文中ANN的输入是基空间参数（如N_max）和对应的NCSM计算结果，其作用是学习两者之间的函数关系并进行外推。预测步骤的描述过于笼统，没有明确ANN在物理外推中的具体角色和输入输出结构，这可能导致对ANN在物理问题中应用方式的误解。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已经构建了ANN模型架构并准备了训练数据。[Gap] 需要一种算法来优化ANN的权重和偏置参数，以最小化网络预测值与来自NCSM的计算值之间的误差。[Decision] 使用反向传播算法（Back Propagation Algorithm）来训练ANN。该算法通过计算损失函数（如均方误差）相对于网络参数的梯度，并使用梯度下降法进行迭代更新。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "back_propagation_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "Mean squared error between ANN prediction and NCSM data",
+        "optimization_method": "Gradient descent (e.g., Adam optimizer)",
+        "training_epochs": "Sufficient number to achieve convergence"
+      },
+      "observation": "预期得到一个经过优化、训练完成的神经网络。该网络在训练集上能较好地拟合有限的NCSM数据点，并且其内部参数编码了从有限基空间到物理可观测量之间的外推规律。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 现在拥有一个训练好的ANN，它学习了有限基空间参数与可观测量之间的关系。[Gap] 需要利用这个训练好的模型进行最终的外推预测。关键假设是ANN学习到的函数形式在数据区域之外（即Nmax更大或趋于无穷）仍然有效。[Decision] 将代表“物理极限”的基空间参数输入训练好的ANN。这可能是一个非常大的Nmax值，或者是一组经过理论考虑（如基于有效场论收敛性）构造的、代表收敛极限的输入特征。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "trained_model": "ANN from step 4",
+        "extrapolation_input": "Feature vector representing the infinite-basis limit (e.g., very large effective Nmax, optimal ħΩ)"
+      },
+      "observation": "预期得到两个外推的数值预测：基态能量 E_gs(extrapolated) 和点质子均方根半径 r_p(extrapolated)。这些是论文最终报告的主要结果。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤提到将'代表物理极限的基空间参数'输入ANN进行外推，这在物理上不明确。论文中，ANN是通过学习有限基空间参数（如N_max）与可观测量之间的关系，然后外推（例如，通过输入一个非常大的N_max值或通过函数形式外推）来预测物理极限。直接输入'物理极限参数'的概念是模糊的，正确的物理外推是利用学习到的函数关系进行极限估计。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经通过ANN外推得到了基态能量和半径的预测值。[Gap] 需要评估外推结果的可靠性和不确定性。由于训练数据来自有限且离散的NCSM计算，且外推本身存在模型依赖性，需要某种验证。[Decision] 可以采用交叉验证策略：例如，将一部分NCSM数据点留作测试集，不参与训练，然后用训练好的ANN预测这些点，比较预测值与实际NCSM计算值的差异，以估计模型的泛化误差。或者，研究外推预测对ANN架构（如层数、神经元数）和训练参数的敏感性。",
+      "action": "verification",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Cross-validation or sensitivity analysis",
+        "data_split": "Training set and test set from NCSM results"
+      },
+      "observation": "预期得到关于外推预测值不确定性的一个估计，例如通过均方根误差或预测区间来量化。这为最终报告的 E_gs 和 r_p 值提供了误差范围或置信度说明。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文旨在使用从头算无芯壳模型（NCSM）求解轻核的性质。首先需要建立描述A个核子系统的哈密顿量。[Gap] 需要写出包含相对动能和核子间相互作用的哈密顿量具体形式。[Decision] 论文采用了NCSM的标准框架，构建了包含相对动能、两体势、三体势及更高阶相互作用的哈密顿量。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "NCSM",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "哈密顿量 H_A = T_{\\text{rel}} + V = \\frac{1}{A} \\sum_{i<j} \\frac{(\\vec{p}_{i} - \\vec{p}_{j})^{2}}{2 m} + \\sum_{i<j}^{A} V_{i j} + \\sum_{i<j<k}^{A} V_{i j k} + \\dots (Eq.1)",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 哈密顿量已定义。接下来需要求解系统的本征态和本征值。[Gap] 需要将多体薛定谔方程表述为可计算的矩阵形式。[Decision] 论文将A体波函数展开为斯莱特行列式的线性组合，从而将薛定谔方程转化为矩阵本征值问题。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "NCSM",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "薛定谔方程 H_{A} \\Psi_{A}(\\vec{r}_{1}, \\vec{r}_{2}, \\dots, \\vec{r}_{A}) = E \\Psi_{A}(\\vec{r}_{1}, \\vec{r}_{2}, \\dots, \\vec{r}_{A}) (Eq.2)，其中波函数 \\Psi_{A} = \\sum_{i=0}^{k} c_{i} \\phi_{i}(\\vec{r}_{1}, \\vec{r}_{2}, \\dots, \\vec{r}_{A}) (Eq.3)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 多体薛定谔方程已转化为矩阵形式。然而，基空间在实践上是有限的（由 N_max 截断），无法得到精确解。[Gap] 需要从有限基空间（小k）的NCSM计算结果出发，预测物理极限（k→∞）下的可观测量。[Decision] 论文引入人工神经网络（ANN）作为函数逼近工具，学习有限基空间结果与物理极限之间的关系。",
+      "action": "rule_application",
+      "tool": {
+        "name": "feed-forward_multi-layer_ANN",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "ANN的输入层、隐藏层和输出层通过权重连接，隐藏层使用Sigmoid激活函数 f(x) = \\frac{1}{1 + e^{-a x}} (Eq.5)，输出层使用线性激活函数 g(x) = x (Eq.6)。网络输出 z_k = g\\left(\\sum_{j=1}^{m+1} w_{k j} f\\left(\\sum_{i=1}^{n+1} v_{j i} x_{i}\\right)\\right) (Eq.7)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] ANN模型结构已定义。需要利用NCSM在有限基空间（不同 N_max）下计算得到的数据（如能量、半径）来训练该网络。[Gap] 需要一种高效的算法来优化ANN的权重，使其能够准确拟合或外推数据。[Decision] 论文采用反向传播算法结合早期停止技术来训练ANN，以防止过拟合。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "back-propagation_algorithm",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "使用反向传播算法计算误差并更新网络权重，并采用早期停止技术监控验证集误差以防止过拟合。",
+      "observation_source": "inferred",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] ANN模型已经训练完成，能够学习有限基空间结果与物理极限之间的映射关系。[Gap] 需要利用训练好的ANN模型，对目标核（如 ^6Li）在物理极限（即无限基空间）下的基态能量和点质子均方根半径进行预测。[Decision] 将NCSM在可计算的小基空间（不同 N_max 和 ħΩ）下得到的 ^6Li 的能量和半径数据作为输入，输入到训练好的ANN中，得到外推预测值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "feed-forward_multi-layer_ANN",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "ANN预测得到 ^6Li 在物理极限下的基态能量 E_gs 和点质子均方根半径 r_p (rms) 的数值。",
+      "observation_source": "inferred",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：决定训练一个ANN，以基空间参数（如Nmax）为输入，以计算出的可观测量（如E_gs）为输出，期望ANN能学习从有限基空间到物理极限的映射。。[Gap] 错过的信号：ANN作为通用函数逼近器，其外推能力严重依赖于输入-输出关系的函数形式。在物理外推问题中，输入（如Nmax）与输出（如能量）之间通常存在已知的渐近标度关系（例如，能量随基空间增大以幂律或指数形式收敛），而不是一个任意的黑箱映射。直接将Nmax作为输入，期望ANN自动“学习”到正确的极限行为，忽略了物理系统收敛性对函数形式的强约束。。[Decision] 正确判断方式：经验丰富的物理学家会首先分析有限基空间数据的收敛模式（例如，绘制E_gs随1/Nmax或类似收敛参数的变化）。他们会意识到，ANN的角色应是拟合一个由物理收敛性指导的参数化函数形式（例如，E(Nmax) = E_inf + a * exp(-b*Nmax) 或 E_inf + c/Nmax^d），其中ANN可能学习参数或函数形式本身，但外推的逻辑核心是物理收敛律，而非纯粹的数据插值。输入特征应设计为能体现这种收敛趋势的量（如1/Nmax），而非简单的Nmax。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：将物理外推问题过度简化为一个纯粹的数据驱动回归问题，忽视了物理系统收敛性对函数形式的先验约束，导致对ANN外推机制的理解停留在黑箱层面。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：决定将“代表物理极限的基空间参数”（如一个非常大的Nmax值）直接输入训练好的ANN，以获得外推值。。[Gap] 错过的信号：ANN在训练数据范围（有限Nmax）之外进行外推是高度不可靠的，尤其是当输入特征（如原始Nmax）在训练域和预测域尺度差异巨大时。物理上，Nmax→∞是一个奇点，直接输入一个“非常大”的数值，ANN的响应是未定义的，很可能产生无意义的输出，因为网络从未学习过该区域的数据特征。正确的物理外推依赖于学习到的函数形式在极限下的解析行为。。[Decision] 正确判断方式：面对同样信息，经验丰富的物理学家不会直接将一个巨大的Nmax值输入网络。他们会利用训练好的ANN来评估或拟合一个在Nmax→∞时有明确定义的参数化收敛函数。例如，ANN可能被用来生成一系列有限但较大的Nmax对应的预测，然后对这些预测点使用解析外推公式（如指数或幂律拟合）来估计极限值。或者，ANN的架构/激活函数本身被设计为能编码收敛行为（如输出层包含一个代表极限值的可学习参数）。外推是通过分析ANN隐含或显式表示的函数关系来完成的，而不是简单地进行数值前向传播。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：混淆了“使用ANN进行函数拟合”与“使用拟合函数进行解析外推”这两个步骤，误以为ANN像插值工具一样可以直接在输入域无限延伸，而忽略了其外推行为必须由嵌入的物理模型或收敛性分析来控制和解释。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "将机器学习工具应用于物理外推问题时，核心不是用黑箱模型替代物理，而是将已知的物理收敛规律（如标度行为）作为强先验嵌入学习过程或后处理分析中，确保外推的可靠性源于物理原理而非数据模式。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "completeness": {
+        "value": "paper_derivation 提取完成",
+        "unit": "",
+        "interpretation": "论文推导步骤已成功提取"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "no_core_shell_model",
+    "artificial_neural_network",
+    "lanczos_method",
+    "back_propagation_algorithm"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知研究目标是预测 ^6Li 的基态能量和点质子均方根半径。核心方法是使用基于手征有效场论Daejeon16势的无芯壳模型（NCSM）。[Gap] NCSM需要在一个截断的基空间（如Nmax截断）中求解核多体薛定谔方程，但基空间有限会导致结果依赖于截断参数，不是真实的物理极限。[Decision] 首先，使用Lanczos方法在多个不同大小的有限基空间（例如，不同的Nmax值）中，对角化NCSM哈密顿量矩阵，得到每个基空间下的基态能量和波函数。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "lanczos_method",
+        "version": ""
+      },
+      "parameters": {
+        "hamiltonian": "NCSM Hamiltonian with Daejeon16 potential",
+        "basis_states": "Truncated harmonic oscillator basis with varying Nmax",
+        "target_state": "Ground state"
+      },
+      "observation": "预期得到一组依赖于基空间截断参数（如Nmax）的基态能量值 E_gs(Nmax) 和对应的基态波函数 |Psi_gs(Nmax)>。这些结果是后续外推的输入数据。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已通过Lanczos方法得到不同有限基空间下的基态波函数。[Gap] 需要从这些波函数计算另一个目标观测量——点质子均方根半径。该算符依赖于核子坐标，其期望值同样依赖于基空间截断。[Decision] 对于每个Nmax下的基态波函数 |Psi_gs(Nmax)>，计算点质子均方根半径算符的期望值 r_p(Nmax) = sqrt(<Psi_gs| r_p^2 |Psi_gs>)。这通常在NCSM框架内完成。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "no_core_shell_model",
+        "version": ""
+      },
+      "parameters": {
+        "observable": "Point-proton mean-square radius operator",
+        "input_wavefunctions": "|Psi_gs(Nmax)> from step 1"
+      },
+      "observation": "预期得到另一组依赖于基空间截断参数Nmax的点质子均方根半径值 r_p(Nmax)。现在拥有两套数据序列：E_gs(Nmax) 和 r_p(Nmax)。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 现在拥有有限基空间下的能量和半径数据序列。这些序列随Nmax变化，但尚未收敛到物理极限（无限大基空间）。[Gap] 需要一种可靠的方法，从有限的、离散的 {Nmax, E_gs(Nmax)} 和 {Nmax, r_p(Nmax)} 数据点，外推得到Nmax -> ∞时的物理值 E_gs(∞) 和 r_p(∞)。[Decision] 研究者将训练一个人工神经网络（ANN），以基空间特征（如Nmax，可能还包括其他基空间参数如ħΩ）作为输入，以对应的计算值（E_gs或r_p）作为输出目标。ANN将学习从有限基空间到物理极限的映射关系。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "Basis space parameters (e.g., Nmax, ħΩ)",
+        "output_targets": "Computed observables (E_gs(Nmax), r_p(Nmax))",
+        "training_data": "Pairs of (basis parameters, computed values) from steps 1 & 2"
+      },
+      "observation": "预期得到一个训练好的神经网络模型，该模型能够将基空间参数映射到计算出的可观测量。模型的目标是捕捉数据中的趋势，并能够对未见过的、代表更大基空间的输入（或极限情况）进行预测。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已经构建了ANN模型架构并准备了训练数据。[Gap] 需要一种算法来优化ANN的权重和偏置参数，以最小化网络预测值与来自NCSM的计算值之间的误差。[Decision] 使用反向传播算法（Back Propagation Algorithm）来训练ANN。该算法通过计算损失函数（如均方误差）相对于网络参数的梯度，并使用梯度下降法进行迭代更新。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "back_propagation_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "Mean squared error between ANN prediction and NCSM data",
+        "optimization_method": "Gradient descent (e.g., Adam optimizer)",
+        "training_epochs": "Sufficient number to achieve convergence"
+      },
+      "observation": "预期得到一个经过优化、训练完成的神经网络。该网络在训练集上能较好地拟合有限的NCSM数据点，并且其内部参数编码了从有限基空间到物理可观测量之间的外推规律。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 现在拥有一个训练好的ANN，它学习了有限基空间参数与可观测量之间的关系。[Gap] 需要利用这个训练好的模型进行最终的外推预测。关键假设是ANN学习到的函数形式在数据区域之外（即Nmax更大或趋于无穷）仍然有效。[Decision] 将代表“物理极限”的基空间参数输入训练好的ANN。这可能是一个非常大的Nmax值，或者是一组经过理论考虑（如基于有效场论收敛性）构造的、代表收敛极限的输入特征。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "trained_model": "ANN from step 4",
+        "extrapolation_input": "Feature vector representing the infinite-basis limit (e.g., very large effective Nmax, optimal ħΩ)"
+      },
+      "observation": "预期得到两个外推的数值预测：基态能量 E_gs(extrapolated) 和点质子均方根半径 r_p(extrapolated)。这些是论文最终报告的主要结果。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经通过ANN外推得到了基态能量和半径的预测值。[Gap] 需要评估外推结果的可靠性和不确定性。由于训练数据来自有限且离散的NCSM计算，且外推本身存在模型依赖性，需要某种验证。[Decision] 可以采用交叉验证策略：例如，将一部分NCSM数据点留作测试集，不参与训练，然后用训练好的ANN预测这些点，比较预测值与实际NCSM计算值的差异，以估计模型的泛化误差。或者，研究外推预测对ANN架构（如层数、神经元数）和训练参数的敏感性。",
+      "action": "verification",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Cross-validation or sensitivity analysis",
+        "data_split": "Training set and test set from NCSM results"
+      },
+      "observation": "预期得到关于外推预测值不确定性的一个估计，例如通过均方根误差或预测区间来量化。这为最终报告的 E_gs 和 r_p 值提供了误差范围或置信度说明。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "NCSM",
+        "desc": "一种从头计算核多体问题的方法，用于求解任意核子-核子相互作用下轻核的性质，通过矩阵形式求解薛定谔方程。"
+      },
+      {
+        "name": "Lanczos_method",
+        "desc": "用于求解NCSM方法中产生的大型稀疏哈密顿量矩阵的极值本征值。"
+      },
+      {
+        "name": "feed-forward_multi-layer_ANN",
+        "desc": "一种用于函数逼近的人工神经网络，通过前向传播输入信号，利用隐藏层的非线性激活函数学习输入与输出之间的复杂非线性关系。"
+      },
+      {
+        "name": "back-propagation_algorithm",
+        "desc": "用于训练人工神经网络的高效算法，通过前向和反向传播操作计算误差并更新网络权重。"
+      },
+      {
+        "name": "early_stopping",
+        "desc": "一种防止人工神经网络过拟合的技术，通过监控验证集误差并在其开始上升时停止训练。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "H_{A} = T_{\\text{rel}} + V = \\frac{1}{A} \\sum_{i<j} \\frac{(\\vec{p}_{i} - \\vec{p}_{j})^{2}}{2 m} + \\sum_{i<j}^{A} V_{i j} + \\sum_{i<j<k}^{A} V_{i j k} + \\dots"
+      },
+      {
+        "label": "Eq.2",
+        "content": "H_{A} \\Psi_{A}(\\vec{r}_{1}, \\vec{r}_{2}, \\dots, \\vec{r}_{A}) = E \\Psi_{A}(\\vec{r}_{1}, \\vec{r}_{2}, \\dots, \\vec{r}_{A})"
+      },
+      {
+        "label": "Eq.3",
+        "content": "\\Psi_{A}(\\vec{r}_{1}, \\vec{r}_{2}, \\dots, \\vec{r}_{A}) = \\sum_{i=0}^{k} c_{i} \\phi_{i}(\\vec{r}_{1}, \\vec{r}_{2}, \\dots, \\vec{r}_{A})"
+      },
+      {
+        "label": "Eq.4",
+        "content": "\\operatorname{net} = \\sum_{i=1}^{n+1} w_{i} x_{i}"
+      },
+      {
+        "label": "Eq.5",
+        "content": "f(x) = \\frac{1}{1 + e^{-a x}}"
+      },
+      {
+        "label": "Eq.6",
+        "content": "g(x) = x"
+      },
+      {
+        "label": "Eq.7",
+        "content": "z_{k} = g\\left(\\operatorname{net}_{z_{k}}\\right) = g\\left(\\sum_{j=1}^{m+1} w_{k j} f\\left(\\operatorname{net}_{y_{j}}\\right)\\right) = g\\left(\\sum_{j=1}^{m+1} w_{k j} f\\left(\\sum_{i=1}^{n+1} v_{j i} x_{i}\\right)\\right)"
+      }
+    ],
+    "key_results": [],
+    "failure_points": []
+  }
+}

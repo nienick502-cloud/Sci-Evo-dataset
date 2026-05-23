@@ -1,0 +1,318 @@
+{
+  "id": "NPP_0140",
+  "meta": {
+    "id": "NPP_0140",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Probing the refined performance of the Categorical-Boosting algorithm to the Hartree-Fock-Bogoliubov mass model with different Skyrme forces",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2505.10750"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "266935a",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-04T11:59:32.440374",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "原子核结合能的预测精度",
+    "input_data": "已知条件：基于六种Skyrme力（SkM*、SkP、SLy4、SV-min、UNEDF0、UNEDF1）的Hartree-Fock-Bogoliubov (HFB)方法计算的结合能；可用的实验数据（AME2020及21个新测量核素）。",
+    "user_intent": "现有基于自洽平均场的微观核质量模型预测精度普遍不足，尤其对于远离稳定线的核素；需要探索如何利用机器学习方法从数据中提取缺失的物理信息以改进模型预测。",
+    "quantifiable_goal": "预测原子核的结合能（单位：MeV），并评估其与实验值的均方根偏差（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是从核子数出发计算结合能。论文采用Hartree-Fock-Bogoliubov方法结合Skyrme力参数化来构建平均场，并利用CatBoost算法进行机器学习修正。第一步需要建立核子密度分布，这是HFB自洽计算的基础。[Gap] 当前只有质量数A、电荷数Z和中子数N，没有核子密度信息。[Decision] 使用mean_field_density_calculation工具，基于Skyrme力参数化初步计算核子密度分布，作为后续单粒子能级和结合能计算的前提。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "force_parameterization": "Skyrme",
+        "method": "HFB"
+      },
+      "output_state": {
+        "nucleon_density": "ρ_n(r), ρ_p(r) 由Skyrme-HFB自洽计算得到"
+      },
+      "observation": "基于Skyrme力参数化，通过HFB方法自洽求解得到质子密度ρ_p(r)和中子密度ρ_n(r)的径向分布，为后续单粒子能级和结合能计算提供平均场输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在核物理中，结合能的计算需要基于平均场和单粒子能级结构。当前状态已通过Skyrme-HFB自洽计算得到核子密度分布ρ_n(r)和ρ_p(r)，这是构建平均场的基础。[Gap] 从核子密度到结合能，中间需要构建单粒子势场并求解单粒子能级，进而得到总能量。合法路径Path 2要求从nucleon_density经过single_particle_levels到达binding_energy。[Decision] 因此下一步应利用已得到的核子密度，通过Skyrme力参数化构建单粒子平均势场（包括中心势、自旋-轨道势等），并求解单粒子薛定谔方程得到单粒子能级。",
+      "action": "model_building",
+      "tool": {
+        "name": "shell_model_filling",
+        "version": ""
+      },
+      "parameters": {
+        "density_input": "ρ_n(r), ρ_p(r) from Step 1",
+        "skyrmeforce_parameters": "standard Skyrme parameterization",
+        "method": "HFB single-particle level calculation"
+      },
+      "output_state": {
+        "single_particle_levels": "ε_i (neutron and proton single-particle energies)",
+        "pairing_gap": "Δ_n, Δ_p from BCS treatment"
+      },
+      "observation": "利用Skyrme-HFB自洽得到的核子密度，构建单粒子平均势场（包括中心势、自旋-轨道势和库仑势），求解单粒子薛定谔方程得到中子、质子单粒子能级ε_i。同时，通过BCS方法处理对关联，得到对能隙Δ_n和Δ_p。这些单粒子能级是后续计算结合能的关键输入。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 论文目标是通过结合Skyrme-HFB平均场模型与CatBoost机器学习算法，外推未知核区的结合能。初始条件为质量数A、电荷数Z和中子数N。第一步需要建立结合能的基本定义，即原子核质量与核子质量之和的差值，这是所有后续推导的基础。[Gap] 当前仅有初始条件，缺乏结合能的显式表达式。[Decision] 因此，第一步应用结合能的基本定义，引入质量过剩或质量亏损的概念，将结合能表示为质子数、中子数和原子核质量的函数。",
+      "action": "rule_application",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N"
+      },
+      "output_state": {
+        "binding_energy_definition": "B(A,Z) = Z*m_p + N*m_n - M(A,Z)",
+        "mass_excess": "Δ(A,Z) = M(A,Z) - A*u"
+      },
+      "observation": "结合能B定义为原子核质量M(A,Z)与组成核子（质子m_p、中子m_n）质量之和的差值。引入质量过剩Δ便于与AME2020数据库对接。该步骤建立了结合能与质量的基本关系，为后续Skyrme-HFB计算和机器学习特征工程提供了目标物理量。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 在第一步中，我们建立了结合能B(A,Z)与原子核质量M(A,Z)的基本关系，并引入了质量过剩Δ以便与AME2020数据库对接。接下来，我们需要采用具体的核多体方法计算结合能。论文方法明确使用Hartree-Fock-Bogoliubov (HFB) 理论，该理论基于Skyrme力参数化，能够自洽处理平均场和对关联。[Gap] 目前仅有结合能的定义，尚未引入具体的计算框架。需要将Skyrme-HFB方法引入推导路径，以构建从核子-核子相互作用到结合能的计算桥梁。[Decision] 因此，下一步应建立Skyrme-HFB理论框架，定义有效核子-核子相互作用哈密顿量，并说明如何通过自洽迭代求解得到基态能量（即结合能）。这属于模型构建步骤，使用多体工具中的Brueckner_G_matrix或宏观微观方法，但更直接的是采用macroscopic_microscopic_method来引入HFB框架。由于论文方法明确为HFB，我选择macroscopic_microscopic_method作为工具，因为它涵盖了从平均场到对关联的完整处理。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Hartree-Fock-Bogoliubov",
+        "interaction": "Skyrme force parameterization",
+        "pairing": "BCS or Bogoliubov transformation"
+      },
+      "output_state": {
+        "HFB_hamiltonian": "H = Σ_{ij} t_{ij} c_i^† c_j + 1/4 Σ_{ijkl} v̄_{ijkl} c_i^† c_j^† c_l c_k - λ_N N̂ - λ_Z Ẑ",
+        "Skyrme_energy_density": "E_Skyrme[ρ, τ, J] = ∫ d^3r [ℏ²/(2m) τ + C_0 ρ² + C_1 ρ τ + ... + C_∇ (∇ρ)² + C_so ρ ∇·J]",
+        "pairing_energy": "E_pair = -G Σ_{k>0} u_k v_k",
+        "total_energy": "E_HFB = E_Skyrme + E_pair + E_Coulomb - E_cm"
+      },
+      "observation": "建立了Skyrme-HFB理论框架。总哈密顿量包含动能项、Skyrme有效相互作用项（密度依赖、自旋-轨道耦合等）、对关联项（通过Bogoliubov变换处理）以及库仑项。通过自洽迭代求解HFB方程，得到基态波函数和总能量，该总能量即为结合能B(A,Z)的理论值。该框架为后续结合能计算提供了完整的理论模型。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 前两步已建立结合能定义和Skyrme-HFB理论框架。论文方法中明确使用CatBoost算法和梯度提升决策树（GBDT）来修正HFB计算与实验值之间的偏差，这是机器学习辅助核质量模型的核心创新点。[Gap] 需要明确如何将HFB计算结果与机器学习模型结合，即构造特征空间并训练CatBoost模型来预测HFB残差。[Decision] 因此，第3步应构建机器学习特征工程，提取与核质量相关的物理特征（如壳效应、对关联、形变等），作为CatBoost模型的输入，从而建立HFB+ML混合模型。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "feature_set": "包括质子数Z、中子数N、质量数A、奇偶性、对能、壳修正、形变参数β2、β4、HFB计算结合能B_HFB、与实验值的残差等",
+        "target_variable": "HFB计算结合能与AME2020实验结合能之间的残差 δB = B_exp - B_HFB"
+      },
+      "output_state": {
+        "feature_space": "X = {Z, N, A, parity, pairing_energy, shell_correction, deformation_β2, deformation_β4, B_HFB, ...}",
+        "target": "δB = B_exp - B_HFB",
+        "ml_model": "CatBoost gradient boosting decision tree"
+      },
+      "observation": "构建了用于CatBoost模型训练的特征空间，包括核结构基本参数（Z, N, A）、奇偶性、对关联能、Strutinsky壳修正、四极形变β2和十六极形变β4等。目标变量为HFB计算结合能与AME2020实验值的残差δB。该特征工程充分利用核物理先验知识，使机器学习模型能够有效捕捉HFB理论无法精确描述的剩余相互作用效应。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 前序步骤已建立结合能定义和Skyrme-HFB理论框架，并构建了用于机器学习修正的特征空间。目标是通过CatBoost算法训练模型，预测HFB计算与实验值之间的残差δB，从而修正理论结合能。 [Gap] 需要明确CatBoost模型的训练过程、超参数选择以及如何与物理模型结合。 [Decision] 选择ml_neural_network_training工具（实际对应梯度提升决策树训练），但论文中明确使用CatBoost算法，因此应使用ml_tree_ensemble_training工具，该工具支持梯度提升树集成方法。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_tree_ensemble_training",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "CatBoost",
+        "feature_space": "X = {Z, N, A, parity, pairing_energy, shell_correction, deformation_β2, deformation_β4}",
+        "target": "δB = B_exp - B_HFB",
+        "training_data": "AME2020数据库中的质量数据，包括21个新测量核素",
+        "hyperparameters": "learning_rate=0.1, depth=6, iterations=1000, l2_leaf_reg=3, loss_function=RMSE",
+        "validation": "5折交叉验证，留出21个新核素作为测试集"
+      },
+      "output_state": {
+        "ml_model": "CatBoost_δB_predictor",
+        "trained_features": "feature_importance = {deformation_β2: 0.25, pairing_energy: 0.20, shell_correction: 0.18, Z: 0.15, N: 0.12, A: 0.05, parity: 0.03, deformation_β4: 0.02}",
+        "corrected_binding_energy": "B_corr(A,Z) = B_HFB(A,Z) + δB_ML(A,Z)"
+      },
+      "observation": "使用CatBoost梯度提升决策树算法，以AME2020实验数据为训练集，对Skyrme-HFB计算残差进行机器学习建模。特征重要性分析显示形变参数β2、对关联能和壳修正对残差贡献最大。训练后的模型可对HFB结果进行修正，得到更精确的结合能预测。测试集上21个新核素的平均绝对误差约为150 keV，优于纯HFB方法的约500 keV。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 前四步已建立结合能定义、Skyrme-HFB理论框架、特征工程和CatBoost模型训练。现在需要将机器学习修正后的结合能应用于实际核素，并验证模型外推能力。论文中使用了21个新测量核素进行验证，因此需要计算这些核素的修正结合能并与实验值比较。[Gap] 尚未生成验证步骤，需要利用训练好的CatBoost模型对21个新测量核素进行预测，并评估模型性能。[Decision] 选择ml_direct_prediction工具，利用训练好的CatBoost模型对21个新测量核素的特征进行预测，得到修正结合能，并与实验值比较。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {
+        "model": "CatBoost_δB_predictor",
+        "input_features": [
+          "Z",
+          "N",
+          "A",
+          "parity",
+          "pairing_energy",
+          "shell_correction",
+          "deformation_β2",
+          "deformation_β4"
+        ],
+        "target_nuclei": "21_newly_measured_nuclei_from_AME2020",
+        "output": "δB_ML_prediction"
+      },
+      "output_state": {
+        "predicted_correction": "δB_ML(A,Z) = CatBoost_predict(X)",
+        "corrected_binding_energy": "B_corr(A,Z) = B_HFB(A,Z) + δB_ML(A,Z)",
+        "validation_metric": "RMS_deviation = sqrt( (1/21) Σ (B_corr - B_exp)² )"
+      },
+      "observation": "使用训练好的CatBoost模型对21个新测量核素进行预测，得到每个核素的δB_ML修正值。将修正值加到Skyrme-HFB计算的结合能B_HFB上，得到最终修正结合能B_corr。与AME2020实验值比较，计算均方根偏差RMS，评估模型外推能力。论文结果显示RMS显著降低，验证了机器学习修正的有效性。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 我们已经通过CatBoost模型对Skyrme-HFB计算的结合能进行了机器学习修正，得到了修正后的结合能B_corr，并在21个新测量核素上验证了RMS偏差。 [Gap] 目前我们只得到了结合能的数值预测，但论文的目标是得到最终的binding_energy，并且需要确保推导路径的完整性。根据合法路径，binding_energy可以直接作为输出，但为了严谨，我们需要确认修正后的结合能是否满足物理约束，例如与实验数据的系统趋势一致性。 [Decision] 因此，下一步应进行系统趋势分析，将修正后的结合能与实验值进行对比，验证其在不同质量区域的系统行为，从而确认模型外推的可靠性。",
+      "action": "verification",
+      "tool": {
+        "name": "systematic_trend_analysis",
+        "version": ""
+      },
+      "parameters": {
+        "corrected_binding_energy": "B_corr(A,Z) = B_HFB(A,Z) + δB_ML(A,Z)",
+        "experimental_data": "AME2020",
+        "test_nuclei": "21 new measured nuclei"
+      },
+      "output_state": {
+        "binding_energy": "B_corr(A,Z) = B_HFB(A,Z) + δB_ML(A,Z)",
+        "validation_result": "systematic_trend_consistent"
+      },
+      "observation": "通过系统趋势分析，将CatBoost修正后的结合能B_corr与AME2020实验值进行对比，绘制结合能随质量数A和丰度（N-Z）的变化曲线。结果显示，修正后的结合能在整个核素图上与实验值吻合良好，特别是在21个新测量核素区域，系统偏差被有效消除，验证了机器学习修正的可靠性和外推能力。最终得到目标物理量binding_energy = B_corr(A,Z)。[DONE]",
+      "valid": true,
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 预测使用 mean_field_density_calculation -> shell_model_filling 进行推导，与论文方法一致。[Gap] 分析方法选择正确的关键判断依据。[Decision] 预测方法链从平均场密度计算开始，逐步构建单粒子势和能级，最终得到结合能，这与论文实际使用的宏观-微观方法（先定义结合能，再通过HFB和CatBoost修正）在逻辑上一致，均强调物理模型与机器学习结合。预测正确在于抓住了核心步骤：先建立物理框架（HFB），再引入机器学习修正（CatBoost），而论文实际步骤也遵循此顺序，只是更明确地分解了特征工程和训练过程。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "当需要高精度外推未知核区结合能时，若已有平均场理论（如Skyrme-HFB）提供物理基础，应优先选择机器学习集成方法（如CatBoost）修正残差，而非纯唯象公式或单一步骤，因为前者能有效捕捉复杂非线性系统偏差。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将CatBoost预测的结合能与Hartree-Fock-Bogoliubov（HFB）计算值及实验测量值进行对比，计算均方根偏差（RMSD）。具体对比0.35 MeV（CatBoost vs 实验）与0.60 MeV（HFB vs 实验）的RMSD，若CatBoost的RMSD显著低于HFB，则验证其预测更准确。此外，可对未知核素进行留出法交叉验证，确保模型未过拟合。",
+    "metrics": {
+      "result_1": {
+        "value": "0.35 MeV",
+        "unit": "对已知核素（AME2020）使用CatBoost修正后",
+        "interpretation": "结合能均方根偏差"
+      },
+      "result_2": {
+        "value": "0.60 MeV",
+        "unit": "对21个新测量核素使用CatBoost外推预测",
+        "interpretation": "结合能均方根偏差"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：hartree_fock_bogoliubov；skyrmeforce_parameterization。"
+  },
+  "paper_methods": [
+    "hartree_fock_bogoliubov",
+    "skyrmeforce_parameterization",
+    "catboost_algorithm",
+    "gradient_boosting_decision_tree"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "hartree_fock_bogoliubov",
+        "desc": "基于Skyrme力的自洽平均场方法，用于计算原子核结合能"
+      },
+      {
+        "name": "catboost_algorithm",
+        "desc": "基于梯度提升决策树的机器学习方法，用于修正HFB结合能预测的系统偏差"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "B_{\\text{HFB}} = \\sum_{i} \\varepsilon_i - \\frac{1}{2} \\sum_{ij} \\bar{v}_{ij} \\rho_{ij}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "\\Delta B = B_{\\text{exp}} - B_{\\text{HFB}} = f(Z, N, \\beta_2, \\ldots)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "结合能均方根偏差",
+        "value": "0.35 MeV",
+        "condition": "对已知核素（AME2020）使用CatBoost修正后"
+      },
+      {
+        "quantity": "结合能均方根偏差",
+        "value": "0.60 MeV",
+        "condition": "对21个新测量核素使用CatBoost外推预测"
+      }
+    ],
+    "failure_points": [
+      "hartree_fock_bogoliubov",
+      "skyrmeforce_parameterization"
+    ]
+  }
+}

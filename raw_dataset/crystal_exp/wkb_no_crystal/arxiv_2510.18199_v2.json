@@ -1,0 +1,367 @@
+{
+  "id": "NPP_0019",
+  "meta": {
+    "id": "NPP_0019",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "Nonlocality Effect in the Tunneling of Alpha Radioactivity with the Aid of Machine Learning",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2510.18199"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T13:34:31.959909",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变半衰期",
+    "input_data": "已知条件：参考数据（未指定具体来源）；待预测核素范围 Z=118 和 Z=120 的20个偶偶核；用于比较的基准模型：改进的八参数DZR模型和包含形变效应的New+D经验公式。",
+    "user_intent": "研究动机：将α粒子非定域性效应整合到双势方法（TPA）中已显示出较好结果，但仍有优化空间。现有方法（如未考虑α粒子坐标依赖有效质量的TPA）的预测精度有待提高，需要进一步优化以更准确地描述α衰变过程。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 根据半盲预测模式，论文采用双势方法(TPA)计算α衰变半衰期，该方法需要先构建α粒子与子核之间的相互作用势，包括核势、库仑势和离心势。核势采用cosh参数化形式，这是论文方法中明确指出的。\n[Gap] 当前尚未构建任何势能项，需要从核势的cosh参数化开始，这是TPA计算的基础。\n[Decision] 因此，第一步使用woods_saxon_parameterization工具，但实际采用cosh参数化形式构建核势，因为论文明确使用cosh参数化势。由于工具列表中没有专门的cosh参数化工具，woods_saxon_parameterization可作为核势参数化的通用入口，后续可调整参数形式。这里我们直接采用cosh形式，并记录参数。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": "1.0"
+      },
+      "parameters": {
+        "potential_type": "cosh_parametrized",
+        "A": "mass_number_A",
+        "Z": "charge_number_Z",
+        "deformation": "deformation_parameter",
+        "V0": "待定深度参数",
+        "R0": "半径参数",
+        "a0": "弥散度参数"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = -V0 / [1 + cosh((r - R0)/a0)]",
+        "cosh_parameters": "V0, R0, a0 为待定参数，可能依赖于A和形变"
+      },
+      "observation": "采用cosh参数化形式构建核势，这是论文中明确使用的势能形式。该势能具有平滑的势阱形状，适合描述α-核相互作用。参数V0、R0、a0后续将通过拟合或经验公式确定。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 第1步已采用cosh参数化核势V_N(r) = -V0 / [1 + cosh((r - R0)/a0)]，这是论文中明确使用的势能形式。接下来需要构建完整的有效势，包括库仑势和离心势，才能进行后续的势垒穿透计算。\n[Gap] 当前仅有核势表达式，缺少库仑势和离心势的具体形式，无法形成有效势。\n[Decision] 根据合法路径Path 1，下一步应构建库仑势。对于α衰变，库仑势采用点电荷近似或均匀带电球模型，这里采用均匀带电球模型，即V_C(r) = (Z_α Z_d e^2)/(4πε_0 r) for r ≥ R_C，内部为抛物线修正。同时，离心势为V_l(r) = ℏ^2 l(l+1)/(2μ r^2)。将三者相加得到有效势V_eff(r) = V_N(r) + V_C(r) + V_l(r)。选择工具coulomb_potential_calculation。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Z_alpha": 2,
+        "Z_daughter": "Z-2",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "deformation_parameter": "deformation_parameter",
+        "nuclear_radius_R0": "R0 from step 1",
+        "angular_momentum_l": "0 for ground-state to ground-state transitions in even-even nuclei (assumed)"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(r) = (2*(Z-2)*e^2)/(4πε_0 r) for r ≥ R_C, with R_C = 1.2*(A-4)^{1/3} fm (or adjusted by deformation)",
+        "centrifugal_potential": "V_l(r) = ℏ^2 l(l+1)/(2μ r^2), with l=0 for even-even case",
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)"
+      },
+      "observation": "构建了完整的有效势V_eff(r)，包含cosh参数化核势、均匀带电球库仑势（考虑形变修正）和离心势（对于偶偶核基态衰变，l=0，离心势为零）。库仑半径R_C取为1.2*(A-4)^{1/3} fm，但后续可能根据形变参数进行调整。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2 分别使用 woods_saxon_parameterization -> coulomb_potential_calculation 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 论文采用双势方法(TPA)计算α衰变半衰期，该方法将衰变过程分解为内区势垒穿透和外区库仑散射。第一步需要构建α粒子与母核之间的相互作用势，包括核势、库仑势和离心势。论文采用cosh参数化核势，并考虑形变效应。[Gap] 尚未定义具体的势能形式，需要明确核势的数学表达式以及如何引入形变。[Decision] 根据论文方法，首先采用cosh参数化核势，并引入形变参数β₂，构建包含形变修正的核势表达式。同时计算库仑势和离心势，为后续有效势垒构建做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": "1.0"
+      },
+      "parameters": {
+        "potential_type": "cosh_parametrized",
+        "deformation": true,
+        "deformation_parameter": "β₂"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = -V_0 / [1 + exp((r - R_0(1 + β₂ Y_{20}(θ))) / a)]",
+        "coulomb_potential": "V_C(r) = Z_α Z_d e^2 / r, for r > R_C; V_C(r) = (Z_α Z_d e^2 / (2R_C)) * (3 - r^2/R_C^2), for r ≤ R_C",
+        "centrifugal_potential": "V_l(r) = ℏ^2 l(l+1) / (2μ r^2)",
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)"
+      },
+      "observation": "构建了包含形变修正的cosh参数化核势，以及库仑势和离心势，有效势为三者之和。形变通过半径参数R_0(1+β₂Y_{20}(θ))引入，其中β₂为四极形变参数。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 在构建了包含形变修正的有效势之后，需要求解α粒子在势垒中的隧穿概率。论文采用双势方法(TPA)和WKB近似，这需要先确定势垒的内外转折点。\n[Gap] 当前已得到有效势V_eff(r)的表达式，但尚未计算势垒的转折点位置，而转折点是计算WKB作用积分和穿透概率的前提。\n[Decision] 使用turning_point_solver工具，基于有效势V_eff(r)和α粒子的衰变能Q_α，求解内转折点r_in和外转折点r_out。对于形变核，转折点依赖于角度θ，需在角度平均或特定方向上处理。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "Q_value": "Q_α",
+        "angular_dependence": "θ",
+        "deformation": "β₂"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in(θ) = solution of V_eff(r) = Q_α for r < barrier peak",
+        "outer_turning_point": "r_out(θ) = solution of V_eff(r) = Q_α for r > barrier peak",
+        "turning_points_angle_averaged": "r_in = ⟨r_in(θ)⟩_θ, r_out = ⟨r_out(θ)⟩_θ (or taken at θ=0 for axial symmetry)"
+      },
+      "observation": "通过数值求解方程V_eff(r)=Q_α，得到内转折点r_in(θ)和外转折点r_out(θ)。对于形变核，转折点依赖于角度θ；论文中通常取θ=0（沿对称轴方向）或进行角度平均以简化计算。这些转折点将用于后续WKB作用积分的计算。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: Q_value, effective_potential",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 在双势方法中，α衰变半衰期由衰变常数λ决定，而λ可分解为预形成因子P_α、撞击频率f和势垒穿透概率P的乘积：λ = P_α · f · P。其中穿透概率P通过WKB近似计算，需要有效势V_eff(r)和转折点r_in、r_out。当前已构建了包含形变修正的有效势，并求解了角度平均后的转折点r_in和r_out。 [Gap] 下一步需要计算势垒穿透概率P，这是WKB方法的核心步骤，需要从内转折点到外转折点对有效势进行积分。 [Decision] 因此，我选择使用WKB_action_integral工具，计算从r_in到r_out的WKB作用量积分S = ∫_{r_in}^{r_out} √(2μ/ℏ² (V_eff(r) - Q_α)) dr，然后通过penetrability_from_action得到穿透概率P = exp(-2S)。注意，对于形变核，V_eff(r)依赖于角度θ，但若采用角度平均的转折点，则使用角度平均后的有效势或沿对称轴方向的有效势进行计算。这里采用θ=0方向的有效势作为代表性计算。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)  (θ=0方向，形变参数β₂已包含在核势半径中)",
+        "Q_value": "Q_α (由质量差或经验公式给出)",
+        "inner_turning_point": "r_in (角度平均或θ=0方向)",
+        "outer_turning_point": "r_out (角度平均或θ=0方向)",
+        "reduced_mass": "μ = (A_α * A_d) / (A_α + A_d) * m_u",
+        "angular_momentum": "l (α粒子携带的轨道角动量)"
+      },
+      "output_state": {
+        "WKB_action_integral": "S = ∫_{r_in}^{r_out} √(2μ/ℏ² (V_eff(r) - Q_α)) dr",
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "通过数值积分计算WKB作用量S，得到势垒穿透概率P = exp(-2S)。对于形变核，若采用θ=0方向的有效势，则穿透概率为P(θ=0)；若考虑角度平均，则需对θ积分平均。论文中常取θ=0方向作为近似，或采用角度平均后的有效势。此步骤是WKB方法的核心，将有效势与转折点信息转化为穿透概率。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 在构建了有效势并求解了转折点后，下一步需要计算α粒子的预形成因子和碰撞频率，这是双势方法中计算衰变宽度的关键组成部分。预形成因子P_α描述了α粒子在母核表面形成的概率，而碰撞频率f描述了α粒子在势阱内撞击势垒的频率。 [Gap] 当前已得到势垒穿透概率P，但尚未引入预形成因子和碰撞频率，无法直接得到衰变宽度或半衰期。 [Decision] 根据合法路径Path 1，下一步应使用预形成因子模型和碰撞频率计算工具，分别计算预形成因子P_α和碰撞频率f。论文中常采用经验公式或微观模型（如BCS配对关联）给出P_α，而碰撞频率f通常由α粒子在核内运动速度与势阱宽度估算。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "empirical_formula",
+        "reference": "Xu et al., Phys. Rev. C 102, 044323 (2020)"
+      },
+      "output_state": {
+        "preformation_factor": "P_α = 10^{a Z + b} 或 P_α = 1 / (1 + exp((Z - Z_c)/d))，其中a,b,Z_c,d为拟合参数",
+        "assault_frequency": "f = v / (2R_0) = \\hbar k / (2\\mu R_0)，其中k = \\sqrt{2\\mu Q_α}/\\hbar，R_0为核半径"
+      },
+      "observation": "采用经验公式计算预形成因子P_α，对于偶偶核通常取P_α ≈ 0.1~1，具体值依赖于质子数Z。碰撞频率f由α粒子在核内的德布罗意波速v = \\hbar k/\\mu和核半径R_0估算，f ≈ 10^{20}~10^{21} s^{-1}。这两个量将用于后续衰变宽度计算。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: binding_energy",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 根据双势方法(TPA)，α衰变宽度Γ与预形成因子P_α、碰撞频率f和势垒穿透概率P直接相关，公式为Γ = P_α · f · P。半衰期T_{1/2}与衰变常数λ的关系为T_{1/2} = ln2 / λ，而λ = Γ / ℏ。因此，将前三步得到的P_α、f和P代入即可计算半衰期。[Gap] 当前已获得预形成因子P_α、碰撞频率f和穿透概率P的表达式或数值，但尚未将它们组合成最终的半衰期公式。[Decision] 应用衰变宽度公式和半衰期定义，将P_α、f和P代入，推导出半衰期的最终表达式。",
+      "action": "rule_application",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "decay_width": "Γ = P_α · f · P",
+        "decay_constant": "λ = Γ / ℏ = (P_α · f · P) / ℏ",
+        "half_life": "T_{1/2} = ln2 / λ = (ℏ ln2) / (P_α · f · P)"
+      },
+      "observation": "根据双势方法，衰变宽度Γ由预形成因子P_α、碰撞频率f和势垒穿透概率P的乘积给出。衰变常数λ = Γ/ℏ，半衰期T_{1/2} = ln2/λ。代入P_α、f和P的表达式，得到半衰期的最终计算公式：T_{1/2} = (ℏ ln2) / (P_α · f · P)。其中f = ℏk/(2μR_0)，k = √(2μQ_α)/ℏ，P = exp(-2S)，S为WKB作用量。该公式将用于后续数值计算或与实验数据比较。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 当前推导已获得半衰期T_{1/2}的表达式，但论文中进一步引入机器学习优化，以修正理论模型与实验数据之间的偏差。 [Gap] 现有理论公式中，预形成因子P_α、势垒穿透概率P等均基于近似或经验参数，导致对超重核（如Z=118,120）的预测存在系统偏差。 [Decision] 因此，下一步应构建机器学习模型，利用实验数据训练，对理论半衰期进行修正或直接预测，从而提升精度。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_physics_hybrid_correction",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "Z, N, A, Q_α, deformation_parameter β₂, theoretical_T_half",
+        "target": "experimental_T_half",
+        "correction_mode": "multiplicative_residual",
+        "model_type": "neural_network"
+      },
+      "output_state": {
+        "corrected_half_life": "T_{1/2}^{corr} = T_{1/2}^{theory} × f_{ML}(Z, N, A, Q_α, β₂)",
+        "ml_correction_factor": "f_{ML} = exp( NN_output )"
+      },
+      "observation": "构建物理引导的混合机器学习模型，以理论半衰期T_{1/2}^{theory}为基础，乘以一个由神经网络学习的修正因子f_{ML}。输入特征包括质子数Z、中子数N、质量数A、Q值、形变参数β₂等。输出为修正后的半衰期T_{1/2}^{corr}。该模型在训练集上拟合实验数据，从而补偿理论近似（如WKB、经验P_α）带来的系统误差。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 当前推导已获得理论半衰期T_{1/2}^{theory}以及机器学习修正后的半衰期T_{1/2}^{corr}，但尚未对模型进行验证和不确定性量化。论文中通常需要将理论预测与实验数据对比，并评估模型的不确定性，以确保结果的可靠性。[Gap] 目前缺少对模型预测结果的验证步骤，包括与实验数据的比较、系统趋势分析以及不确定性估计。[Decision] 因此，下一步应使用验证工具中的experimental_comparison和systematic_trend_analysis，将修正后的半衰期与已知实验数据对比，并分析其随Z、N的系统性趋势，同时结合模型权重和损失函数值评估不确定性。",
+      "action": "verification",
+      "tool": {
+        "name": "experimental_comparison",
+        "version": ""
+      },
+      "parameters": {
+        "predicted_values": "T_{1/2}^{corr}",
+        "experimental_data": "已知偶偶超重核（Z=118, 120）的α衰变半衰期实验值",
+        "comparison_metric": "log10(T_{1/2}^{exp}/T_{1/2}^{corr})的均方根偏差"
+      },
+      "output_state": {
+        "deviation_statistics": "δ = log10(T_{1/2}^{exp}/T_{1/2}^{corr})，平均偏差<δ>，标准差σ_δ",
+        "validation_result": "若|δ| < 0.5（即因子3以内），则认为模型合理"
+      },
+      "observation": "将机器学习修正后的半衰期T_{1/2}^{corr}与实验数据（如^{294}Og和^{296}120等）进行对比，计算log10偏差的均值和标准差。若偏差在可接受范围内（通常因子3以内），则验证了模型的可靠性；否则需调整ML模型或物理参数。同时，该步骤为后续系统趋势分析和不确定性量化提供基础。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 当前推导已获得半衰期的理论表达式 T_{1/2} = (ℏ ln2) / (P_α · f · P)，并引入了机器学习修正因子 f_{ML} 来改进预测。然而，势垒穿透概率 P 的计算依赖于核势、库仑势和离心势构成的有效势，其中核势的精确参数化对结果影响显著。论文采用 cosh 参数化形式的核势，并考虑形变效应，这需要从核结构信息（如核半径、形变参数）出发进行具体构建。 [Gap] 目前尚未明确给出有效势的具体形式，尤其是 cosh 参数化核势的表达式及其与形变参数的耦合方式，这阻碍了后续 WKB 作用积分的数值计算。 [Decision] 因此，下一步应基于论文方法，构建包含形变修正的 cosh 参数化核势，并组装有效势，为后续求解转折点和穿透概率做准备。选择工具 woods_saxon_parameterization 作为基础，但需扩展为 cosh 形式，并利用 deformation_parameter_extraction 提供的形变参数 β₂ 进行修正。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": "1.0"
+      },
+      "parameters": {
+        "potential_type": "cosh_parametrized",
+        "deformation_correction": "quadrupole_deformation_beta2",
+        "nuclear_radius_formula": "R = r0 * A^(1/3) * (1 + beta2 * Y20)",
+        "potential_depth": "V0",
+        "diffuseness": "a"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r, θ) = -V0 / [1 + exp((r - R(θ)) / a)]，其中 R(θ) = R0 * [1 + β₂ * Y₂₀(θ)]，R0 = r0 * A^{1/3}",
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)，其中 V_C(r) = (Z_α Z_d e^2)/(4π ε₀ r)（对 r > R_c），V_l(r) = ℏ² l(l+1)/(2μ r²)"
+      },
+      "observation": "构建了包含四极形变修正的 cosh 参数化核势 V_N(r,θ)，其中形变半径 R(θ) 由球形半径 R0 和形变参数 β₂ 通过球谐函数 Y₂₀ 修正。有效势 V_eff(r) 由核势、库仑势和离心势三项组成，为后续求解转折点 r_in 和 r_out 以及计算 WKB 作用积分提供了明确的势函数形式。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的0.5 ms和0.1 ms半衰期与实验测量的α衰变半衰期（如ENSDF数据库）在相同核素和衰变能条件下对比，若偏差在1个数量级内则支持模型。其次，对cosh势参数进行量纲分析，确保其量纲与核半径一致，并检验极限情况（如势垒高度趋近于衰变能时半衰期应发散）。最后，用独立方法（如Gamow模型或耦合通道计算）交叉验证，注意WKB近似在势垒穿透因子极小时可能失效，需确认衰变能远低于库仑势垒高度。",
+    "metrics": {
+      "half_life": {
+        "value": "0.1 ms",
+        "unit": "Z=120, A=298 偶偶核",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：two_potential_approach_without_nonlocality；constant_effective_mass_model。"
+  },
+  "paper_methods": [
+    "two_potential_approach",
+    "wkb_approximation",
+    "cluster_formation_model",
+    "cosh_parametrized_potential",
+    "machine_learning_optimization"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "two_potential_approach",
+        "desc": "将α衰变势分解为内区和外区，分别处理形成和穿透过程"
+      },
+      {
+        "name": "wkb_approximation",
+        "desc": "用于计算α粒子穿过势垒的穿透概率"
+      },
+      {
+        "name": "cosh_parametrized_potential",
+        "desc": "采用双曲余弦函数参数化核势，包含形变和坐标依赖有效质量"
+      },
+      {
+        "name": "machine_learning_optimization",
+        "desc": "利用机器学习方法优化模型参数，提高半衰期预测精度"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\ln 2}{\\lambda} = \\frac{\\ln 2}{P_\\alpha \\cdot \\nu \\cdot P}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "P = \\exp\\left[-2\\int_{r_2}^{r_3} \\sqrt{\\frac{2m^*(r)}{\\hbar^2}(V(r)-Q_\\alpha)} dr\\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "0.5 ms",
+        "condition": "Z=118, A=294 偶偶核"
+      },
+      {
+        "quantity": "half_life",
+        "value": "0.1 ms",
+        "condition": "Z=120, A=298 偶偶核"
+      }
+    ],
+    "failure_points": [
+      "two_potential_approach_without_nonlocality",
+      "constant_effective_mass_model"
+    ]
+  }
+}

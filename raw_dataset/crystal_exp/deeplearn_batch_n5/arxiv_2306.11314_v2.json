@@ -1,0 +1,217 @@
+{
+  "id": "NPP_0129",
+  "meta": {
+    "id": "NPP_0129",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Analysis of a Skyrme energy density functional with deep learning",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2306.11314"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T18:19:36.802250",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "核子体系的轨道无关能量密度泛函",
+    "input_data": "已知条件：使用Skyrme能量密度泛函（Skyrme-EDF）作为基准；以^{24}Mg核为研究对象；通过引入外部场生成能量和密度数据作为训练集。",
+    "user_intent": "研究动机：现有的Kohn-Sham型能量密度泛函（KS-EDF）计算依赖于Kohn-Sham轨道，求解自洽微分方程计算量大，尤其对于重核系统。需要发展一种不依赖于轨道的能量密度泛函（OF-EDF）以提高计算效率。",
+    "quantifiable_goal": "构建一个仅依赖于粒子数密度的能量密度泛函，以预测核的结合能（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 本推导的目标是从核子密度和核子数出发，计算原子核的结合能。论文采用Skyrme能量密度泛函（Skyrme-EDF）作为基准方法，这是一种基于平均场的密度泛函理论，通过Kohn-Sham（KS）轨道自洽求解得到基态能量和密度。然而，对于重核，KS-EDF的计算量很大，因此论文引入了轨道无关的能量密度泛函（OF-EDF），试图直接从密度出发预测结合能，并利用神经网络修正残余误差。\n\n[Gap] 当前初始条件只给出了质量数A、电荷数Z和核子密度nucleon_density，但尚未建立从密度到结合能的定量关系。按照合法推导路径Path 2（nucleon_density -> single_particle_levels -> binding_energy），需要先通过平均场方法从密度构造单粒子能级。然而，OF-EDF的核心理念是绕过单粒子能级的显式求解，直接构建能量密度泛函。因此，第一步应当先建立Skyrme-EDF的基准框架，即从核子密度出发，利用Skyrme相互作用参数化能量密度泛函，得到总能量（结合能）的表达式。\n\n[Decision] 因此，第一步选择使用Skyrme能量密度泛函（Skyrme-EDF）作为基准模型，从给定的核子密度（包括中子密度ρ_n和质子密度ρ_p）出发，写出Skyrme能量密度泛函的通用形式，包括动能项、零程Skyrme相互作用项、自旋-轨道耦合项以及库仑项。这属于模型构建步骤，工具选择为mean_field_density_calculation，因为它涉及从密度到平均场能量的计算。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "density_type": "nucleon_density",
+        "functional_type": "Skyrme_EDF",
+        "interaction_parameters": "Skyrme_parameter_set",
+        "include_coulomb": true,
+        "include_spin_orbit": true
+      },
+      "output_state": {
+        "Skyrme_EDF_energy_density": "E[ρ_n, ρ_p] = ∫ d^3r [ℏ^2/(2m) τ + ε_Skyrme(ρ_n, ρ_p, τ, J) + ε_Coul(ρ_p) + ε_spin_orbit(ρ, J)]",
+        "total_binding_energy_KS": "E_bind_KS = E[ρ_n, ρ_p] (自洽解)"
+      },
+      "observation": "建立了Skyrme-EDF的基准能量密度泛函形式。总结合能E_bind_KS由动能密度τ、Skyrme相互作用能量密度ε_Skyrme（包含密度依赖项、梯度项等）、库仑能密度ε_Coul和自旋-轨道耦合能密度ε_spin_orbit组成。该泛函需要通过自洽迭代求解KS方程得到基态密度和能量，这是后续OF-EDF近似和神经网络修正的基准。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 上一步建立了Skyrme-EDF基准框架，但KS-EDF需要求解Kohn-Sham轨道（单粒子波函数），计算量随核子数增加而急剧增大。OF-EDF的目标是绕过轨道求解，直接构造仅依赖于核子密度ρ_n(r)和ρ_p(r)的能量密度泛函，从而大幅降低计算复杂度。[Gap] 从基准KS-EDF到OF-EDF的关键步骤是：如何从自洽的KS解中提取出仅与密度相关的能量泛函信息，并验证密度本身是否足以描述体系的总能量。这需要先通过KS-EDF计算生成一组自洽的基态密度和对应的总能量，作为训练OF-EDF的参考数据。[Decision] 因此，本步选择使用mean_field_density_calculation工具，通过Skyrme-EDF自洽求解，生成一系列不同核的基态核子密度分布和对应的总结合能，作为后续OF-EDF训练的数据集。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Skyrme-EDF自洽求解",
+        "nuclei_set": "从轻核到重核的多个代表性核素（如^16O, ^40Ca, ^48Ca, ^90Zr, ^132Sn, ^208Pb等）",
+        "functional": "标准Skyrme参数化（如SkM*或SLy4）",
+        "pairing": "BCS近似，密度依赖的δ相互作用（DDDI）",
+        "output": "基态中子密度ρ_n(r)、质子密度ρ_p(r)、总结合能E_bind_KS"
+      },
+      "output_state": {
+        "reference_data": "{(A_i, Z_i, ρ_n_i(r), ρ_p_i(r), E_bind_KS_i)} for i=1..N",
+        "density_profiles": "径向密度分布ρ_n(r)和ρ_p(r)（球对称或变形）",
+        "total_binding_energy_KS": "每个核的自洽Skyrme-EDF总结合能"
+      },
+      "observation": "通过Skyrme-EDF自洽计算，生成了多个核的基态密度分布和对应的总结合能。这些数据将作为OF-EDF训练的参考标签，其中密度是输入特征，结合能是输出目标。注意：对于变形核，密度分布可能非球对称，需考虑适当处理（如多极展开或直接使用三维网格）。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2 分别使用 mean_field_density_calculation -> mean_field_density_calculation 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 论文旨在构建轨道无关的能量密度泛函（OF-EDF），以替代计算量大的Kohn-Sham能量密度泛函（KS-EDF）。初始条件已给出质量数A、电荷数Z和核子密度nucleon_density，目标物理量为结合能binding_energy。合法推导路径中，Path 2（nucleon_density -> single_particle_levels -> binding_energy）与KS-EDF的框架一致，因为KS-EDF通过求解单粒子能级得到动能和总能量。然而，论文方法强调OF-EDF不依赖轨道，因此第一步应基于Skyrme能量密度泛函建立基准能量表达式，该表达式直接依赖于核子密度及其梯度，而不显式使用单粒子波函数。这符合Path 2的变体：从nucleon_density出发，通过Skyrme-EDF直接得到binding_energy，跳过显式的single_particle_levels步骤。\n[Gap] 需要从nucleon_density出发，利用Skyrme-EDF写出总能量泛函的解析形式，作为后续OF-EDF训练的基准。\n[Decision] 选择工具skyrm_energy_density_functional（属于核结构类别），参数包括质量数A、电荷数Z和核子密度，输出Skyrme能量密度泛函的表达式，从而得到结合能。",
+      "action": "model_building",
+      "tool": {
+        "name": "skyrm_energy_density_functional",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "nucleon_density": "ρ_n(r), ρ_p(r) 或总密度 ρ(r) 和同位旋密度 ρ_3(r)"
+      },
+      "output_state": {
+        "binding_energy": "E_Skyrme[ρ_n, ρ_p] = ∫ d^3r [ℏ^2/(2m) τ + C_0 ρ^2 + C_1 ρ_3^2 + C_2 ρ τ + C_3 ρ_3 τ_3 + C_4 (∇ρ)^2 + C_5 (∇ρ_3)^2 + C_6 ρ^{α+2} + ...] + E_Coulomb[ρ_p] + E_pairing[ρ_n, ρ_p]"
+      },
+      "observation": "基于Skyrme能量密度泛函，建立了总结合能作为核子密度（质子密度ρ_p和中子密度ρ_n）的泛函。该表达式包含动能项（依赖于动能密度τ，但τ本身是轨道的函数，此处作为基准，后续OF-EDF将用密度直接近似τ）、Skyrme相互作用项（密度、梯度、自旋-轨道等）以及库仑项和对关联项。这为后续步骤提供了基准能量表达式。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 上一步建立了Skyrme-EDF作为基准，其结合能表达式包含动能密度τ，而τ依赖于Kohn-Sham轨道，这正是计算瓶颈所在。为了构建轨道无关的能量密度泛函（OF-EDF），需要将动能项用核子密度直接表示，从而消除对轨道的依赖。 [Gap] 从Skyrme-EDF到OF-EDF的关键一步是找到动能密度τ与核子密度ρ之间的近似关系，通常采用Thomas-Fermi近似或Weizsäcker修正。 [Decision] 采用Thomas-Fermi近似作为第一步近似，将动能密度表示为密度的显式函数，从而得到轨道无关的动能泛函。",
+      "action": "approximation",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "approximation_type": "Thomas-Fermi",
+        "density": "nucleon_density"
+      },
+      "output_state": {
+        "kinetic_energy_density_TF": "τ_TF(ρ) = (3/5)(3π^2)^{2/3} ρ^{5/3}",
+        "OF_kinetic_energy": "T_OF[ρ] = ∫ d^3r (ℏ^2/(2m)) τ_TF(ρ)"
+      },
+      "observation": "采用Thomas-Fermi近似，将动能密度τ近似为核子密度ρ的显式函数：τ_TF(ρ) = (3/5)(3π^2)^{2/3} ρ^{5/3}。由此得到轨道无关的动能泛函T_OF[ρ] = ∫ d^3r (ℏ^2/(2m)) τ_TF(ρ)。这构成了OF-EDF的第一步近似，后续可加入Weizsäcker梯度修正以提高精度。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的结合能（-198 MeV和-197 MeV）与原子质量评估（AME2020）中对应核素的实验结合能进行对比，验证在稳定线附近核素上的偏差是否在1 MeV以内。其次，对泛函进行量纲分析，确保能量密度项的量纲为MeV·fm⁻³，并检验在极端密度（如核物质饱和密度ρ₀=0.16 fm⁻³）下是否恢复已知的核物质结合能约-16 MeV/核子。最后，使用独立方法如Hartree-Fock-Bogoliubov计算相同核素的结合能进行交叉验证，注意神经网络回归可能因训练数据外推而失效，需限定在训练核素的质量数范围内。",
+    "metrics": {
+      "binding_energy": {
+        "value": "约-197 MeV",
+        "unit": "^{24}Mg核，使用OF-EDF神经网络预测",
+        "interpretation": "binding_energy"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：kohn_sham_density_functional_theory。"
+  },
+  "paper_methods": [
+    "kohn_sham_density_functional_theory",
+    "skyrm_energy_density_functional",
+    "bcs_approximation",
+    "density_dependent_delta_interaction",
+    "neural_network_regression"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "kohn_sham_density_functional_theory",
+        "desc": "基于Kohn-Sham轨道的自洽密度泛函方法"
+      },
+      {
+        "name": "skyrm_energy_density_functional",
+        "desc": "使用Skyrme相互作用的能量密度泛函"
+      },
+      {
+        "name": "bcs_approximation",
+        "desc": "处理对关联的BCS近似"
+      },
+      {
+        "name": "density_dependent_delta_interaction",
+        "desc": "密度依赖的δ相互作用用于对关联"
+      },
+      {
+        "name": "neural_network_regression",
+        "desc": "神经网络回归用于构建轨道无关的能量密度泛函"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "E[\\rho] = \\int \\mathcal{E}(\\rho(\\mathbf{r})) d\\mathbf{r}"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "\\mathcal{E}(\\rho) = \\frac{\\hbar^2}{2m} \\tau + \\mathcal{E}_{Skyrme}(\\rho) + \\mathcal{E}_{pair}(\\rho)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "binding_energy",
+        "value": "约-198 MeV",
+        "condition": "^{24}Mg核，使用Skyrme-EDF基准"
+      },
+      {
+        "quantity": "binding_energy",
+        "value": "约-197 MeV",
+        "condition": "^{24}Mg核，使用OF-EDF神经网络预测"
+      }
+    ],
+    "failure_points": [
+      "kohn_sham_density_functional_theory"
+    ]
+  }
+}

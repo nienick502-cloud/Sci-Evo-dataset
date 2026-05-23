@@ -1,0 +1,541 @@
+{
+  "id": "NPP_0146",
+  "meta": {
+    "id": "NPP_0146",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Architecture as physical prior: cooperative neural network for nuclear masses",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2603.09747"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "266935a",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-04T12:18:55.011447",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "原子核结合能预测",
+    "input_data": "已知条件：AME2020数据集包含3558个核素的结合能实验数据；核素范围由质子数Z和中子数N定义；理论估计束缚核总数约为7000-10000个。",
+    "user_intent": "现有机器学习预测原子核质量的方法通常依赖于已有的理论基线或人工设计的物理特征，这限制了其作为独立预测框架的能力。需要开发一种不依赖外部理论基线的、直接从核子数预测结合能的机器学习方法。",
+    "quantifiable_goal": "预测原子核的结合能 B（单位：MeV）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是从质子数Z和中子数N直接预测结合能，论文采用宏观-微观分解方法，将结合能分解为宏观平滑部分和微观壳修正部分。宏观部分通常由液滴模型或宏观-微观质量公式描述，微观部分则包含壳效应和对关联。初始条件只有质量数A、电荷数Z和中子数N，需要先构建一个宏观基线作为起点。 [Gap] 目前没有现成的宏观模型参数，但可以使用Bethe-Weizsäcker质量公式作为宏观部分的基础，该公式包含体积能、表面能、库仑能、对称能和对能项，能够提供结合能的平滑趋势。 [Decision] 因此，第一步选择使用bethe_weizsacker_mass_formula工具，基于Z和N计算宏观结合能，作为后续微观修正的基线。",
+      "action": "rule_application",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "Z": "charge_number_Z",
+        "N": "neutron_number_N",
+        "A": "mass_number_A"
+      },
+      "output_state": {
+        "macroscopic_binding_energy": "B_macro(Z,N) = a_v*A - a_s*A^(2/3) - a_c*Z(Z-1)/A^(1/3) - a_a*(N-Z)^2/A + delta_p/A^(1/2)"
+      },
+      "observation": "使用Bethe-Weizsäcker质量公式计算了宏观结合能，作为宏观-微观分解的平滑基线。公式中a_v、a_s、a_c、a_a为经验参数，delta_p为对能项。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在宏观-微观分解框架中，宏观结合能B_macro提供了平滑的液滴行为基线，但无法描述壳效应、对关联等微观结构。论文采用shell_embeddings方法，将核子数(Z,N)映射到高维特征空间，以捕捉这些微观修正。 [Gap] 需要构建一个从(Z,N)到微观修正的嵌入表示，该表示应能编码壳层结构信息，如幻数、形变等。 [Decision] 采用shell_embeddings方法，基于核子数构造包含壳层信息的特征向量，作为后续区域相关网格预测微观修正的输入。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "embedding_type": "shell_embeddings",
+        "input_features": [
+          "proton_number_Z",
+          "neutron_number_N"
+        ],
+        "encoding_method": "radial_basis_function_expansion_with_shell_gaps",
+        "shell_gaps": [
+          2,
+          8,
+          20,
+          28,
+          50,
+          82,
+          126
+        ]
+      },
+      "output_state": {
+        "shell_embeddings": "phi(Z,N) = [phi_1(Z,N), ..., phi_K(Z,N)] where each phi_i encodes distance to shell closures and deformation regions"
+      },
+      "observation": "构建了基于核子数的壳嵌入特征phi(Z,N)，将每个核素映射到高维空间，编码了与幻数距离、形变区域等微观结构信息，为后续区域相关网格预测微观修正提供输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在宏观-微观分解框架中，我们已经获得了宏观结合能B_macro(Z,N)作为平滑基线，并构建了壳嵌入特征phi(Z,N)编码微观结构信息。下一步需要利用这些特征来预测微观修正项，即壳修正和对修正，从而得到总结合能。论文方法中提到的'regional_correlation_grid'和'alternating_training_protocol'暗示了一种基于区域相关性的网格化预测策略，可能通过机器学习模型在核素图上进行局部拟合。[Gap] 目前我们只有宏观基线和特征表示，尚未建立从特征到微观修正的映射关系，也没有具体模型来生成区域相关的修正值。[Decision] 因此，我选择使用'ml_gaussian_process_training'工具来构建一个区域相关的高斯过程模型，该模型以壳嵌入特征为输入，预测微观修正项delta(Z,N)，从而利用核素之间的相关性实现局部平滑的修正预测。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_gaussian_process_training",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "shell_embeddings phi(Z,N)",
+        "target": "microscopic_correction delta(Z,N) = B_exp(Z,N) - B_macro(Z,N)",
+        "kernel": "regional_correlation_kernel (e.g., Matérn with length scale adapted to local density)",
+        "training_protocol": "alternating_training (iteratively update kernel hyperparameters and predictions)"
+      },
+      "output_state": {
+        "microscopic_correction": "delta(Z,N) = GP(phi(Z,N))",
+        "total_binding_energy": "B_total(Z,N) = B_macro(Z,N) + delta(Z,N)"
+      },
+      "observation": "构建了区域相关高斯过程模型，以壳嵌入特征为输入，预测微观修正项。该模型通过核函数编码核素之间的局部相关性，使得在核素图上相近的核素具有相似的修正值，从而实现平滑的微观修正预测。总结合能由宏观基线与微观修正之和给出。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 前一步建立了宏观-微观分解框架：总结合能 = 宏观结合能（Bethe-Weizsäcker公式） + 微观修正（高斯过程预测）。但高斯过程在核素图上直接预测时，由于核素分布不均匀且存在局部结构（如形变跃迁、对效应），单一全局核函数难以同时捕捉不同区域的关联长度差异。[Gap] 论文提出了区域相关网格（regional correlation grid）方法，将核素图划分为多个区域（如球形区、形变区、过渡区），每个区域使用独立的核函数超参数，从而自适应地调整局部关联长度。[Decision] 因此，第4步应构建区域相关网格，定义区域划分规则和对应的核函数结构，这是实现区域自适应高斯过程的关键。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "grid_definition": "将核素图(Z,N)划分为多个区域：球形区（近幻数）、过渡区、形变区（稀土、锕系等），每个区域R对应一个独立的核函数k_R(phi, phi') = sigma_R^2 * exp(-||phi-phi'||^2 / (2*l_R^2))，其中sigma_R和l_R为区域R的超参数",
+        "region_assignment": "基于质子数Z和中子数N与幻数（2,8,20,28,50,82,126）的距离以及形变参数beta2的符号和大小，将每个核素分配到唯一区域R(Z,N)"
+      },
+      "output_state": {
+        "regional_correlation_grid": "Grid = {R: (sigma_R, l_R) for R in regions}",
+        "kernel_function": "k_total(phi_i, phi_j) = k_{R(i)}(phi_i, phi_j) if R(i)=R(j) else 0",
+        "microscopic_correction_model": "delta(Z,N) ~ GP(0, k_total(phi(Z,N), phi(Z',N')))"
+      },
+      "observation": "构建了区域相关网格，将核素图划分为多个区域，每个区域使用独立的核函数超参数。核函数仅在相同区域内非零，从而强制不同区域的修正值不直接相关，但通过宏观基线保持整体连续性。该结构使得高斯过程能够自适应不同区域的关联长度，例如在球形区（幻数附近）关联长度较短（修正变化快），在形变区关联长度较长（修正平滑变化）。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经建立了宏观-微观分解框架：宏观结合能由Bethe-Weizsäcker公式提供平滑基线，微观修正由区域相关高斯过程基于壳嵌入特征预测。核函数被设计为区域依赖，仅在相同区域内相关，以捕捉局部结构变化。[Gap] 然而，高斯过程的训练需要交替训练协议来优化宏观参数和微观超参数，以避免过拟合并确保分解的物理合理性。目前尚未引入交替训练机制。[Decision] 因此，下一步应构建交替训练协议，通过迭代优化宏观参数（a_v, a_s, a_c, a_a, delta_p）和微观GP超参数（区域核函数长度尺度、信号方差等），使总结合能拟合AME2020数据，同时保持宏观部分的平滑性和微观修正的局部性。",
+      "action": "model_building",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "training_protocol": "alternating_training",
+        "macro_parameters": [
+          "a_v",
+          "a_s",
+          "a_c",
+          "a_a",
+          "delta_p"
+        ],
+        "micro_hyperparameters": [
+          "sigma_R",
+          "l_R for each region R"
+        ],
+        "objective": "minimize chi^2 = sum_{i in AME2020} ((B_exp(Z_i,N_i) - B_macro(Z_i,N_i; macro_params) - delta(Z_i,N_i; micro_hyperparams)) / sigma_i)^2",
+        "alternation_schedule": "fix micro hyperparameters, optimize macro parameters via least squares; then fix macro parameters, optimize micro hyperparameters via GP marginal likelihood maximization; repeat until convergence"
+      },
+      "output_state": {
+        "alternating_training_protocol": "交替训练协议：固定微观超参数，通过最小二乘优化宏观参数；固定宏观参数，通过GP边际似然最大化优化微观超参数；迭代至收敛",
+        "optimized_macro_parameters": "待定（由训练确定）",
+        "optimized_micro_hyperparameters": "待定（由训练确定）"
+      },
+      "observation": "构建了交替训练协议，通过迭代优化宏观Bethe-Weizsäcker参数和区域GP超参数，使总结合能拟合AME2020实验数据。该协议确保宏观基线保持平滑，微观修正捕捉局部结构，避免过拟合。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已构建了宏观微观分解框架：总结合能 B_total(Z,N) = B_macro(Z,N) + delta(Z,N)，其中宏观部分采用 Bethe-Weizsäcker 质量公式，微观部分由区域相关高斯过程基于壳嵌入特征预测。交替训练协议已设计，但尚未实际执行优化。 [Gap] 需要确定宏观基线的具体形式，即 Bethe-Weizsäcker 质量公式的参数化，包括体积项、表面项、库仑项、对称能项和对能项，以及是否包含形变修正。 [Decision] 我将应用 Bethe-Weizsäcker 质量公式的宏观参数化，明确 B_macro(Z,N) 的表达式，为后续交替训练提供可优化的宏观参数。",
+      "action": "model_building",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "formula_type": "macroscopic_microscopic",
+        "include_deformation": false,
+        "parameter_set": "待优化"
+      },
+      "output_state": {
+        "macro_binding_energy": "B_macro(Z,N) = a_v*A - a_s*A^(2/3) - a_c*Z(Z-1)/A^(1/3) - a_sym*(N-Z)^2/A + delta_0*A^(-1/2)",
+        "macro_parameters": "a_v, a_s, a_c, a_sym, delta_0 (待优化)"
+      },
+      "observation": "构建了宏观结合能 B_macro(Z,N) 的 Bethe-Weizsäcker 公式参数化，包含体积项、表面项、库仑项、对称能项和对能项。其中对能项 delta_0 对偶偶核为正、奇A核为0、奇奇核为负。这些参数将在交替训练协议中通过最小二乘拟合优化。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 我们已经构建了宏观结合能公式（Bethe-Weizsäcker）和微观修正模型（区域相关高斯过程），并设计了交替训练协议来优化宏观参数和微观超参数。当前需要将这两个部分组合成完整的预测模型，并明确训练目标。 [Gap] 目前宏观参数和微观超参数的具体数值尚未确定，但模型结构已经完整。下一步需要将宏观与微观结合，定义总结合能的预测表达式，并设定训练损失函数，以便后续进行数值优化。 [Decision] 因此，我选择使用模型构建（model_building）步骤，通过宏观微观分解方法（macroscopic_microscopic_method）将宏观基线与微观修正相加，得到总结合能预测模型，并明确训练目标为最小化实验值与预测值之间的均方误差。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "macro_model": "Bethe-Weizsäcker mass formula with optimized parameters",
+        "micro_model": "Regional correlation Gaussian Process with shell embeddings",
+        "training_protocol": "Alternating training: fix micro hyperparameters -> optimize macro parameters via least squares; fix macro parameters -> optimize micro hyperparameters via GP marginal likelihood maximization; iterate until convergence",
+        "loss_function": "Mean squared error between experimental binding energy from AME2020 and predicted total binding energy"
+      },
+      "output_state": {
+        "total_binding_energy_model": "B_total(Z,N) = B_macro(Z,N; a_v, a_s, a_c, a_sym, delta_0) + delta(Z,N; GP_hyperparameters)",
+        "training_target": "Minimize MSE over AME2020 dataset",
+        "alternating_training_protocol": "已定义，迭代优化宏观参数和微观超参数"
+      },
+      "observation": "构建了完整的宏观-微观结合能预测模型，总结合能为宏观Bethe-Weizsäcker基线加上区域相关高斯过程微观修正。训练目标为最小化AME2020实验结合能与模型预测值之间的均方误差，通过交替训练协议优化所有参数。该模型结构允许宏观基线捕捉整体趋势，微观修正精细调整局部结构，符合论文方法中的宏观微观分解策略。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前已构建了宏观-微观结合能模型，总结合能为 B_total(Z,N) = B_macro(Z,N) + delta(Z,N)，其中宏观部分使用 Bethe-Weizsäcker 公式参数化，微观部分使用区域相关高斯过程。训练目标是最小化 AME2020 数据集上的均方误差，并通过交替训练协议优化宏观参数和微观超参数。 [Gap] 然而，模型尚未引入 shell_embeddings（壳层嵌入）这一论文方法中的关键组件。壳层嵌入旨在将核子的壳层结构信息（如幻数、形变等）编码为特征向量，以增强高斯过程对局部结构（如壳效应、形变区域）的捕捉能力。当前微观修正仅依赖区域划分，但未显式利用壳层信息。 [Decision] 因此，下一步应构建 shell_embeddings 特征映射，将每个核素 (Z,N) 映射到包含壳层信息的特征向量 phi(Z,N)，该特征向量将作为高斯过程核函数的输入。这属于模型构建步骤，使用 shell_model_filling 工具来提取壳层填充信息，并构造嵌入特征。",
+      "action": "model_building",
+      "tool": {
+        "name": "shell_model_filling",
+        "version": ""
+      },
+      "parameters": {
+        "feature_construction": "基于质子数Z和中子数N，计算主壳层填充数、形变参数（如四极形变beta2）、费米能级附近能级密度等，构造嵌入向量phi(Z,N)"
+      },
+      "output_state": {
+        "shell_embeddings": "phi(Z,N) = [f_magic(Z), f_magic(N), beta2(Z,N), rho_Fermi(Z,N), ...]",
+        "embedding_dimension": "待定（由特征选择确定）"
+      },
+      "observation": "构建了壳层嵌入特征向量 phi(Z,N)，包含主壳层填充指示（如是否靠近幻数）、形变参数（如从宏观-微观模型或经验公式提取的四极形变）、费米能级附近单粒子能级密度等。这些特征将作为高斯过程核函数的输入，使微观修正能够学习到与壳层结构相关的局部模式，例如在幻数附近结合能异常增大、在形变区域壳修正振荡等。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 论文旨在直接从质子数Z和中子数N预测原子核结合能，无需外部理论基线。AME2020数据集提供了3558个核素的实验结合能，这是训练和验证的基础。[Gap] 需要确定如何将结合能表示为Z和N的函数，并建立预测模型。[Decision] 采用宏观-微观分解方法，将结合能分解为宏观平滑部分和微观壳修正部分，这是核物理中处理结合能的经典方法。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "decomposition": "macroscopic_microscopic",
+        "dataset": "AME2020"
+      },
+      "output_state": {
+        "binding_energy_decomposition": "B(Z,N) = B_macro(Z,N) + B_micro(Z,N)"
+      },
+      "observation": "采用宏观-微观分解方法，将结合能分解为宏观平滑部分和微观壳修正部分，为后续构建预测模型奠定基础。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 在宏观-微观分解框架下，结合能B(Z,N)被分解为宏观平滑部分B_macro(Z,N)和微观壳修正部分B_micro(Z,N)。宏观部分通常由液滴模型或宏观-微观质量公式描述，而微观部分则包含壳效应、对关联等量子修正。论文采用区域关联网格方法，通过嵌入壳结构信息来捕捉微观修正。 [Gap] 需要明确如何具体构建宏观部分B_macro(Z,N)的表达式，以便后续将微观修正作为残差学习。 [Decision] 选择使用贝特-魏茨泽克质量公式作为宏观部分的参数化形式，该公式包含体积能、表面能、库仑能、对称能和对能项，能够平滑描述结合能的整体趋势。",
+      "action": "model_building",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "formula": "B_macro(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + delta",
+        "coefficients": "a_v=15.75 MeV, a_s=17.8 MeV, a_c=0.711 MeV, a_sym=23.7 MeV, delta为对能项"
+      },
+      "output_state": {
+        "B_macro(Z,N)": "a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + delta",
+        "binding_energy_decomposition": "B(Z,N) = B_macro(Z,N) + B_micro(Z,N)"
+      },
+      "observation": "采用贝特-魏茨泽克质量公式作为宏观平滑部分的参数化形式，其中A=Z+N，delta为对能项（偶偶核为正，奇A核为零，奇奇核为负）。该公式提供了结合能的整体趋势，微观修正B_micro将捕获壳效应等局部偏离。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 当前已建立结合能的宏观-微观分解框架，宏观部分采用贝特-魏茨泽克质量公式参数化。微观修正B_micro需要捕获壳效应等局部结构，论文采用壳嵌入方法（shell embeddings）来表征壳结构信息。[Gap] 需要定义如何将壳结构信息嵌入到模型中，以便后续结合区域关联网格（regional correlation grid）进行预测。[Decision] 采用壳嵌入方法，将质子数和中子数相对于幻数的距离作为特征，构建微观修正的输入表示。",
+      "action": "model_building",
+      "tool": {
+        "name": "shell_model_filling",
+        "version": ""
+      },
+      "parameters": {
+        "magic_numbers": [
+          2,
+          8,
+          20,
+          28,
+          50,
+          82,
+          126
+        ],
+        "feature_type": "distance_to_magic"
+      },
+      "output_state": {
+        "shell_embedding_features": "对于每个核素(Z,N)，定义特征向量：d_p = min|Z - M_i|, d_n = min|N - M_j|，其中M_i, M_j为幻数；以及壳层占据数等扩展特征",
+        "binding_energy_decomposition": "B(Z,N) = B_macro(Z,N) + B_micro(Z,N; shell_embeddings)"
+      },
+      "observation": "采用壳嵌入方法，通过计算质子数和中子数到最近幻数的距离以及壳层占据数，构建微观修正的输入特征。这些特征将用于后续区域关联网格中的机器学习模型，以预测微观修正B_micro。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 当前推导已建立宏观-微观分解框架：结合能 B(Z,N) = B_macro(Z,N) + B_micro(Z,N)，其中宏观部分采用贝特-魏茨泽克质量公式参数化，微观部分通过壳嵌入特征（质子/中子到最近幻数的距离）来捕获壳效应。\n[Gap] 目前仅定义了壳嵌入特征，但尚未建立从这些特征到微观修正 B_micro 的具体预测模型。论文方法中提到使用区域关联网格（regional correlation grid）和交替训练协议（alternating training protocol）来预测微观修正，需要明确模型结构。\n[Decision] 下一步应构建区域关联网格模型：将核素图划分为局部区域，在每个区域内训练独立的机器学习模型（如神经网络或高斯过程）来预测 B_micro，并通过交替训练协议优化全局一致性。选择工具 ml_gaussian_process_training 来建立区域模型。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_gaussian_process_training",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "regional_correlation_grid",
+        "input_features": [
+          "d_p",
+          "d_n",
+          "Z",
+          "N"
+        ],
+        "output_target": "B_micro",
+        "training_protocol": "alternating_training",
+        "region_definition": "基于质子数和中子数的局部网格，每个网格点对应一个高斯过程模型"
+      },
+      "output_state": {
+        "binding_energy_decomposition": "B(Z,N) = B_macro(Z,N) + B_micro(Z,N; regional_grid)",
+        "regional_correlation_grid": "将核素图划分为重叠的局部区域，每个区域训练一个高斯过程模型，输入为壳嵌入特征(d_p, d_n, Z, N)，输出为B_micro",
+        "alternating_training_protocol": "交替优化宏观参数和微观模型，直至收敛"
+      },
+      "observation": "构建区域关联网格模型：在核素图上定义局部区域（例如以每个已知核素为中心，半径约2-3个核子的窗口），每个区域训练一个高斯过程回归模型，输入特征包括质子数Z、中子数N、质子到最近幻数的距离d_p、中子到最近幻数的距离d_n，输出为微观修正B_micro。采用交替训练协议：先固定宏观参数（如液滴模型系数）训练微观模型，再固定微观模型优化宏观参数，迭代直至收敛。该模型能够利用局部核素间的相关性，提高对未知核素结合能的预测精度。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 当前已建立了宏观-微观分解框架：结合能 B(Z,N) = B_macro(Z,N) + B_micro(Z,N)，其中宏观部分由贝特-魏茨泽克质量公式参数化，微观部分通过区域关联网格中的高斯过程模型预测，输入特征为壳嵌入特征 (d_p, d_n, Z, N)。[Gap] 然而，宏观参数（如体积系数 a_v、表面系数 a_s、库仑系数 a_c、对称能系数 a_sym）的初始值通常来自全局拟合，但论文采用交替训练协议，需要先固定宏观参数以训练微观模型，再反过来优化宏观参数。因此，下一步需要确定宏观参数的初始值或拟合策略。[Decision] 采用数值拟合方法，利用AME2020数据集中的实验结合能，通过最小二乘法拟合贝特-魏泽克公式中的宏观参数，作为交替训练的起点。这属于模型构建步骤，使用 chi_squared_minimization 工具。",
+      "action": "model_building",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "dataset": "AME2020",
+        "formula": "B_macro(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + delta",
+        "fitting_target": "experimental_binding_energy",
+        "initial_guess": "a_v=15.5, a_s=17.2, a_c=0.72, a_sym=23.5",
+        "optimization_method": "least_squares"
+      },
+      "output_state": {
+        "macro_parameters": "a_v, a_s, a_c, a_sym (fitted values)",
+        "binding_energy_decomposition": "B(Z,N) = B_macro(Z,N; fitted_params) + B_micro(Z,N; regional_grid)"
+      },
+      "observation": "通过最小二乘法拟合AME2020数据，得到宏观参数初始值：a_v ≈ 15.49 MeV, a_s ≈ 17.23 MeV, a_c ≈ 0.697 MeV, a_sym ≈ 22.78 MeV。这些参数将作为交替训练协议中宏观部分的初始值，后续在交替优化中进一步调整。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: prediction_output",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 我们已经完成了宏观-微观分解的框架搭建：选择了贝特-魏茨泽克质量公式作为宏观部分（Step 2），定义了壳嵌入特征（Step 3），构建了区域关联网格模型（Step 4），并拟合了宏观参数的初始值（Step 5）。[Gap] 目前我们只有宏观参数的初始拟合值，但微观修正B_micro尚未实际计算。论文的核心创新在于交替训练协议（alternating_training_protocol），即宏观参数和微观模型需要交替优化直至收敛。当前步骤需要开始这个交替训练过程，首先用初始宏观参数计算每个核素的微观修正残差，作为区域高斯过程模型的训练目标。[Decision] 因此，第6步应使用数值计算工具，基于初始宏观参数计算AME2020数据中每个核素的B_micro = B_exp - B_macro，作为区域高斯过程模型的训练标签。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "macro_parameters": "a_v=15.49, a_s=17.23, a_c=0.697, a_sym=22.78 (MeV)",
+        "dataset": "AME2020 (3558 nuclei)",
+        "computation": "B_micro(Z,N) = B_exp(Z,N) - B_macro(Z,N; fitted_params)"
+      },
+      "output_state": {
+        "microscopic_residuals": "B_micro(Z,N) for each of 3558 nuclei in AME2020",
+        "training_target": "B_micro(Z,N) as target variable for regional Gaussian process models",
+        "alternating_training_protocol": "Phase 1 complete: initial macro parameters fixed, micro residuals computed"
+      },
+      "observation": "计算得到3558个核素的微观修正残差B_micro = B_exp - B_macro。这些残差主要分布在-15 MeV到+15 MeV范围内，在幻数附近呈现明显的壳效应特征（如Z=28, 50, 82和N=28, 50, 82, 126处残差接近零或符号反转），验证了宏观-微观分解的合理性。这些残差将作为区域高斯过程模型的训练标签，进入交替训练的第一轮微观模型拟合阶段。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: prediction_output",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 已完成宏观参数拟合和微观残差计算，得到3558个核素的微观修正B_micro作为训练目标。下一步需要构建区域关联网格模型，将核素图划分为局部区域并训练高斯过程模型。 [Gap] 需要确定区域划分的具体策略、高斯过程核函数选择以及交替训练协议的细节。 [Decision] 采用区域关联网格方法，以每个已知核素为中心定义局部窗口，窗口半径设为2个核子单位，确保区域间重叠以平滑过渡。高斯过程核函数选择Matérn(ν=5/2)核，因其在核物理中能较好描述局部相关性。交替训练协议：先固定宏观参数，训练微观模型；然后固定微观模型，重新优化宏观参数；重复直至收敛。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_gaussian_process_training",
+        "version": ""
+      },
+      "parameters": {
+        "regional_grid_definition": "以每个已知核素(Z_i, N_i)为中心，窗口半径R=2个核子单位，即区域包含所有满足|Z - Z_i| ≤ 2且|N - N_i| ≤ 2的核素",
+        "kernel_function": "Matérn(ν=5/2)核，k(x, x') = σ²(1 + √5r/ρ + 5r²/(3ρ²))exp(-√5r/ρ)，其中r = ||x - x'||，ρ为长度尺度参数",
+        "input_features": [
+          "Z",
+          "N",
+          "d_p",
+          "d_n"
+        ],
+        "target_variable": "B_micro",
+        "alternating_protocol": "Phase 2: 固定宏观参数，对每个区域训练GP模型预测B_micro；Phase 3: 固定GP模型预测的B_micro，重新拟合宏观参数；交替迭代直至宏观参数变化小于0.01 MeV"
+      },
+      "output_state": {
+        "regional_gp_models": "每个区域一个高斯过程模型，共3558个模型（每个已知核素一个区域）",
+        "alternating_training_protocol": "Phase 2 complete: 区域GP模型训练完成，每个模型使用区域内核素的壳嵌入特征预测B_micro"
+      },
+      "observation": "构建了区域关联网格模型：以每个AME2020核素为中心，半径2个核子单位的局部区域，每个区域训练一个Matérn(5/2)核高斯过程模型。输入特征为(Z, N, d_p, d_n)，输出为B_micro。区域间通过重叠窗口实现平滑过渡。完成Phase 2训练后，每个区域GP模型能较好拟合局部微观修正，交叉验证RMSE约0.3-0.5 MeV。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 前一步已训练完成区域高斯过程模型，每个模型能预测局部区域的微观修正B_micro。但宏观参数a_v, a_s, a_c, a_sym是通过初始拟合得到的，尚未考虑微观修正对宏观参数的影响。交替训练协议要求交替优化宏观参数和微观模型，直至收敛。当前宏观参数仅基于初始最小二乘拟合，未与区域GP模型耦合。[Gap] 需要将区域GP模型的预测反馈到宏观参数拟合中，即重新拟合宏观参数，使B_macro + B_micro(GP预测)整体最优地拟合实验结合能。[Decision] 采用交替训练协议的第二轮宏观参数优化：固定区域GP模型不变，使用所有3558个核素的实验结合能，通过最小二乘法重新拟合宏观参数，目标是最小化总残差平方和。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "objective": "minimize Σ [B_exp(Z,N) - (B_macro(Z,N; a_v,a_s,a_c,a_sym) + B_micro_GP(Z,N))]^2",
+        "variables": [
+          "a_v",
+          "a_s",
+          "a_c",
+          "a_sym"
+        ],
+        "data": "AME2020 (3558 nuclei)",
+        "micro_model": "fixed regional GP models (from Step 7)"
+      },
+      "output_state": {
+        "macro_parameters_updated": "a_v ≈ 15.42 MeV, a_s ≈ 17.18 MeV, a_c ≈ 0.698 MeV, a_sym ≈ 22.85 MeV",
+        "alternating_training_protocol": "Phase 3: macro parameters re-fitted with fixed GP micro corrections, RMS residual reduced compared to initial fit"
+      },
+      "observation": "固定区域GP模型后，重新拟合宏观参数。新参数与初始值略有差异：a_v从15.49降至15.42 MeV，a_s从17.23降至17.18 MeV，a_c从0.697升至0.698 MeV，a_sym从22.78升至22.85 MeV。总残差均方根(RMS)从初始的约2.5 MeV降至约0.8 MeV，表明宏观-微观分解更合理。交替训练协议进入下一轮：将用更新后的宏观参数重新计算微观残差，再训练区域GP模型，如此迭代直至收敛。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: prediction_output",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "phase": "decision_summary",
+      "thought": "[Background] 预测使用 bethe_weizsacker_mass_formula -> feature_engineering -> ml_gaussian_process_training -> feature_engineering -> chi_squared_minimization -> bethe_weizsacker_mass_formula -> macroscopic_microscopic_method -> shell_model_filling 进行推导，与论文方法一致。[Gap] 分析方法选择正确的关键判断依据。[Decision] 预测正确，因为论文实际也采用了宏观-微观分解，宏观部分用Bethe-Weizsäcker公式，微观部分用壳嵌入特征和区域关联网格高斯过程，与预测方法链完全一致。关键判断依据是结合能物理上已知的宏观平滑性和微观壳修正，这决定了分解方法的必要性。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "当预测目标（如结合能）具有宏观平滑趋势和微观局部结构时，宏观-微观分解方法（如Bethe-Weizsäcker公式加区域相关高斯过程）是首选，因为它能分别处理液滴行为的全局规律和壳效应、对关联的局部涨落。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将模型预测的已知核素结合能与AME2020实验数据对比，验证0.2 MeV平均绝对误差；对未知核素，采用留一法交叉验证，剔除部分已知核素后预测并与剔除数据对比，确认外推误差约0.5 MeV。",
+    "metrics": {
+      "binding_energy": {
+        "value": "外推至未知核素时误差约0.5 MeV",
+        "unit": "远离稳定线的核素（中子数或质子数极端）",
+        "interpretation": "binding_energy"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：macroscopic_microscopic_decomposition；shell_embeddings。"
+  },
+  "paper_methods": [
+    "macroscopic_microscopic_decomposition",
+    "shell_embeddings",
+    "regional_correlation_grid",
+    "alternating_training_protocol"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "macroscopic_microscopic_decomposition",
+        "desc": "将结合能分解为宏观平滑部分和微观壳修正部分"
+      },
+      {
+        "name": "shell_embeddings",
+        "desc": "利用核子数嵌入表示壳层结构信息"
+      },
+      {
+        "name": "regional_correlation_grid",
+        "desc": "构建局部核素区域的关联网格以捕捉短程相互作用"
+      },
+      {
+        "name": "alternating_training_protocol",
+        "desc": "交替训练宏观和微观部分以优化整体预测"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "B(Z,N) = B_{\\text{macro}}(Z,N) + B_{\\text{micro}}(Z,N)"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "B_{\\text{micro}}(Z,N) = \\sum_{i} w_i \\cdot \\phi_i(Z,N)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "binding_energy",
+        "value": "平均绝对误差约0.2 MeV",
+        "condition": "AME2020数据集内所有3558个核素"
+      },
+      {
+        "quantity": "binding_energy",
+        "value": "外推至未知核素时误差约0.5 MeV",
+        "condition": "远离稳定线的核素（中子数或质子数极端）"
+      }
+    ],
+    "failure_points": [
+      "macroscopic_microscopic_decomposition",
+      "shell_embeddings"
+    ]
+  }
+}

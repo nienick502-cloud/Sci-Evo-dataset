@@ -1,0 +1,587 @@
+{
+  "id": "NPP_0013",
+  "meta": {
+    "id": "NPP_0013",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "Exploring the competition between $\\alpha$ -decay and proton radioactivity: A comparative study of proximity potential formalisms",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2402.06069"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T12:54:36.484873",
+      "generated_by": "Lenovo"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "中子不足核素的质子放射性与α衰变半衰期",
+    "input_data": "已知条件：中子不足核素；实验测得的质子放射性与α衰变半衰期数据；多种邻近势形式；考虑温度效应。",
+    "user_intent": "研究动机：质子滴线附近核素的性质预测是核理论的重大挑战。现有多种方法（如M3Y、GLDM、CPPMDN、CDF等）被用于研究质子放射性，但需要系统比较不同邻近势形式在描述质子放射性与α衰变竞争关系上的表现，并考察温度效应的影响。",
+    "quantifiable_goal": "预测质子放射性半衰期 T_{1/2}^{p}（单位：s）与α衰变半衰期 T_{1/2}^{\\alpha}（单位：s）；分析半衰期对数 log_{10}T_{1/2} 与穿透率对数 -log_{10}P 之间的普适曲线关系。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 本任务的目标是计算质子放射性或α衰变的半衰期，初始条件包括质量数A、电荷数Z、中子数N和Q值。论文方法中提到了邻近势形式（proximity_potential_formalism）和Langer修正离心势，这表明第一步需要构建核势能，而邻近势是核势能的一种常见选择。合法推导路径Path 1从half_life出发，经过alpha_decay_width、penetrability等，最终需要effective_potential，而effective_potential由nuclear_potential、coulomb_potential和centrifugal_potential组成。因此，第一步应构建核势能，具体采用邻近势模型。\n[Gap] 目前还没有任何步骤，需要从初始条件出发，选择适当的工具来构建核势能。邻近势模型需要核半径等参数，但我们可以先直接使用邻近势计算工具。\n[Decision] 选择proximity_potential_calculation工具，基于质量数A和电荷数Z计算核势能，为后续构建有效势做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "proximity_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "model_type": "proximity_potential_formalism"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = 4πγbR̄Φ(ξ), 其中ξ = (r - R1 - R2)/b, R̄ = R1R2/(R1+R2), γ为表面能系数, b为扩散度",
+        "proximity_parameters": "表面能系数γ = 0.9517(1 - 1.7826I²) MeV/fm², I = (N-Z)/A, 扩散度b ≈ 1 fm"
+      },
+      "observation": "采用邻近势形式构建了核势能，该势能依赖于两核子之间的距离r以及核半径R1和R2。对于质子放射性，R1为母核半径，R2为质子半径（约0）；对于α衰变，R2为α粒子半径。后续将结合库仑势和离心势构建有效势。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 第1步已经构建了核势能V_N(r)的邻近势形式，这是有效势的重要组成部分。为了计算隧穿概率，需要构建包含库仑势和离心势在内的总有效势V_eff(r)。[Gap] 目前只有核势能，缺少库仑势和离心势的具体表达式，且需要根据衰变类型（质子放射性或α衰变）选择不同的参数。[Decision] 采用库仑势计算工具，结合核电荷数和衰变粒子电荷数，构建库仑势；同时采用离心势构建工具，引入langer修正的离心势形式，以匹配论文方法中的langer_modified_centrifugal_potential。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Z_daughter": "Z - Z_emitted",
+        "Z_emitted": "对于质子放射性为1，对于α衰变为2",
+        "r": "两体距离",
+        "R_charge": "电荷半径，取核半径近似"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(r) = (Z_daughter * Z_emitted * e^2) / r",
+        "centrifugal_potential": "V_l(r) = (\\hbar^2 / (2\\mu r^2)) * (l + 1/2)^2",
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)"
+      },
+      "observation": "构建了库仑势和离心势。库仑势采用点电荷近似，离心势采用Langer修正形式(l+1/2)^2代替l(l+1)，这是WKB近似中常用的修正，以确保在r→0时势能行为正确。有效势为三者之和。对于质子放射性，Z_emitted=1，离心势中l为质子角动量；对于α衰变，Z_emitted=2，l为α粒子角动量。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在构建了有效势之后，需要求解WKB作用量积分，这需要确定经典转折点。对于质子放射性和α衰变，有效势在核表面附近形成一个势垒，内转折点r_in和外转折点r_out是WKB隧穿计算的关键参数。内转折点通常取在核表面附近，外转折点由有效势等于衰变Q值的条件确定。[Gap] 当前已得到有效势V_eff(r)的表达式，但尚未明确转折点的具体定义和求解方法。需要根据WKB理论，定义转折点为V_eff(r) = Q值的解，其中Q值来自初始条件。[Decision] 因此，下一步使用turning_point_solver工具，基于有效势和Q值求解内转折点r_in和外转折点r_out。对于质子放射性，内转折点通常取在核半径附近，外转折点通过数值求解V_eff(r_out) = Q得到。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "Q_value": "Q (from initial condition)",
+        "inner_turning_point_definition": "r_in ≈ R_daughter (核半径，对于质子放射性可取母核半径；对于α衰变可取R1+R2)",
+        "outer_turning_point_condition": "V_eff(r_out) = Q"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "turning_point_condition": "V_eff(r_in) ≈ Q (内转折点近似在核表面), V_eff(r_out) = Q"
+      },
+      "observation": "定义了转折点：内转折点r_in取在核表面附近（对于质子放射性，r_in ≈ R_daughter；对于α衰变，r_in ≈ R1 + R2），外转折点r_out由方程V_eff(r_out) = Q数值求解得到。这两个转折点将用于后续WKB作用量积分计算。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "内转折点取在核表面附近（如R_daughter或R1+R2）在物理上不合理。对于质子放射性和α衰变，内转折点应位于核内部势阱中，由V_eff(r_in)=Q决定，而不是简单地取在核表面。核表面附近势能通常远高于Q值，取表面作为内转折点会导致WKB积分区间错误，低估势垒宽度。论文实际步骤中内转折点是通过数值求解V_eff(r)=Q得到的，而非预设为核半径。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 根据WKB近似，穿透因子P由作用量积分S决定：P = exp(-2S)，其中S = ∫_{r_in}^{r_out} √(2μ/ħ²(V_eff(r) - Q)) dr。这是计算半衰期的关键中间量。\n[Gap] 目前已经定义了转折点r_in和r_out，但尚未计算作用量积分。需要明确积分表达式并准备数值计算。\n[Decision] 下一步应建立WKB作用量积分的数学形式，为后续数值积分做准备。由于论文采用温度依赖的邻近势，积分中V_eff(r)包含温度参数，但此处先给出通用形式。",
+      "action": "rule_application",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "expression": "S = ∫_{r_in}^{r_out} √(2μ/ħ² (V_eff(r) - Q)) dr",
+        "variables": "μ为约化质量，ħ为约化普朗克常数，V_eff(r) = V_N(r) + V_C(r) + V_l(r)，Q为衰变能"
+      },
+      "output_state": {
+        "action_integral": "S = ∫_{r_in}^{r_out} √(2μ/ħ² (V_eff(r) - Q)) dr",
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "建立了WKB作用量积分S和穿透因子P的表达式。对于质子放射性，μ ≈ (A-1)/A m_p；对于α衰变，μ ≈ 4(A-4)/A m_p。后续将根据具体核素和温度参数进行数值积分。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null,
+      "dfs_warning": "temporal_logic_break"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 当前已推导到WKB作用量积分S和穿透因子P的表达式，但尚未引入温度效应。论文方法中明确提到temperature_dependent_proximity_potential，因此需要将温度参数T引入势能模型，特别是邻近势部分。温度效应通常通过修改表面能系数γ或扩散度b来体现，从而影响核势V_N(r)和有效势V_eff(r)，进而改变作用量积分和半衰期。 [Gap] 目前核势V_N(r)中的参数γ和b是零温下的值，未包含温度依赖性。 [Decision] 采用温度依赖的邻近势模型，将表面能系数γ修改为γ(T) = γ(0) * (1 - (T/T_c)^2)，其中T_c为临界温度（约18 MeV），同时扩散度b可能随温度轻微变化。这将使V_N(r)随温度升高而减弱，从而降低穿透势垒，缩短半衰期。",
+      "action": "model_building",
+      "tool": {
+        "name": "proximity_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "temperature_dependence": "gamma(T) = gamma(0) * (1 - (T/T_c)^2)",
+        "critical_temperature_T_c": "18 MeV",
+        "diffuseness_b": "b(T) = b(0) * (1 + 0.01 * T) (近似常数)"
+      },
+      "output_state": {
+        "temperature_dependent_nuclear_potential": "V_N(r, T) = 4π γ(T) b(T) R̄ Φ(ξ)",
+        "temperature_dependent_surface_energy": "γ(T) = 0.9517 (1 - 1.7826 I^2) * (1 - (T/18)^2) MeV/fm^2",
+        "temperature_dependent_effective_potential": "V_eff(r, T) = V_N(r, T) + V_C(r) + V_l(r)"
+      },
+      "observation": "引入了温度依赖的邻近势。表面能系数γ(T)随温度升高而减小，当T→T_c时γ→0，核势消失。扩散度b(T)近似为常数。有效势V_eff(r,T)现在依赖于温度T，这将影响转折点位置和作用量积分。对于质子放射性，温度效应可能较小（通常T≈0-2 MeV），但对于α衰变，在高温核合成环境中可能显著。后续步骤将针对给定温度T计算修正后的作用量积分和半衰期。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_approximation",
+      "error_reason": "预测中引入温度依赖的邻近势，采用γ(T)=γ(0)*(1-(T/T_c)^2)的形式，但论文实际推导中并未引入温度效应。在质子放射性和α衰变的半衰期计算中，温度效应通常不是标准考虑因素，除非明确针对热核环境。此处无依据地引入温度依赖，且T_c取18 MeV缺乏物理背景，属于在该物理情境下不适用的近似，会错误地改变势垒形状和半衰期。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经建立了温度依赖的有效势 V_eff(r,T) = V_N(r,T) + V_C(r) + V_l(r)，其中核势采用邻近势形式，库仑势和离心势已确定。下一步需要求解转折点，因为 WKB 作用量积分依赖于转折点位置 r_in 和 r_out，而温度 T 会改变势能形状，从而影响转折点。 [Gap] 目前尚未明确转折点如何随温度变化，以及内转折点 r_in 的具体取值（对于质子放射性和 α 衰变可能不同）。 [Decision] 因此，我选择使用 turning_point_solver 工具，在温度依赖的有效势下重新求解转折点，明确 r_in 和 r_out 的表达式，为后续数值积分做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "temperature_dependence": true,
+        "emitted_particle": "proton_or_alpha",
+        "inner_turning_point_approximation": "r_in = R_daughter (proton) or R1 + R2 (alpha)"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in(T) = R_daughter (proton) 或 r_in(T) = R1 + R2 (alpha)，其中核半径 R = 1.2 A^{1/3} fm，温度效应通过核势修正间接影响，但转折点位置本身不显式依赖 T",
+        "outer_turning_point": "r_out(T) 由方程 V_eff(r_out, T) = Q 数值求解得到，依赖于温度 T",
+        "turning_point_condition": "V_eff(r_in, T) ≈ Q (内转折点近似在核表面，对于质子放射性 Q 较大，r_in 略小于核半径；对于 α 衰变 Q 较小，r_in 取两核接触点)"
+      },
+      "observation": "在温度依赖的有效势下，内转折点 r_in 取为核表面位置（质子放射性：r_in = R_daughter；α 衰变：r_in = R1 + R2），外转折点 r_out(T) 需通过数值求解 V_eff(r_out, T) = Q 得到。温度 T 通过核势 V_N(r,T) 影响有效势，从而改变 r_out(T) 的值。后续 WKB 作用量积分将使用这些温度依赖的转折点。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "延续第3步的错误，内转折点仍取为核表面位置，且外转折点依赖于温度，但温度效应本身在第5步中已不合理。此外，外转折点由V_eff(r_out,T)=Q求解，但温度依赖的核势V_N(r,T)在物理上未经验证，导致转折点位置不可靠。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前路径为 half_life -> alpha_decay_width -> penetrability -> action_integral -> effective_potential -> nuclear_potential -> nuclear_radius -> coulomb_potential -> centrifugal_potential -> spin_parity -> single_particle_levels -> turning_points -> preformation_factor -> binding_energy -> pairing_energy -> assault_frequency。第6步已得到温度依赖的转折点r_in(T)和r_out(T)。下一步需要计算WKB作用量积分S(T)，这是穿透因子的关键输入。 [Gap] 作用量积分S(T) = ∫_{r_in(T)}^{r_out(T)} √(2μ/ħ² (V_eff(r,T) - Q)) dr 依赖于温度T，且核势V_N(r,T)已由邻近势给出，库仑势V_C(r)和离心势V_l(r)已知，但具体数值积分尚未执行。 [Decision] 选择WKB_action_integral工具，在温度依赖的有效势下数值计算作用量积分S(T)，并得到穿透因子P(T)=exp(-2S(T))。这将为后续计算衰变宽度和半衰期提供基础。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "inner_turning_point": "r_in(T) = R_daughter (proton) 或 R1+R2 (alpha)",
+        "outer_turning_point": "r_out(T) 由 V_eff(r_out,T)=Q 数值求解",
+        "effective_potential": "V_eff(r,T) = V_N(r,T) + V_C(r) + V_l(r)",
+        "reduced_mass": "μ = (A-1)/A m_p (proton) 或 4(A-4)/A m_p (alpha)",
+        "Q_value": "Q (已知)",
+        "temperature": "T (参数)"
+      },
+      "output_state": {
+        "action_integral": "S(T) = ∫_{r_in(T)}^{r_out(T)} √(2μ/ħ² (V_eff(r,T) - Q)) dr",
+        "penetrability": "P(T) = exp(-2S(T))"
+      },
+      "observation": "建立了温度依赖的WKB作用量积分S(T)和穿透因子P(T)的表达式。S(T)需通过数值积分计算，积分区间为[r_in(T), r_out(T)]，被积函数包含温度依赖的核势V_N(r,T)。穿透因子P(T)随温度升高而增大（因核势减弱，势垒变薄变低）。后续将结合预形成因子和撞击频率计算衰变宽度和半衰期。",
+      "valid": false,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "基于前序步骤中错误的温度依赖势能和转折点，该步的WKB作用量积分S(T)和穿透因子P(T)的物理基础不成立。温度效应引入后，核势减弱导致势垒变薄变低的结论虽然定性正确，但前提是温度依赖模型本身在论文中未被采用，因此该步推理在论文实际推导中无对应物理依据。"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前推导路径已建立温度依赖的WKB作用量积分S(T)和穿透因子P(T)的表达式，但半衰期的完整计算还需要考虑衰变的前因子（assault frequency）和预形成因子（preformation factor）。对于质子放射性，预形成因子通常取为1（质子已存在于核表面），而对于α衰变，预形成因子通常小于1，反映α粒子在核内的形成概率。论文方法中未明确提及预形成因子，但根据半衰期公式，必须包含这一项才能得到最终结果。[Gap] 当前状态缺少预形成因子和攻击频率的具体表达式，无法直接计算半衰期。[Decision] 根据合法推导路径，下一步应使用preformation_factor_model工具来建立预形成因子的模型，并同时给出攻击频率的表达式，为后续的decay_width_formula和halflife_from_width步骤做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {
+        "decay_type": "proton_radioactivity_and_alpha_decay",
+        "temperature_dependence": "included"
+      },
+      "output_state": {
+        "preformation_factor_proton": "P_p = 1 (质子放射性中质子已存在于核表面，预形成因子通常取为1)",
+        "preformation_factor_alpha": "P_α(T) = P_0 * exp(-E_form / (k_B T)) (α预形成因子，其中P_0为常数，E_form为α形成能，T为温度；在低温极限下P_α趋于常数，通常由经验或微观模型确定)",
+        "assault_frequency": "ν = ħ / (2μ R_0^2) (攻击频率，其中R_0为核半径，μ为约化质量；对于质子放射性μ ≈ (A-1)/A m_p，对于α衰变μ ≈ 4(A-4)/A m_p)",
+        "decay_width_formula": "Γ = P * ν * P(T) (衰变宽度，其中P为预形成因子，ν为攻击频率，P(T)为温度依赖的穿透因子)",
+        "halflife_formula": "T_{1/2} = ħ ln2 / Γ = ln2 / (P * ν * P(T)) (半衰期与衰变宽度成反比)"
+      },
+      "observation": "建立了预形成因子和攻击频率的模型。对于质子放射性，预形成因子取为1；对于α衰变，预形成因子P_α(T)具有温度依赖性，在高温下随温度升高而增大（形成概率增加），在低温下趋于常数。攻击频率ν由约化质量和核半径决定，与温度无关。衰变宽度Γ = P * ν * P(T)，半衰期T_{1/2} = ln2 / (P * ν * P(T))。后续步骤将结合具体核素的Q值和温度参数进行数值计算，得到最终半衰期。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "over_simplification",
+      "error_reason": "预测中对于α衰变预形成因子P_α(T)引入温度依赖性，声称高温下增大、低温下趋于常数，但论文实际推导中并未考虑预形成因子的温度依赖，且预形成因子模型本身在论文中未明确给出。此外，攻击频率ν由约化质量和核半径决定且与温度无关的表述过于简化，忽略了核结构效应。该步过度简化了预形成因子的物理复杂性，且引入了论文未使用的温度依赖，导致半衰期公式与论文实际推导不符。"
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：将内转折点取在核表面附近（R_daughter或R1+R2），已知条件包括有效势V_eff(r)表达式和衰变Q值。[Gap] 错过的信号：内转折点应满足V_eff(r_in)=Q，而核表面附近势能通常远高于Q值（因为核势在表面附近很强），决策时已知核势在表面附近的值远大于Q值，本应触发警觉：取表面作为内转折点会导致V_eff(r_in) >> Q，违反转折点定义。[Decision] 正确判断方式：面对有效势V_eff(r)和Q值，应首先检查V_eff(r)在核表面附近的值是否等于Q；如果V_eff(r_surface) >> Q，则内转折点必然在核内部更深处，应通过数值求解V_eff(r)=Q得到r_in。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了'验证转折点定义'的检查步骤，直接预设了内转折点的位置而未用方程约束",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：引入温度依赖的邻近势，采用γ(T)=γ(0)*(1-(T/T_c)^2)形式，已知条件包括论文方法提到temperature_dependent_proximity_potential，但未指定具体形式。[Gap] 错过的信号：质子放射性和α衰变的Q值通常在几MeV量级，对应的核温度T≈sqrt(Q/a)约1-2 MeV，而T_c取18 MeV远高于此范围，决策时已知Q值量级，本应触发警觉：在T<<T_c时γ(T)≈γ(0)，温度效应可忽略，引入复杂温度依赖缺乏物理必要性。[Decision] 正确判断方式：面对温度参数T和Q值，应首先估算核温度T≈sqrt(Q/a)并与T_c比较；如果T<<T_c，则温度效应对势能的影响可忽略，不应引入未经验证的γ(T)形式。",
+      "action": "verification",
+      "tool": {
+        "name": "dimensional_analysis",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了'量级估算'的检查步骤，直接采用了复杂的温度依赖模型而未验证其必要性",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：在温度依赖的有效势下重新求解转折点，内转折点仍取核表面，外转折点依赖温度，已知条件包括步骤5的温度依赖势和步骤3的错误转折点定义。[Gap] 错过的信号：步骤3已错误地将内转折点取在核表面，且步骤5的温度依赖势未经验证，决策时已知这两个前提均不可靠，本应触发警觉：基于错误前提的转折点求解会累积误差，应优先修正基础假设。[Decision] 正确判断方式：面对已有错误的前提（内转折点定义错误、温度依赖未验证），应首先回溯修正这些前提，而不是在错误基础上继续计算；如果前提不可靠，则后续所有结果均不可信。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了'前提有效性验证'的检查步骤，在错误基础上继续推导而未回溯修正",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤7：建立温度依赖的WKB作用量积分S(T)和穿透因子P(T)，已知条件包括步骤6的温度依赖转折点和步骤5的温度依赖势。[Gap] 错过的信号：步骤5和6的前提均不可靠（温度依赖未验证、转折点定义错误），决策时已知这些前提有误，本应触发警觉：基于不可靠前提的积分计算无物理意义，应停止并修正。[Decision] 正确判断方式：面对基于错误前提的中间结果，应首先检查前提的物理合理性；如果前提有误，则不应继续计算，而应回溯修正。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了'结果可靠性评估'的检查步骤，在错误链上继续延伸而未及时止损",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤8：为α衰变预形成因子引入温度依赖性，声称高温下增大、低温下趋于常数，已知条件包括论文未明确预形成因子模型，且前序步骤已引入温度依赖。[Gap] 错过的信号：预形成因子反映核结构效应，其温度依赖在标准核物理教科书中无普遍共识，决策时已知论文未给出具体模型，本应触发警觉：在无理论或实验依据的情况下引入温度依赖是过度假设，应保持预形成因子为常数或采用文献标准值。[Decision] 正确判断方式：面对预形成因子模型缺失，应首先查阅标准文献或采用常见近似（质子放射性取1，α衰变取常数）；如果无明确依据，不应随意引入温度依赖，而应保持模型简洁。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了'模型必要性评估'的检查步骤，在无依据的情况下引入了额外的复杂性",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在核物理推理中，必须严格遵循物理定义（如转折点由方程决定而非预设位置），对任何引入的效应进行量级估算以验证其必要性，并在发现前提错误时及时回溯修正，避免在错误链上继续累积。"
+    },
+    {
+      "step_index": 14,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 4 分别使用 proximity_potential_calculation -> coulomb_potential_calculation -> WKB_action_integral 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 4 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 本论文旨在计算质子放射性和α衰变的半衰期，采用WKB近似方法。根据前提层，核子-核子相互作用使用邻近势描述，且温度效应通过修改势能参数引入。初始条件包括质量数A、电荷数Z、中子数N和Q值。\n[Gap] 目前尚未构建用于隧穿计算的势能函数。WKB近似需要有效势能，它由库仑势、离心势和核势组成。论文方法中明确提到了邻近势形式（proximity_potential_formalism）和langer修正的离心势，因此第一步应构建核势部分，即使用邻近势模型。\n[Decision] 因此，第一步选择工具'proximity_potential_calculation'，计算核势部分，为后续构建有效势能做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "proximity_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "Q_value": "Q",
+        "model": "proximity_potential_formalism"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = 4πγbR̄Φ(ξ), 其中γ为表面张力系数，b为扩散度，R̄为约化半径，Φ(ξ)为邻近势函数，ξ = (r - R1 - R2)/b"
+      },
+      "observation": "采用邻近势模型计算核势部分。根据论文方法，核势由邻近势给出，其形式为V_N(r) = 4πγbR̄Φ(ξ)，其中γ = γ0[1 - ks(N - Z)/(N+Z)]，γ0 ≈ 0.9517 MeV/fm²，ks ≈ 1.7826，b ≈ 0.99 fm。R̄ = C1C2/(C1+C2)，Ci = Ri - b²/Ri，Ri = 1.28A_i^{1/3} - 0.76 + 0.8A_i^{-1/3} fm。Φ(ξ)为通用邻近势函数，当ξ < 0时Φ(ξ) = -0.5(ξ - 2.54)² - 0.0852(ξ - 2.54)³，当ξ ≥ 0时Φ(ξ) = -3.437exp(-ξ/0.75)。该势能用于描述核子-核子相互作用，是有效势能的重要组成部分。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 在第一步中，我们选择了邻近势模型来描述核势部分，并给出了其基本形式 V_N(r) = 4πγbR̄Φ(ξ)，其中表面张力系数 γ 依赖于核子的不对称性。为了完整构建有效势，还需要考虑库仑势和离心势。库仑势对于带电粒子（如质子和α粒子）的衰变至关重要，它提供了长程排斥势垒。离心势则来源于角动量守恒，对于非零角动量的衰变道，离心势会显著影响势垒的高度和宽度。在论文中，库仑势通常采用均匀带电球模型，而离心势则采用 Langer 修正形式以改善 WKB 近似的精度。[Gap] 目前我们仅有核势的表达式，尚未定义库仑势和离心势的具体形式，无法组装有效势。[Decision] 因此，下一步应定义库仑势和离心势的表达式，为后续的有效势组装做准备。我将使用 coulomb_potential_calculation 工具来定义库仑势，并同时给出离心势的 Langer 修正形式。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Z_p": "Z_d (daughter charge number)",
+        "Z_e": "Z_p (proton charge number) or Z_alpha (alpha particle charge number)",
+        "model": "uniform_sphere",
+        "centrifugal_correction": "Langer_modification"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(r) = (Z_d * Z_e * e^2) / r, for r >= R_c; V_C(r) = (Z_d * Z_e * e^2) / (2R_c) * (3 - r^2/R_c^2), for r < R_c",
+        "centrifugal_potential": "V_l(r) = (hbar^2 / (2μ)) * (l + 1/2)^2 / r^2, where l is the orbital angular momentum, μ is the reduced mass"
+      },
+      "observation": "库仑势采用均匀带电球模型，在核半径 R_c 外为点电荷库仑势，内部为谐振子形式。离心势采用 Langer 修正 (l+1/2)^2 替代 l(l+1)，以改善 WKB 近似在 r→0 时的行为。这两个势能项将与核势一起构成有效势 V_eff(r) = V_N(r) + V_C(r) + V_l(r)。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "thought": "[Background] 前两步已经构建了核势（邻近势）、库仑势和离心势（含Langer修正），接下来需要将这些势能项组合成总有效势，这是WKB隧穿计算的基础。有效势V_eff(r) = V_N(r) + V_C(r) + V_l(r)，用于确定经典转折点并计算作用量积分。[Gap] 目前各势能项已分别给出表达式，但尚未显式组合为总有效势，也未明确其参数依赖（如约化质量μ、角动量l等）。[Decision] 因此，下一步应组装有效势，并明确其物理含义，为后续求解转折点做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(r) = 4πγbR̄Φ(ξ)",
+        "coulomb_potential": "V_C(r) = Z_d Z_p e^2 / r for r ≥ R_c; harmonic oscillator inside",
+        "centrifugal_potential": "V_l(r) = ℏ²(l+1/2)²/(2μ r²)",
+        "langer_correction": true
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)"
+      },
+      "observation": "总有效势由核势、库仑势和离心势三项叠加而成。其中核势采用邻近势形式，库仑势在核外为点电荷势，离心势使用了Langer修正(l+1/2)²。该有效势将用于后续的转折点求解和WKB作用量积分计算。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 18,
+      "thought": "[Background] 我们已经构建了有效势 V_eff(r) = V_N(r) + V_C(r) + V_l(r)，其中核势采用邻近势形式，库仑势为均匀带电球模型，离心势使用了 Langer 修正。下一步需要求解隧穿过程的转折点，这是计算 WKB 作用量积分的前提。对于质子放射性或 α 衰变，隧穿发生在两个经典转折点 r1 和 r2 之间，其中 r1 位于核内部（势阱内），r2 位于库仑势垒外部。转折点由方程 V_eff(r) = Q_value 确定。由于核势和库仑势的复杂性，转折点通常需要数值求解。[Gap] 目前我们只有有效势的表达式，尚未确定具体的转折点位置。[Decision] 因此，下一步应使用 turning_point_solver 工具，基于有效势和 Q 值数值求解内转折点 r1 和外转折点 r2。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "Q_value": "Q_value (from initial conditions)",
+        "solver_method": "numerical root-finding for V_eff(r) = Q_value",
+        "initial_guesses": "r1 ~ 0.5*(R1+R2) (inner turning point near nuclear surface), r2 ~ 2*Z_d*Z_e*e^2/Q_value (outer turning point from Coulomb barrier)"
+      },
+      "output_state": {
+        "turning_points": "r1 (inner), r2 (outer) such that V_eff(r1) = V_eff(r2) = Q_value"
+      },
+      "observation": "通过数值求解 V_eff(r) = Q_value，得到内转折点 r1 和外转折点 r2。这两个转折点定义了隧穿区域 [r1, r2]，是后续计算 WKB 作用量积分的基础。对于质子放射性，r1 通常位于核表面附近（约 1.2A^{1/3} fm），r2 由库仑势垒高度决定，约在 10-20 fm 量级。具体数值依赖于核素和衰变模式。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 19,
+      "thought": "[Background] 前四步已经构建了有效势 V_eff(r) = V_N(r) + V_C(r) + V_l(r)，并求解了内转折点 r1 和外转折点 r2，使得 V_eff(r1) = V_eff(r2) = Q_value。隧穿区域 [r1, r2] 已确定。下一步需要计算 WKB 作用量积分，这是计算穿透概率的关键步骤。[Gap] 从转折点到穿透概率之间，需要计算作用量积分 S = ∫_{r1}^{r2} sqrt(2μ|V_eff(r) - Q_value|) dr，然后通过穿透概率 P = exp(-2S/ħ) 得到隧穿概率。[Decision] 因此，第5步应使用 WKB_action_integral 工具，基于已构建的有效势和转折点，数值计算作用量积分 S。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "inner_turning_point": "r1",
+        "outer_turning_point": "r2",
+        "Q_value": "Q_value",
+        "reduced_mass": "μ = m_p * m_d / (m_p + m_d)"
+      },
+      "output_state": {
+        "action_integral": "S = ∫_{r1}^{r2} sqrt(2μ|V_eff(r) - Q_value|) dr"
+      },
+      "observation": "使用数值积分方法（如高斯-勒让德求积）计算 WKB 作用量积分 S。该积分值将用于后续计算穿透概率 P = exp(-2S/ħ)。对于质子放射性，作用量积分通常主导半衰期的数量级。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 20,
+      "thought": "[Background] 在WKB近似中，穿透概率P与作用量积分S的关系为P = exp(-2S/ħ)，这是计算衰变宽度和半衰期的关键中间量。当前已得到作用量积分S的数值，需要进一步计算穿透概率。[Gap] 从作用量积分S到穿透概率P的转换是直接的指数关系，但需要确保单位一致（ħ取合适值），且对于质子放射性，有时还需考虑内转折点处的入射通量修正（如Gamow因子中的s-wave因子），但在此路径中我们采用标准WKB穿透概率公式。[Decision] 直接应用标准WKB公式P = exp(-2S/ħ)计算穿透概率，其中S为第5步计算的作用量积分。",
+      "action": "rule_application",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {
+        "action_integral": "S",
+        "hbar": "6.582119569e-22 MeV·s",
+        "formula": "P = exp(-2S/ħ)"
+      },
+      "output_state": {
+        "penetrability": "P = exp(-2S/ħ)"
+      },
+      "observation": "根据WKB近似，穿透概率P由作用量积分S通过指数关系给出：P = exp(-2S/ħ)。其中ħ为约化普朗克常数，S的单位为MeV·fm（若使用自然单位则需转换）。该穿透概率反映了质子隧穿有效势垒的概率，其数值通常非常小（10^-10至10^-30量级），是决定半衰期的主要因素之一。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 21,
+      "thought": "[Background] 根据WKB近似，穿透概率P已经通过作用量积分S计算得到：P = exp(-2S/ħ)。半衰期的完整表达式还需要考虑质子预形成因子（preformation factor）和撞击频率（assault frequency）。在质子放射性中，预形成因子通常取为1（即质子已预先形成于核表面），而撞击频率由质子在核内的经典振动频率给出。 [Gap] 当前已得到穿透概率P，但尚未计算撞击频率和半衰期。 [Decision] 下一步应计算撞击频率，它由质子在核内的运动速度与核半径决定，然后结合穿透概率和预形成因子得到衰变宽度，最终导出半衰期。根据合法路径，下一步应使用 assault_frequency_calculation 工具。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "Q_value": "Q_v",
+        "nuclear_radius": "R0 = 1.2 * A^(1/3) fm",
+        "reduced_mass": "μ = m_p * (A-1)/A (质子约化质量)"
+      },
+      "output_state": {
+        "assault_frequency": "f = v / (2*R0) = sqrt(2*Q_v/μ) / (2*R0)"
+      },
+      "observation": "撞击频率f由质子在核内的经典速度v = sqrt(2*Q_v/μ)和核半径R0决定，公式为f = v/(2*R0)。对于质子放射性，预形成因子通常取为1，因此衰变宽度Γ = f * P，半衰期T_{1/2} = ħ*ln2/Γ。该步骤为半衰期计算的倒数第二步，下一步将结合预形成因子和穿透概率给出最终半衰期。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: nuclear_radius",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 22,
+      "thought": "[Background] 根据WKB近似理论，衰变宽度Γ与穿透概率P和撞击频率f的关系为Γ = f * P，而半衰期T_{1/2}与衰变宽度Γ的关系为T_{1/2} = ħ ln2 / Γ。目前已经计算得到穿透概率P和撞击频率f，因此可以直接推导半衰期。 [Gap] 需要将物理量Γ和T_{1/2}用已知量表达，并确保单位一致。 [Decision] 采用严格的公式推导，从衰变宽度公式出发，代入P和f的表达式，得到半衰期的最终表达式。",
+      "action": "rule_application",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "decay_width": "Γ = f * P = (sqrt(2*Q_v/μ) / (2*R0)) * exp(-2S/ħ)",
+        "half_life": "T_{1/2} = ħ ln2 / Γ = ħ ln2 * (2*R0) / (sqrt(2*Q_v/μ) * exp(-2S/ħ))"
+      },
+      "observation": "根据衰变宽度公式Γ = f * P，代入第6步的穿透概率P = exp(-2S/ħ)和第7步的撞击频率f = sqrt(2*Q_v/μ) / (2*R0)，得到Γ的表达式。再由半衰期与衰变宽度的关系T_{1/2} = ħ ln2 / Γ，推导出半衰期的最终表达式。该表达式包含了核半径R0、约化质量μ、Q值以及WKB作用量积分S，是质子放射性半衰期的理论预测公式。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将预测的质子放射性半衰期（10⁻³ s）与已知实验数据（如¹⁴⁷Tm的质子放射性半衰期约10⁻³ s）在相近质量数范围内对比，检验模型对质子滴线附近核素的适用性；同时，对α衰变半衰期（10⁻⁶ s）进行量纲分析，确认其与穿透率对数（-log₁₀P）的线性关系符合Gamov理论预期，并检查在极端形变或高角动量条件下Langer修正离心势的失效风险。",
+    "metrics": {
+      "half_life": {
+        "value": "10^{-6} s",
+        "unit": "对于α衰变核素，如^211Po，在温度T=0 MeV时",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：liquid_drop_model；double_folding_model。"
+  },
+  "paper_methods": [
+    "proximity_potential_formalism",
+    "langer_modified_centrifugal_potential",
+    "double_folding_model",
+    "liquid_drop_model",
+    "temperature_dependent_proximity_potential"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "proximity_potential_formalism",
+        "desc": "使用邻近势描述核子-核子相互作用，计算势垒穿透概率"
+      },
+      {
+        "name": "langer_modified_centrifugal_potential",
+        "desc": "修改离心势以考虑角动量效应，提高半衰期计算精度"
+      },
+      {
+        "name": "double_folding_model",
+        "desc": "基于核子-核子相互作用折叠得到核势，用于质子放射性计算"
+      },
+      {
+        "name": "liquid_drop_model",
+        "desc": "液滴模型用于描述核的宏观性质，如结合能和形变"
+      },
+      {
+        "name": "temperature_dependent_proximity_potential",
+        "desc": "在邻近势中引入温度依赖参数，研究温度对半衰期的影响"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\ln 2}{\\nu} \\exp\\left(2\\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r)-Q)} dr\\right)"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "V(r) = V_N(r) + V_C(r) + V_l(r)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "10^{-3} s",
+        "condition": "对于质子放射性核素，如^151Lu，在温度T=0 MeV时"
+      },
+      {
+        "quantity": "half_life",
+        "value": "10^{-6} s",
+        "condition": "对于α衰变核素，如^211Po，在温度T=0 MeV时"
+      }
+    ],
+    "failure_points": [
+      "liquid_drop_model",
+      "double_folding_model"
+    ]
+  }
+}

@@ -1,0 +1,390 @@
+{
+  "id": "NPP_0133",
+  "meta": {
+    "id": "NPP_0133",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear mass predictions using machine learning models",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2401.02824"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "原子核质量过剩的预测",
+    "input_data": "可用的实验核质量数据（如AME2020中的新测量核素），以及基于物理的特征空间。",
+    "user_intent": "现有微观宏观模型（如WS4、FRDM-2012）和自洽平均场理论（基于HFB的EDF）在预测远离稳定线核素的质量时存在不确定性，均方根误差较高（从约0.3 MeV到5.0 MeV不等），且对丰中子区核素的行为预测仍不确定。需要探索更可靠的方法来预测核质量，特别是在实验数据稀缺的区域。",
+    "quantifiable_goal": "预测原子核的质量过剩（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是预测原子核的质量过剩，已知有实验核质量数据库（如AME2020）和基于物理的特征空间。核质量过剩是原子核质量与核子数乘以原子质量单位之差，是核结构的重要观测量。[Gap] 需要建立一个将核素特征（如质子数Z、中子数N等）映射到其质量过剩的预测模型。直接的理论计算（如微观宏观模型）误差较大，特别是在远离稳定线的区域。[Decision] 采用机器学习中的支持向量回归（SVR）方法，利用其处理非线性关系和小样本数据的能力，以物理特征作为输入，质量过剩作为输出，构建一个初始的回归模型。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "support_vector_regression",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到一个支持向量回归模型，其输入为描述原子核的物理特征向量（如Z, N, 壳修正等），输出为预测的质量过剩值。模型将基于已知实验数据（训练集）进行训练，学习特征与质量过剩之间的复杂映射关系。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已建立SVR模型。SVR的性能高度依赖于核函数的选择，它定义了特征空间中的相似性度量。[Gap] 需要选择一个合适的核函数来捕捉核特征与质量过剩之间潜在的非线性关系。径向基函数（RBF）核是处理此类问题的常用选择。[Decision] 在SVR框架中采用径向基函数核（RBF kernel），其形式为 $K(\\mathbf{x}_i, \\mathbf{x}_j) = \\exp(-\\gamma \\|\\mathbf{x}_i - \\mathbf{x}_j\\|^2)$，其中 $\\gamma$ 是待优化的超参数。这允许模型在无限维特征空间中构建复杂的决策边界。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "radial_basis_function_kernel",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期将RBF核函数集成到SVR模型中。模型现在能够通过计算特征空间中数据点之间的距离（由物理特征定义）来评估它们的相似性，从而进行回归预测。模型的表达能力由RBF核的宽度参数 $\\gamma$ 控制。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已构建了基于RBF核的SVR模型。然而，核质量数据存在实验测量误差，且模型本身可能存在未捕捉到的噪声或不确定性。[Gap] 需要一个能够量化预测不确定性的模型，这对于评估在数据稀缺区域（如丰中子区）预测的可靠性至关重要。高斯过程回归（GPR）天然提供预测均值和方差（不确定性）。[Decision] 采用高斯过程回归作为另一个核心模型。同样使用RBF核作为协方差函数，以描述质量过剩随核特征变化的平滑性。GPR将直接对质量过剩进行建模，并输出每个预测点的均值和置信区间。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "gaussian_process_regression",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到一个高斯过程回归模型，它定义了质量过剩在物理特征空间上的一个概率分布。模型将输出对于新核素的预测质量过剩（均值）以及该预测的标准差（不确定性）。协方差函数（RBF核）的参数（如长度尺度）将通过最大化边缘似然来优化。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已建立GPR模型，其协方差函数捕捉了数据中的相关结构。但实验数据中的噪声（如测量误差）是白噪声，与特征本身无关。[Gap] 需要在协方差函数中明确区分数据中的信号（由RBF核建模的相关性）和噪声（独立同分布噪声）。[Decision] 在GPR的协方差函数中引入一个白核（White Kernel），其形式为 $\\sigma_n^2 \\delta_{ij}$，其中 $\\sigma_n^2$ 是待优化的噪声方差，$\\delta_{ij}$ 是Kronecker delta函数。这将加性噪声项显式地纳入模型中。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "white_kernel",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期将白核与RBF核相加，共同构成GPR的总协方差函数：$K_{total} = K_{RBF} + K_{White}$。这样，模型优化后得到的 $\\sigma_n^2$ 可以解释为数据的内在噪声水平，而RBF核的参数则描述质量过剩随特征变化的平滑趋势。预测的不确定性将包含来自数据噪声的贡献。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已为SVR和GPR模型选择了核函数。但这些模型的输入——特征空间——的构建至关重要。纯粹基于Z和N的模型可能忽略了重要的核结构信息。[Gap] 需要构建一个包含关键物理信息的特征空间，以提高模型的物理可解释性和外推能力。[Decision] 利用 physics_based_feature_space，从核物理理论中提取特征。这可能包括但不限于：质子数Z、中子数N、质量数A、对称能项 $ (N-Z)^2/A $、对能修正项 $ \\delta_{np} / A^{1/3} $、壳修正能（来自某种模型如WS4的估计）、形变参数等。这些特征将作为所有机器学习模型的共同输入。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "physics_based_feature_space",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到一个多维特征向量，用于描述每个原子核。每个特征都有明确的物理意义，例如 $f_1 = Z$, $f_2 = N$, $f_3 = (N-Z)^2/A$, $f_4 = \\delta_{np}/A^{1/3}$, $f_5 = E_{shell}$（壳修正估计值）等。这些特征将替代原始的Z和N，作为SVR和GPR模型的输入。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 现在拥有了完整的工具：基于物理特征空间的SVR模型（带RBF核）和GPR模型（带RBF+White核）。[Gap] 需要训练和优化这些模型，并使用它们对未知核素（特别是AME2020中新增的或远离稳定线的核素）的质量过剩进行预测。[Decision] 将已知的实验核质量数据（如AME2020的大部分数据）划分为训练集和验证集。使用训练集数据（特征向量作为输入，实验质量过剩作为目标值）来训练SVR和GPR模型，并通过交叉验证优化它们的超参数（如SVR的C、epsilon、RBF的 $\\gamma$；GPR的RBF长度尺度、噪声方差 $\\sigma_n^2$）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到两个训练好的模型：一个优化的SVR模型和一个优化的GPR模型。对于GPR，预期得到优化后的协方差函数参数（RBF核的长度尺度和白核的噪声水平）。两个模型在验证集上应能达到比传统理论模型（如WS4, FRDM）更低的均方根误差（RMSE），估计在0.1-0.5 MeV量级（依赖于训练集大小和特征选择）。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已获得两个训练好的机器学习模型，可以对核素的质量过剩进行点预测（SVR和GPR均值）和不确定性估计（GPR方差）。[Gap] 需要评估和比较两个模型的预测性能，并最终生成对目标核素（可能包括新测量核素和丰中子区核素）的质量过剩预测结果。[Decision] 在独立的测试集（例如AME2020的最新数据或特意留出的远离稳定线区域）上评估两个模型的预测误差（如RMSE, MAE）。同时，利用GPR提供的预测不确定性，可以绘制在核素图上的预测质量过剩及其误差带。最终输出可能是一个包含预测值（可能取两个模型的平均或选择更优者）和不确定性的表格或图表。",
+      "action": "verification",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到一系列预测结果：1) 对于已知测试核素，模型预测质量过剩与实验值的残差分布及RMSE。2) 对于未知/目标核素（如丰中子区），预测的质量过剩值（单位：MeV）及其标准不确定性。3) 可能观察到在训练数据丰富的区域（$\\beta$稳定线附近）预测误差较小（估计~0.2 MeV），而在外推区域（丰中子区）误差和不确定性增大（估计~0.5 MeV或更高）。GPR模型提供的方差可以定量描述这种不确定性。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 论文旨在使用机器学习模型预测原子核质量过剩，并已介绍了SVR模型的基本原理。[Gap] 需要为SVR模型定义一个具体的核函数，以处理输入特征之间的非线性关系。[Decision] 论文选择使用径向基函数（RBF）核，并给出了其数学定义。",
+      "action": "rule_application",
+      "tool": {
+        "name": "Support_Vector_Regression",
+        "version": ""
+      },
+      "parameters": {
+        "kernel_type": "RBF"
+      },
+      "observation": "定义了RBF核函数：$K_{G}\\left(x, x^{\\prime}\\right) = \\exp \\left(- \\frac {\\left\\| x - x^{\\prime} \\right\\|^{2}}{2 \\sigma^{2}}\\right) = \\exp \\left(- \\gamma || x - x^{\\prime} ||^{2}\\right)$ (Eq.1)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 已定义了SVR模型的核心核函数。[Gap] 需要设置SVR模型的具体超参数，以确保模型性能并避免过拟合或欠拟合。[Decision] 论文通过实验确定了超参数的最优设置，并报告了所使用的值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Support_Vector_Regression",
+        "version": ""
+      },
+      "parameters": {
+        "epsilon": 0.002,
+        "C": 1000,
+        "gamma": 0.03,
+        "tolerance": 1e-05
+      },
+      "observation": "设置超参数：$\\epsilon = 0.002$, $C = 1000$, $\\gamma = 0.03$，收敛容差为 $10^{-5}$。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 论文也采用了高斯过程回归（GPR）模型作为另一种预测方法。[Gap] 需要为GPR模型定义其协方差函数（核函数）。[Decision] 论文结合使用了RBF核函数和白噪声核函数来构建GPR的协方差函数。",
+      "action": "rule_application",
+      "tool": {
+        "name": "Gaussian_Process_Regression",
+        "version": ""
+      },
+      "parameters": {
+        "kernel_combination": "RBF + White Noise"
+      },
+      "observation": "GPR模型使用RBF核（长度尺度设为1.0）和白噪声核（噪声水平设为1）的组合。白噪声核定义为：$K_{W}\\left(x, x^{\\prime}\\right) = \\left\\{ \\begin{array}{l l} \\text{noise level} & \\text{if} x_{i} = x_{j}^{\\prime} \\\\ 0 & \\text{otherwise.} \\end{array} \\right.$ (Eq.3)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 已定义了两种机器学习模型（SVR和GPR）。[Gap] 需要准备用于训练和测试这些模型的数据集。[Decision] 论文从AME2020数据集中划分出训练集、测试集和外推集。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Data Preparation",
+        "version": ""
+      },
+      "parameters": {
+        "source": "AME2020",
+        "criteria": "Z, N ≥ 8"
+      },
+      "observation": "从AME2020（共2386个核素）中随机选取1789个核素（75.0%）作为训练集，597个核素（25.0%）作为测试集。额外71个AME2020新增核素作为外推集。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 模型的预测轨迹与论文实际推导在物理推理上基本一致。[Gap] 无重大物理推理错误需要修正。[Decision] 预测合理，无需重大调整。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预测与论文一致，半盲预测（已知方法名）有效降低了方法层面的错误。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "training_set_size": {
+        "value": "1789 nuclei",
+        "unit": "从AME2020数据中随机选取，占数据集的75.0%",
+        "interpretation": "training set size"
+      },
+      "test_set_size": {
+        "value": "597 nuclei",
+        "unit": "从AME2020数据中随机选取，占数据集的25.0%",
+        "interpretation": "test set size"
+      },
+      "extrapolation_set_size": {
+        "value": "71 nuclei",
+        "unit": "AME2020中新增的、未在AME2016中出现的原子核",
+        "interpretation": "extrapolation set size"
+      },
+      "total_nuclei_in_AME2020": {
+        "value": "2386 nuclei",
+        "unit": "Z, N ≥ 8 的原子核",
+        "interpretation": "total nuclei in AME2020"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "support_vector_regression",
+    "gaussian_process_regression",
+    "radial_basis_function_kernel",
+    "white_kernel",
+    "physics_based_feature_space"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是预测原子核的质量过剩，已知有实验核质量数据库（如AME2020）和基于物理的特征空间。核质量过剩是原子核质量与核子数乘以原子质量单位之差，是核结构的重要观测量。[Gap] 需要建立一个将核素特征（如质子数Z、中子数N等）映射到其质量过剩的预测模型。直接的理论计算（如微观宏观模型）误差较大，特别是在远离稳定线的区域。[Decision] 采用机器学习中的支持向量回归（SVR）方法，利用其处理非线性关系和小样本数据的能力，以物理特征作为输入，质量过剩作为输出，构建一个初始的回归模型。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "support_vector_regression",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到一个支持向量回归模型，其输入为描述原子核的物理特征向量（如Z, N, 壳修正等），输出为预测的质量过剩值。模型将基于已知实验数据（训练集）进行训练，学习特征与质量过剩之间的复杂映射关系。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已建立SVR模型。SVR的性能高度依赖于核函数的选择，它定义了特征空间中的相似性度量。[Gap] 需要选择一个合适的核函数来捕捉核特征与质量过剩之间潜在的非线性关系。径向基函数（RBF）核是处理此类问题的常用选择。[Decision] 在SVR框架中采用径向基函数核（RBF kernel），其形式为 $K(\\mathbf{x}_i, \\mathbf{x}_j) = \\exp(-\\gamma \\|\\mathbf{x}_i - \\mathbf{x}_j\\|^2)$，其中 $\\gamma$ 是待优化的超参数。这允许模型在无限维特征空间中构建复杂的决策边界。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "radial_basis_function_kernel",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期将RBF核函数集成到SVR模型中。模型现在能够通过计算特征空间中数据点之间的距离（由物理特征定义）来评估它们的相似性，从而进行回归预测。模型的表达能力由RBF核的宽度参数 $\\gamma$ 控制。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已构建了基于RBF核的SVR模型。然而，核质量数据存在实验测量误差，且模型本身可能存在未捕捉到的噪声或不确定性。[Gap] 需要一个能够量化预测不确定性的模型，这对于评估在数据稀缺区域（如丰中子区）预测的可靠性至关重要。高斯过程回归（GPR）天然提供预测均值和方差（不确定性）。[Decision] 采用高斯过程回归作为另一个核心模型。同样使用RBF核作为协方差函数，以描述质量过剩随核特征变化的平滑性。GPR将直接对质量过剩进行建模，并输出每个预测点的均值和置信区间。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "gaussian_process_regression",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到一个高斯过程回归模型，它定义了质量过剩在物理特征空间上的一个概率分布。模型将输出对于新核素的预测质量过剩（均值）以及该预测的标准差（不确定性）。协方差函数（RBF核）的参数（如长度尺度）将通过最大化边缘似然来优化。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已建立GPR模型，其协方差函数捕捉了数据中的相关结构。但实验数据中的噪声（如测量误差）是白噪声，与特征本身无关。[Gap] 需要在协方差函数中明确区分数据中的信号（由RBF核建模的相关性）和噪声（独立同分布噪声）。[Decision] 在GPR的协方差函数中引入一个白核（White Kernel），其形式为 $\\sigma_n^2 \\delta_{ij}$，其中 $\\sigma_n^2$ 是待优化的噪声方差，$\\delta_{ij}$ 是Kronecker delta函数。这将加性噪声项显式地纳入模型中。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "white_kernel",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期将白核与RBF核相加，共同构成GPR的总协方差函数：$K_{total} = K_{RBF} + K_{White}$。这样，模型优化后得到的 $\\sigma_n^2$ 可以解释为数据的内在噪声水平，而RBF核的参数则描述质量过剩随特征变化的平滑趋势。预测的不确定性将包含来自数据噪声的贡献。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已为SVR和GPR模型选择了核函数。但这些模型的输入——特征空间——的构建至关重要。纯粹基于Z和N的模型可能忽略了重要的核结构信息。[Gap] 需要构建一个包含关键物理信息的特征空间，以提高模型的物理可解释性和外推能力。[Decision] 利用 physics_based_feature_space，从核物理理论中提取特征。这可能包括但不限于：质子数Z、中子数N、质量数A、对称能项 $ (N-Z)^2/A $、对能修正项 $ \\delta_{np} / A^{1/3} $、壳修正能（来自某种模型如WS4的估计）、形变参数等。这些特征将作为所有机器学习模型的共同输入。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "physics_based_feature_space",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到一个多维特征向量，用于描述每个原子核。每个特征都有明确的物理意义，例如 $f_1 = Z$, $f_2 = N$, $f_3 = (N-Z)^2/A$, $f_4 = \\delta_{np}/A^{1/3}$, $f_5 = E_{shell}$（壳修正估计值）等。这些特征将替代原始的Z和N，作为SVR和GPR模型的输入。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 现在拥有了完整的工具：基于物理特征空间的SVR模型（带RBF核）和GPR模型（带RBF+White核）。[Gap] 需要训练和优化这些模型，并使用它们对未知核素（特别是AME2020中新增的或远离稳定线的核素）的质量过剩进行预测。[Decision] 将已知的实验核质量数据（如AME2020的大部分数据）划分为训练集和验证集。使用训练集数据（特征向量作为输入，实验质量过剩作为目标值）来训练SVR和GPR模型，并通过交叉验证优化它们的超参数（如SVR的C、epsilon、RBF的 $\\gamma$；GPR的RBF长度尺度、噪声方差 $\\sigma_n^2$）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到两个训练好的模型：一个优化的SVR模型和一个优化的GPR模型。对于GPR，预期得到优化后的协方差函数参数（RBF核的长度尺度和白核的噪声水平）。两个模型在验证集上应能达到比传统理论模型（如WS4, FRDM）更低的均方根误差（RMSE），估计在0.1-0.5 MeV量级（依赖于训练集大小和特征选择）。",
+      "valid": true
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已获得两个训练好的机器学习模型，可以对核素的质量过剩进行点预测（SVR和GPR均值）和不确定性估计（GPR方差）。[Gap] 需要评估和比较两个模型的预测性能，并最终生成对目标核素（可能包括新测量核素和丰中子区核素）的质量过剩预测结果。[Decision] 在独立的测试集（例如AME2020的最新数据或特意留出的远离稳定线区域）上评估两个模型的预测误差（如RMSE, MAE）。同时，利用GPR提供的预测不确定性，可以绘制在核素图上的预测质量过剩及其误差带。最终输出可能是一个包含预测值（可能取两个模型的平均或选择更优者）和不确定性的表格或图表。",
+      "action": "verification",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预期得到一系列预测结果：1) 对于已知测试核素，模型预测质量过剩与实验值的残差分布及RMSE。2) 对于未知/目标核素（如丰中子区），预测的质量过剩值（单位：MeV）及其标准不确定性。3) 可能观察到在训练数据丰富的区域（$\\beta$稳定线附近）预测误差较小（估计~0.2 MeV），而在外推区域（丰中子区）误差和不确定性增大（估计~0.5 MeV或更高）。GPR模型提供的方差可以定量描述这种不确定性。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "Support_Vector_Regression",
+        "desc": "用于预测原子核质量过剩的机器学习模型，使用RBF核函数处理非线性关系，并设置了超参数ε=0.002, C=1000, γ=0.03, 收敛容差=1e-5。"
+      },
+      {
+        "name": "Gaussian_Process_Regression",
+        "desc": "用于预测原子核质量过剩的机器学习模型，结合使用RBF核函数和白噪声核函数，RBF核长度尺度设为1.0，白噪声核噪声水平设为1。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "K_{G}\\left(x, x^{\\prime}\\right) = \\exp \\left(- \\frac {\\left\\| x - x^{\\prime} \\right\\|^{2}}{2 \\sigma^{2}}\\right) = \\exp \\left(- \\gamma || x - x^{\\prime} ||^{2}\\right)"
+      },
+      {
+        "label": "Eq.2",
+        "content": "p(w) \\sim \\mathcal{N}(0, (1 / \\alpha) I)"
+      },
+      {
+        "label": "Eq.3",
+        "content": "K_{W}\\left(x, x^{\\prime}\\right) = \\left\\{ \\begin{array}{l l} \\text{noise level} & \\text{if} x_{i} = x_{j}^{\\prime} \\\\ 0 & \\text{otherwise.} \\end{array} \\right."
+      },
+      {
+        "label": "promiscuity factor",
+        "content": "PF = \\frac{\\nu_{Z} \\cdot \\nu_{N}}{\\nu_{Z} + \\nu_{N}}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "training set size",
+        "value": "1789 nuclei",
+        "condition": "从AME2020数据中随机选取，占数据集的75.0%"
+      },
+      {
+        "quantity": "test set size",
+        "value": "597 nuclei",
+        "condition": "从AME2020数据中随机选取，占数据集的25.0%"
+      },
+      {
+        "quantity": "extrapolation set size",
+        "value": "71 nuclei",
+        "condition": "AME2020中新增的、未在AME2016中出现的原子核"
+      },
+      {
+        "quantity": "total nuclei in AME2020",
+        "value": "2386 nuclei",
+        "condition": "Z, N ≥ 8 的原子核"
+      }
+    ],
+    "failure_points": []
+  }
+}

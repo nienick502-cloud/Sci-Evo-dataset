@@ -1,0 +1,461 @@
+{
+  "id": "NPP_0101",
+  "meta": {
+    "id": "NPP_0101",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_double_folding",
+    "source": {
+      "type": "paper",
+      "title": "Calculations of the alpha decay half-lives of some Polonium isotopes using the double folding model",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2111.05604"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变半衰期与预成形因子",
+    "input_data": "核素范围 Z=120， 256≤A≤304；使用NL3参数集的相对论平均场（RMF）理论计算作为微观输入，包括结合能、均方根半径、单粒子能量和波函数。",
+    "user_intent": "现有基于经验公式或宏观-微观模型的方法在预测超重核α衰变半衰期时存在较大不确定性，需要一种更可靠、基于微观理论的方法来研究超重核的α衰变性质，以探索超重核的稳定性。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s），提取α粒子预成形因子 P_{\\alpha}（无量纲）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是预测超重核的α衰变半衰期和预成形因子。已知将使用基于NL3参数集的相对论平均场（RMF）理论作为微观输入，提供核结构信息。[Gap] 需要从RMF理论出发，获得计算α衰变半衰期所需的母核和子核的微观性质，如密度分布、单粒子波函数等。[Decision] 运用relativistic_mean_field方法，在给定Z=120，256≤A≤304的核素范围内，自洽求解核子狄拉克方程，计算基态性质。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "relativistic_mean_field",
+        "version": ""
+      },
+      "parameters": {
+        "parameter_set": "NL3",
+        "nuclei_range": "Z=120, 256≤A≤304",
+        "outputs": "binding_energy, rms_radius, single_particle_energies, wavefunctions, nucleon_densities"
+      },
+      "observation": "预期得到一系列超重核的基态性质，包括结合能、均方根半径、单粒子能量和波函数。最重要的是获得标量密度和矢量密度分布，这些将作为后续计算核子-核子相互作用的输入。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已从RMF计算获得了母核（超重核）的核子密度分布。[Gap] 为了计算α粒子与子核之间的相互作用势能，需要一个有效的核子-核子相互作用模型，以构建α-子核的双折叠势。[Decision] 采用density_dependent_interaction或m3y_interaction作为有效核力，与RMF输出的密度分布结合，通过double_folding_model计算α-子核的实部相互作用势V(R)。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {
+        "interaction_type": "density_dependent_interaction or m3y_interaction",
+        "inputs": "RMF_densities (mother_nucleus, daughter_nucleus), alpha_particle_density (assumed Gaussian or from 4He RMF)",
+        "output": "alpha-daughter nucleus potential V(R)"
+      },
+      "observation": "预期得到一个依赖于α粒子与子核质心距离R的势能函数V(R)。该势能通常包含一个深吸引势阱和一个库仑势垒。势垒的高度、位置和宽度是决定α粒子隧穿概率的关键参数。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已获得α-子核相互作用的双折叠势V(R)。[Gap] 需要计算α粒子从母核内部预形成状态隧穿该势垒的概率，这是计算半衰期的核心。[Decision] 应用wkb_approximation来计算α粒子的隧穿概率（穿透系数）P。这需要知道势垒的形状（从V(R)得到）和α粒子的衰变能Q_α。Q_α可以从RMF计算的结合能差得到。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V(R) from double_folding_model",
+        "Q_alpha": "Binding_energy(mother) - Binding_energy(daughter) - Binding_energy(alpha) from RMF",
+        "reduced_mass": "mu = (m_alpha * m_daughter)/(m_alpha + m_daughter)"
+      },
+      "observation": "预期得到隧穿概率P的WKB积分表达式：$P = \\exp \\left[ -2 \\int_{R_1}^{R_2} \\sqrt{\\frac{2\\mu}{\\hbar^2} (V(R) - Q_\\alpha)} \\, dR \\right]$，其中R1和R2是经典转折点。该表达式依赖于势能V(R)和Q_α的具体数值。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已获得隧穿概率P的表达式。[Gap] α衰变半衰期T_{1/2}不仅依赖于隧穿概率，还依赖于α粒子在母核内预形成的概率（预成形因子P_α）以及它撞击势垒的频率（ assault frequency ν）。[Decision] 将WKB隧穿概率与预成形因子和 assault frequency 结合，形成完整的半衰期计算公式：$T_{1/2} = (\\ln 2) / (\\nu P_\\alpha P)$。其中ν通常基于谐振子模型或核内α粒子速度估计。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "half_life_formula": "T_{1/2} = \\ln 2 / (\\nu P_\\alpha P)",
+        "assault_frequency_model": "Harmonic oscillator estimate or using alpha velocity inside nucleus"
+      },
+      "observation": "预期得到α衰变半衰期的完整理论表达式：$T_{1/2} = \\frac{\\ln 2}{\\nu P_\\alpha} \\exp \\left[ 2 \\int_{R_1}^{R_2} \\sqrt{\\frac{2\\mu}{\\hbar^2} (V(R) - Q_\\alpha)} \\, dR \\right]$。其中P_α是待提取的预成形因子。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已建立包含预成形因子P_α的半衰期理论公式。[Gap] 为了从理论预测中提取P_α，或者为了验证理论，需要将理论计算的半衰期与实验值（如果可用）或系统学进行比较。[Decision] 对于每个核素，使用前几步计算得到的Q_α和V(R)进行数值积分，得到隧穿概率P。然后，通过将理论半衰期公式与已知半衰期（或作为目标）进行匹配，反推出预成形因子P_α。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "computation_task": "Numerical integration of WKB exponent for each nucleus",
+        "input_from_previous": "V(R) array, Q_alpha, reduced mass mu",
+        "output": "Tunneling probability P for each nucleus"
+      },
+      "observation": "预期得到每个超重核的隧穿概率P的数值结果。这些数值通常在10^{-40}到10^{-10}量级，具体取决于Q_α和势垒参数。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已通过数值计算得到隧穿概率P，并建立了半衰期与P_α的关系式。[Gap] 需要最终计算出理论半衰期T_{1/2}的预测值，并提取出预成形因子P_α。这需要为 assault frequency ν 选择一个合理的估计值（例如~10^{20} - 10^{21} s^{-1}）。[Decision] 首先，假设一个典型的P_α值（例如从邻近核的系统学得到，或先设为1作为参考），计算理论T_{1/2}。然后，通过将计算出的T_{1/2}与实验值（若有）或宏观模型结果比较，调整或提取出更合理的P_α值，并分析其随核素的变化趋势。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "computation_task": "Calculate T_{1/2} and extract P_alpha",
+        "inputs": "P (from step5), nu (assumed), P_alpha (initial guess or from fit)",
+        "outputs": "Predicted T_{1/2} values, extracted P_alpha values"
+      },
+      "observation": "预期得到一系列超重核（Z=120, 256≤A≤304）的α衰变半衰期T_{1/2}的预测值，单位秒，可能跨越多个数量级（例如从微秒到数年）。同时预期提取出预成形因子P_α，它是一个无量纲数，预期在10^{-10}到10^{-1}量级，并可能显示出对中子数和质子数的依赖性。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已经完成基于微观RMF输入、双折叠势和WKB近似的半衰期和预成形因子计算。[Gap] 需要验证整个计算链条的合理性和一致性，例如检查势垒形状是否物理，WKB条件是否满足，以及结果是否与已知的α衰变系统学趋势相符。[Decision] 进行验证步骤：检查势垒高度与Q_α的相对大小；评估WKB近似的有效性（势垒变化是否足够缓慢）；将计算出的半衰期对数log10(T_{1/2})与衰变能Q_α作图，检查是否符合Viola-Seaborg关系的大致趋势，以验证整体框架的可靠性。",
+      "action": "verification",
+      "tool": {
+        "name": "verification",
+        "version": ""
+      },
+      "parameters": {
+        "checks": "Barrier shape sanity check, WKB validity condition, comparison with systematic trends (e.g., Geiger-Nuttall/Viola-Seaborg plot)"
+      },
+      "observation": "预期通过势能曲线图确认势垒形状合理（有明确的内部阱和外部库仑势垒）。预期验证WKB条件在转折点附近基本满足。预期发现计算出的log10(T_{1/2})与Q_α^{-1/2}或类似变量之间存在近似线性关系，与Geiger-Nuttall定律的普遍趋势一致，从而支持整个方法串联的物理合理性。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 论文旨在计算钋同位素的α衰变半衰期，需要构建α粒子与子核之间的有效势。[Gap] 需要确定有效势的具体形式，特别是核势部分。[Decision] 论文采用双折叠模型（double folding model）来计算核势，并考虑密度依赖性。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "核势 V_N(R) 由公式 Eq.5 给出：V_{N}(R) = \\int \\int \\rho_{1}(\\mathbf{r}_{1}) F(\\rho_{1}, \\rho_{2}) \\rho_{2}(\\mathbf{r}_{2}) v(E_{\\alpha}, s) d \\mathbf{r}_{1} d \\mathbf{r}_{2}，其中 F(\\rho_1, \\rho_2) 是密度依赖因子（Eq.8），v(s) 是有效核子-核子相互作用（Eq.11）。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 核势 V_N(R) 的表达式已通过双折叠模型建立，其中包含了密度依赖因子 F。[Gap] 需要为密度依赖因子 F 和有效核子-核子相互作用 v(s) 指定具体的参数值，以便进行数值计算。[Decision] 论文采用了从相对论平均场理论导出的R3Y相互作用，并给出了DDM3Y1（Reid和Paris）参数集的参数值。",
+      "action": "rule_application",
+      "tool": {
+        "name": "density_dependent_double_folding_model",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "密度依赖因子参数采用DDM3Y1 (Reid) 参数：C=0.2843, α=3.6391, β=2.9605；或DDM3Y1 (Paris) 参数：C=0.2963, α=3.7231, β=3.7384。有效核子-核子相互作用 v_{eff}(s) 由 Eq.11 给出，包含ω、σ、ρ介子交换项和接触项。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 核势 V_N(R) 的参数和形式已确定。有效势还需要包含库仑势和离心势。[Gap] 需要构建完整的α-核有效势，用于后续的半衰期计算。[Decision] 论文将核势、库仑势和离心势组合，形成总的有效势。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "总的有效势由公式 Eq.1 给出：V_{eff}(R) = \\lambda V_{N}(R) + V_{C}(R) + V_{\\ell}，其中 V_C(R) 是库仑势（Eq.4），V_\\ell 是离心势，λ 是归一化因子。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 完整的有效势 V_eff(R) 已经构建完成。[Gap] 需要基于此有效势计算α衰变的穿透概率和半衰期。[Decision] 论文采用半经典的WKB近似方法来计算穿透概率，进而得到半衰期。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_approximation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "使用WKB近似计算穿透概率，并最终得到α衰变半衰期 T_{1/2} 的数值结果（单位：秒）。论文将使用不同参数集（R3Y, M3Y, 密度依赖/独立）的计算结果与实验数据进行比较。",
+      "observation_source": "inferred",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 模型的预测轨迹与论文实际推导在物理推理上基本一致。[Gap] 无重大物理推理错误需要修正。[Decision] 预测合理，无需重大调整。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预测与论文一致，半盲预测（已知方法名）有效降低了方法层面的错误。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "diffuseness_parameter": {
+        "value": "0.54 fm",
+        "unit": "用于子核密度分布的费米形式",
+        "interpretation": "diffuseness parameter"
+      },
+      "nucleon_mass": {
+        "value": "931.494 MeV",
+        "unit": "用于计算约化质量",
+        "interpretation": "nucleon mass"
+      },
+      "DDM3Y1__Reid__parameter_C": {
+        "value": "0.2843",
+        "unit": "密度依赖因子参数",
+        "interpretation": "DDM3Y1 (Reid) parameter C"
+      },
+      "DDM3Y1__Reid__parameter": {
+        "value": "2.9605",
+        "unit": "密度依赖因子参数",
+        "interpretation": "DDM3Y1 (Reid) parameter β"
+      },
+      "DDM3Y1__Paris__parameter_C": {
+        "value": "0.2963",
+        "unit": "密度依赖因子参数",
+        "interpretation": "DDM3Y1 (Paris) parameter C"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "wkb_approximation",
+    "double_folding_model",
+    "relativistic_mean_field",
+    "density_dependent_interaction",
+    "m3y_interaction"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是预测超重核的α衰变半衰期和预成形因子。已知将使用基于NL3参数集的相对论平均场（RMF）理论作为微观输入，提供核结构信息。[Gap] 需要从RMF理论出发，获得计算α衰变半衰期所需的母核和子核的微观性质，如密度分布、单粒子波函数等。[Decision] 运用relativistic_mean_field方法，在给定Z=120，256≤A≤304的核素范围内，自洽求解核子狄拉克方程，计算基态性质。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "relativistic_mean_field",
+        "version": ""
+      },
+      "parameters": {
+        "parameter_set": "NL3",
+        "nuclei_range": "Z=120, 256≤A≤304",
+        "outputs": "binding_energy, rms_radius, single_particle_energies, wavefunctions, nucleon_densities"
+      },
+      "observation": "预期得到一系列超重核的基态性质，包括结合能、均方根半径、单粒子能量和波函数。最重要的是获得标量密度和矢量密度分布，这些将作为后续计算核子-核子相互作用的输入。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已从RMF计算获得了母核（超重核）的核子密度分布。[Gap] 为了计算α粒子与子核之间的相互作用势能，需要一个有效的核子-核子相互作用模型，以构建α-子核的双折叠势。[Decision] 采用density_dependent_interaction或m3y_interaction作为有效核力，与RMF输出的密度分布结合，通过double_folding_model计算α-子核的实部相互作用势V(R)。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {
+        "interaction_type": "density_dependent_interaction or m3y_interaction",
+        "inputs": "RMF_densities (mother_nucleus, daughter_nucleus), alpha_particle_density (assumed Gaussian or from 4He RMF)",
+        "output": "alpha-daughter nucleus potential V(R)"
+      },
+      "observation": "预期得到一个依赖于α粒子与子核质心距离R的势能函数V(R)。该势能通常包含一个深吸引势阱和一个库仑势垒。势垒的高度、位置和宽度是决定α粒子隧穿概率的关键参数。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已获得α-子核相互作用的双折叠势V(R)。[Gap] 需要计算α粒子从母核内部预形成状态隧穿该势垒的概率，这是计算半衰期的核心。[Decision] 应用wkb_approximation来计算α粒子的隧穿概率（穿透系数）P。这需要知道势垒的形状（从V(R)得到）和α粒子的衰变能Q_α。Q_α可以从RMF计算的结合能差得到。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V(R) from double_folding_model",
+        "Q_alpha": "Binding_energy(mother) - Binding_energy(daughter) - Binding_energy(alpha) from RMF",
+        "reduced_mass": "mu = (m_alpha * m_daughter)/(m_alpha + m_daughter)"
+      },
+      "observation": "预期得到隧穿概率P的WKB积分表达式：$P = \\exp \\left[ -2 \\int_{R_1}^{R_2} \\sqrt{\\frac{2\\mu}{\\hbar^2} (V(R) - Q_\\alpha)} \\, dR \\right]$，其中R1和R2是经典转折点。该表达式依赖于势能V(R)和Q_α的具体数值。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已获得隧穿概率P的表达式。[Gap] α衰变半衰期T_{1/2}不仅依赖于隧穿概率，还依赖于α粒子在母核内预形成的概率（预成形因子P_α）以及它撞击势垒的频率（ assault frequency ν）。[Decision] 将WKB隧穿概率与预成形因子和 assault frequency 结合，形成完整的半衰期计算公式：$T_{1/2} = (\\ln 2) / (\\nu P_\\alpha P)$。其中ν通常基于谐振子模型或核内α粒子速度估计。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "half_life_formula": "T_{1/2} = \\ln 2 / (\\nu P_\\alpha P)",
+        "assault_frequency_model": "Harmonic oscillator estimate or using alpha velocity inside nucleus"
+      },
+      "observation": "预期得到α衰变半衰期的完整理论表达式：$T_{1/2} = \\frac{\\ln 2}{\\nu P_\\alpha} \\exp \\left[ 2 \\int_{R_1}^{R_2} \\sqrt{\\frac{2\\mu}{\\hbar^2} (V(R) - Q_\\alpha)} \\, dR \\right]$。其中P_α是待提取的预成形因子。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已建立包含预成形因子P_α的半衰期理论公式。[Gap] 为了从理论预测中提取P_α，或者为了验证理论，需要将理论计算的半衰期与实验值（如果可用）或系统学进行比较。[Decision] 对于每个核素，使用前几步计算得到的Q_α和V(R)进行数值积分，得到隧穿概率P。然后，通过将理论半衰期公式与已知半衰期（或作为目标）进行匹配，反推出预成形因子P_α。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "computation_task": "Numerical integration of WKB exponent for each nucleus",
+        "input_from_previous": "V(R) array, Q_alpha, reduced mass mu",
+        "output": "Tunneling probability P for each nucleus"
+      },
+      "observation": "预期得到每个超重核的隧穿概率P的数值结果。这些数值通常在10^{-40}到10^{-10}量级，具体取决于Q_α和势垒参数。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已通过数值计算得到隧穿概率P，并建立了半衰期与P_α的关系式。[Gap] 需要最终计算出理论半衰期T_{1/2}的预测值，并提取出预成形因子P_α。这需要为 assault frequency ν 选择一个合理的估计值（例如~10^{20} - 10^{21} s^{-1}）。[Decision] 首先，假设一个典型的P_α值（例如从邻近核的系统学得到，或先设为1作为参考），计算理论T_{1/2}。然后，通过将计算出的T_{1/2}与实验值（若有）或宏观模型结果比较，调整或提取出更合理的P_α值，并分析其随核素的变化趋势。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "computation_task": "Calculate T_{1/2} and extract P_alpha",
+        "inputs": "P (from step5), nu (assumed), P_alpha (initial guess or from fit)",
+        "outputs": "Predicted T_{1/2} values, extracted P_alpha values"
+      },
+      "observation": "预期得到一系列超重核（Z=120, 256≤A≤304）的α衰变半衰期T_{1/2}的预测值，单位秒，可能跨越多个数量级（例如从微秒到数年）。同时预期提取出预成形因子P_α，它是一个无量纲数，预期在10^{-10}到10^{-1}量级，并可能显示出对中子数和质子数的依赖性。",
+      "valid": true
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已经完成基于微观RMF输入、双折叠势和WKB近似的半衰期和预成形因子计算。[Gap] 需要验证整个计算链条的合理性和一致性，例如检查势垒形状是否物理，WKB条件是否满足，以及结果是否与已知的α衰变系统学趋势相符。[Decision] 进行验证步骤：检查势垒高度与Q_α的相对大小；评估WKB近似的有效性（势垒变化是否足够缓慢）；将计算出的半衰期对数log10(T_{1/2})与衰变能Q_α作图，检查是否符合Viola-Seaborg关系的大致趋势，以验证整体框架的可靠性。",
+      "action": "verification",
+      "tool": {
+        "name": "verification",
+        "version": ""
+      },
+      "parameters": {
+        "checks": "Barrier shape sanity check, WKB validity condition, comparison with systematic trends (e.g., Geiger-Nuttall/Viola-Seaborg plot)"
+      },
+      "observation": "预期通过势能曲线图确认势垒形状合理（有明确的内部阱和外部库仑势垒）。预期验证WKB条件在转折点附近基本满足。预期发现计算出的log10(T_{1/2})与Q_α^{-1/2}或类似变量之间存在近似线性关系，与Geiger-Nuttall定律的普遍趋势一致，从而支持整个方法串联的物理合理性。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "WKB_approximation",
+        "desc": "用于计算钋同位素α衰变半衰期的半经典近似方法。"
+      },
+      {
+        "name": "double_folding_model",
+        "desc": "用于计算α粒子与子核之间核势的微观模型，通过折叠核密度分布与有效核子-核子相互作用得到。"
+      },
+      {
+        "name": "density_dependent_double_folding_model",
+        "desc": "在双折叠模型中考虑了密度依赖性的方法，用于计算核势。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "V_{eff}(R) = \\lambda V_{N}(R) + V_{C}(R) + V_{\\ell}"
+      },
+      {
+        "label": "Eq.4",
+        "content": "V_{C}(R) = Z_{1} Z_{2} e^{2} \\left\\{ \\begin{array}{l l} \\frac{1}{R} & \\text{for } R > R_{C} \\\\ \\frac{1}{2 R_{C}} \\left[ 3 - \\left(\\frac{R}{R_{C}}\\right)^{2} \\right] & \\text{for } R \\leq R_{C} \\end{array} \\right."
+      },
+      {
+        "label": "Eq.5",
+        "content": "V_{N}(R) = \\int \\int \\rho_{1}(\\mathbf{r}_{1}) F(\\rho_{1}, \\rho_{2}) \\rho_{2}(\\mathbf{r}_{2}) v(E_{\\alpha}, s) d \\mathbf{r}_{1} d \\mathbf{r}_{2}"
+      },
+      {
+        "label": "Eq.8",
+        "content": "F\\left(\\rho_{1}, \\rho_{2}\\right) = C \\left[ 1 + \\alpha e^{- \\beta \\left(\\rho_{1} + \\rho_{2}\\right)} - \\gamma \\left(\\rho_{1} + \\rho_{2}\\right) \\right]"
+      },
+      {
+        "label": "Eq.11",
+        "content": "v_{eff}(s) = V_{\\omega} + V_{\\sigma} + V_{\\rho} = \\frac{g_{\\omega}^{2}}{4 \\pi} \\frac{e^{- m_{\\omega} s}}{s} - \\frac{g_{\\sigma}^{2}}{4 \\pi} \\frac{e^{- m_{\\sigma} s}}{s} + \\frac{g_{\\rho}^{2}}{4 \\pi} \\frac{e^{- m_{\\rho} s}}{s} + J_{00}(E) \\delta(s)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "diffuseness parameter",
+        "value": "0.54 fm",
+        "condition": "用于子核密度分布的费米形式"
+      },
+      {
+        "quantity": "nucleon mass",
+        "value": "931.494 MeV",
+        "condition": "用于计算约化质量"
+      },
+      {
+        "quantity": "DDM3Y1 (Reid) parameter C",
+        "value": "0.2843",
+        "condition": "密度依赖因子参数"
+      },
+      {
+        "quantity": "DDM3Y1 (Reid) parameter α",
+        "value": "3.6391",
+        "condition": "密度依赖因子参数"
+      },
+      {
+        "quantity": "DDM3Y1 (Reid) parameter β",
+        "value": "2.9605",
+        "condition": "密度依赖因子参数"
+      },
+      {
+        "quantity": "DDM3Y1 (Paris) parameter C",
+        "value": "0.2963",
+        "condition": "密度依赖因子参数"
+      },
+      {
+        "quantity": "DDM3Y1 (Paris) parameter α",
+        "value": "3.7231",
+        "condition": "密度依赖因子参数"
+      },
+      {
+        "quantity": "DDM3Y1 (Paris) parameter β",
+        "value": "3.7384",
+        "condition": "密度依赖因子参数"
+      }
+    ],
+    "failure_points": []
+  }
+}

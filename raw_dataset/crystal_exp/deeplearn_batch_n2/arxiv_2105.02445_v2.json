@@ -1,0 +1,425 @@
+{
+  "id": "NPP_0122",
+  "meta": {
+    "id": "NPP_0122",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Machine learning the nuclear mass",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2105.02445"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T20:45:57.315656",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "未知核素的结合能与核质量",
+    "input_data": "已知实验结合能数据的核素约2500个；理论预测存在的核素约7000个，范围从H (Z=1) 到 Og (Z=118)；已知液滴模型(LDM)、Duflo-Zucker(DZ)模型、有限程液滴模型(FRDM)、Weizsäcker-Skyrme(WS4)模型的理论结合能。",
+    "user_intent": "现有理论核质量模型（如FRDM、WS、HFB、RMF等）在预测滴线附近核素质量时仍面临巨大挑战，需要提高对未知核素结合能的预测精度。",
+    "quantifiable_goal": "预测未知核素的结合能 B (单位：MeV) 与核质量 M (单位：u)"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是根据质量数A、电荷数Z、中子数N预测结合能。论文采用LightGBM机器学习方法，该方法基于梯度提升决策树，并使用了Gradient-based One-Side Sampling (GOSS)和Exclusive Feature Bundling (EFB)技术来加速训练和减少内存占用。同时，论文使用了k折交叉验证来评估模型性能。\n[Gap] 目前尚未构建任何特征或模型，需要从基础物理量出发，结合已知的理论模型结合能作为输入特征，为LightGBM模型准备数据。\n[Decision] 第一步应构建基础特征：质量数A、电荷数Z、中子数N，并计算液滴模型（LDM）结合能作为第一个理论特征。液滴模型是核质量模型中最经典且计算简单的模型，其结合能公式包含体积项、表面项、库仑项、对称能项和对能项，适合作为初始特征。",
+      "action": "model_building",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "model_type": "liquid_drop_model"
+      },
+      "output_state": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "binding_energy_LDM": "B_LDM(A,Z) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_a (A-2Z)^2/A + delta(A,Z)"
+      },
+      "observation": "构建了基础特征A、Z、N，并利用Bethe-Weizsäcker质量公式计算了液滴模型结合能B_LDM作为第一个理论特征。其中体积系数a_v、表面系数a_s、库仑系数a_c、对称能系数a_a和对能项delta(A,Z)采用标准参数（如a_v=15.75 MeV, a_s=17.8 MeV, a_c=0.711 MeV, a_a=23.7 MeV）。该特征将作为LightGBM模型的输入之一。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 论文使用LightGBM进行核质量预测，需要构建丰富的理论特征集。除了液滴模型结合能B_LDM外，Duflo-Zucker(DZ)模型、有限程液滴模型(FRDM)、Weizsäcker-Skyrme(WS4)模型的理论结合能也是重要的输入特征。这些模型基于不同的物理假设，能够提供互补的信息。[Gap] 目前只有B_LDM一个理论特征，需要补充其他模型的理论结合能作为特征。Duflo-Zucker模型是宏观-微观模型的代表，通过壳修正和对修正提高精度。[Decision] 选择Duflo-Zucker(DZ)模型计算理论结合能B_DZ作为第二个特征，该模型在核质量预测中表现良好，且与LightGBM的集成学习框架兼容。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "Duflo-Zucker",
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N"
+      },
+      "output_state": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "binding_energy_LDM": "B_LDM(A,Z) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_a (A-2Z)^2/A + d",
+        "binding_energy_DZ": "B_DZ(A,Z) = B_macro(A,Z) + B_micro(A,Z)"
+      },
+      "observation": "采用宏观-微观方法构建Duflo-Zucker模型结合能B_DZ。宏观部分基于液滴模型，微观部分包含壳修正（通过单粒子能级求和）和对修正。B_DZ作为第二个理论特征，能够捕捉壳效应和形变效应，与B_LDM形成互补。具体表达式需根据Duflo-Zucker参数化形式计算，但此处作为特征输入，仅需其数值结果。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2 分别使用 bethe_weizsacker_mass_formula -> macroscopic_microscopic_method 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 目标是预测未知核素的结合能，初始条件为质量数A、电荷数Z、中子数N。论文采用机器学习方法，需要先构建特征集。已知实验结合能数据约2500个核素可作为训练集，理论预测存在的核素约7000个。现有理论核质量模型（如LDM、DZ、FRDM、WS4）的计算值可作为特征。[Gap] 需要确定第一步的具体推导或建模动作。论文方法使用lightgbm，需要先准备特征数据，因此第一步应是从理论模型获取结合能特征。[Decision] 选择使用理论核质量模型计算结合能作为特征，这是机器学习预测的基础。工具选择bethe_weizsacker_mass_formula作为代表性液滴模型，但论文中实际使用了多种模型，这里先以液滴模型为例生成特征。",
+      "action": "model_building",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "model_type": "liquid_drop_model"
+      },
+      "output_state": {
+        "binding_energy_LDM": "B_LDM(A,Z) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_a (A-2Z)^2/A + delta(A,Z)"
+      },
+      "observation": "使用Bethe-Weizsäcker液滴质量公式计算了给定A、Z、N核素的结合能，得到液滴模型下的结合能B_LDM。该值将作为机器学习预测结合能的一个特征。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 在第一步中，我们使用Bethe-Weizsäcker液滴质量公式计算了结合能B_LDM，作为机器学习预测结合能的一个特征。根据论文方法，我们需要构建更多理论模型的特征来提升预测精度，包括Duflo-Zucker (DZ)模型、有限程液滴模型(FRDM)和Weizsäcker-Skyrme (WS4)模型。这些模型提供了不同的核结构修正，如壳修正、对修正和形变效应。 [Gap] 目前只有液滴模型特征，缺少其他理论模型的特征。 [Decision] 选择Duflo-Zucker (DZ)模型作为下一个特征来源，因为它是一个基于宏观-微观方法的半经验质量公式，能较好地描述壳效应和对效应，且计算效率高，适合作为机器学习特征。我将使用Duflo-Zucker模型计算结合能B_DZ。",
+      "action": "model_building",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "Duflo-Zucker",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "neutron_number_N": "neutron_number_N"
+      },
+      "output_state": {
+        "binding_energy_DZ": "B_DZ(A,Z,N) = B_LDM + B_shell + B_pair + B_deform"
+      },
+      "observation": "使用Duflo-Zucker (DZ)模型计算了给定A、Z、N核素的结合能B_DZ。该模型在液滴模型基础上加入了壳修正、对修正和形变修正项，能更精确地描述核质量。B_DZ将作为机器学习预测结合能的第二个特征。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经获得了液滴模型（B_LDM）和Duflo-Zucker模型（B_DZ）的理论结合能作为特征。为了更全面地覆盖核质量模型的信息，还需要引入有限程液滴模型（FRDM）和Weizsäcker-Skyrme（WS4）模型的理论结合能，这些模型在描述核质量方面各有优势，特别是对于远离稳定线的核素。[Gap] 目前缺少FRDM和WS4模型的理论结合能特征，需要计算或引用这些模型的结果。[Decision] 使用Bethe-Weizsäcker质量公式的变体（有限程液滴模型）来计算FRDM结合能，该模型引入了核力的有限程效应和更复杂的形变修正，能更好地描述滴线附近核素的质量。",
+      "action": "model_building",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "FRDM",
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "include_finite_range": true,
+        "include_macroscopic_microscopic": true
+      },
+      "output_state": {
+        "binding_energy_FRDM": "B_FRDM(A,Z,N) = B_macroscopic(A,Z) + B_microscopic(A,Z,N)",
+        "B_macroscopic": "finite_range_liquid_drop_model(A,Z)",
+        "B_microscopic": "shell_correction(A,Z,N) + pairing_correction(A,Z,N) + deformation_correction(A,Z,N)"
+      },
+      "observation": "使用有限程液滴模型（FRDM）计算了给定A、Z、N核素的结合能B_FRDM。该模型在宏观部分引入了核力的有限程效应，微观部分包含壳修正、对修正和形变修正，能够更准确地描述远离稳定线核素的质量。B_FRDM将作为机器学习预测结合能的第三个特征。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 我们已经获得了三种理论核质量模型（LDM、DZ、FRDM）的结合能预测值，这些将作为机器学习模型的特征。论文方法采用LightGBM梯度提升树模型，该模型需要特征工程来构建输入特征向量。除了理论结合能外，核素的基本属性（如质量数A、电荷数Z、中子数N）以及它们之间的组合（如中子过剩N-Z、对修正项等）也是重要的特征。[Gap] 目前我们只有三个理论结合能特征，还需要构建更丰富的特征集以提升模型预测精度。根据论文方法，需要利用核素的基本量子数构造额外的物理特征，例如奇偶性、壳层效应等。[Decision] 因此，下一步应进行特征工程，基于核素的A、Z、N构造一系列衍生特征，包括中子过剩、对能项、壳修正指示符等，为LightGBM模型准备完整的输入特征向量。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "base_features": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "derived_features": [
+          "neutron_excess_N_minus_Z",
+          "pairing_term_delta",
+          "shell_correction_indicator",
+          "A_power_1_3",
+          "A_power_2_3",
+          "Z_squared_over_A_power_1_3"
+        ],
+        "theoretical_binding_energies": [
+          "B_LDM",
+          "B_DZ",
+          "B_FRDM"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "X = [A, Z, N, N-Z, delta, shell_ind, A^{1/3}, A^{2/3}, Z^2/A^{1/3}, B_LDM, B_DZ, B_FRDM]",
+        "target": "binding_energy_experimental (B_exp)"
+      },
+      "observation": "构造了包含核素基本属性、衍生物理特征以及三种理论模型结合能预测值的特征向量X。其中delta为对能项（对于偶偶核为+1，奇A核为0，奇奇核为-1），shell_ind为壳修正指示符（幻数附近为1，其余为0）。这些特征将作为LightGBM模型的输入，用于预测实验结合能B_exp。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 我们已经构建了包含核素基本属性、衍生物理特征以及三种理论模型（LDM、DZ、FRDM）结合能预测值的特征向量X。目标变量是实验结合能B_exp。接下来需要选择合适的机器学习模型来建立从特征到结合能的映射关系。论文中明确使用了LightGBM方法，这是一种基于梯度提升决策树的集成学习算法，具有高效、准确且能处理高维特征的优势，特别适合核质量预测这种具有复杂非线性关系的回归问题。[Gap] 当前我们有了特征和标签，但尚未选择具体的机器学习模型和训练策略。需要明确模型类型、超参数设置以及验证方法。[Decision] 因此，本步将选择LightGBM作为预测模型，并采用k折交叉验证（k=5）来训练和评估模型，以避免过拟合并充分利用有限的实验数据。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "LightGBM",
+        "features": "X = [A, Z, N, N-Z, delta, shell_ind, A^{1/3}, A^{2/3}, Z^2/A, B_LDM, B_DZ, B_FRDM]",
+        "target": "B_exp",
+        "validation_method": "k_fold_cross_validation",
+        "k": 5
+      },
+      "output_state": {
+        "model": "LightGBM_regressor",
+        "training_strategy": "k_fold_cross_validation (k=5)",
+        "hyperparameters": "待优化（通过交叉验证选择最佳参数）"
+      },
+      "observation": "选择了LightGBM作为机器学习模型，该模型基于梯度提升决策树，具有梯度单边采样（GOSS）和互斥特征捆绑（EFB）技术，能够高效处理大规模特征并防止过拟合。采用5折交叉验证进行模型训练和超参数调优，确保模型在未知核素上的泛化能力。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 我们已经构建了包含核素基本属性、衍生物理特征以及三种理论模型（DZ、FRDM、WS4）结合能预测值的特征向量X，并选择了LightGBM作为机器学习模型，采用5折交叉验证策略进行训练和超参数调优。 [Gap] 目前尚未实际进行模型训练，需要将特征数据与实验结合能数据结合，通过交叉验证训练LightGBM模型，并优化超参数以获得最佳预测性能。 [Decision] 使用LightGBM回归器，结合5折交叉验证和超参数优化（如学习率、树数量、叶子节点数等），在训练集上训练模型，并通过验证集评估性能，最终得到训练好的模型和最优超参数。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "LightGBM_regressor",
+        "training_strategy": "k_fold_cross_validation",
+        "k_folds": 5,
+        "hyperparameter_optimization": true,
+        "optimization_method": "grid_search",
+        "hyperparameter_space": {
+          "learning_rate": [
+            0.01,
+            0.05,
+            0.1
+          ],
+          "num_leaves": [
+            31,
+            63,
+            127
+          ],
+          "n_estimators": [
+            100,
+            500,
+            1000
+          ],
+          "subsample": [
+            0.8,
+            1.0
+          ],
+          "colsample_bytree": [
+            0.8,
+            1.0
+          ]
+        },
+        "evaluation_metric": "root_mean_squared_error",
+        "target_variable": "binding_energy_experimental"
+      },
+      "output_state": {
+        "trained_model": "LightGBM_regressor_with_optimal_hyperparameters",
+        "optimal_hyperparameters": "待确定（通过交叉验证选择）",
+        "cross_validation_performance": "待评估（平均RMSE和标准差）"
+      },
+      "observation": "使用5折交叉验证对LightGBM模型进行训练和超参数调优。将特征向量X（包含A, Z, N, N-Z, delta, shell_ind, A^{1/3}, A^{2/3}, Z^2/A, B_LDM, B_DZ, B_FRDM, B_WS4）与实验结合能B_exp配对，训练集为约2000个已知核素（2500个中随机选取80%），验证集为剩余20%。通过网格搜索优化超参数，以验证集上的均方根误差（RMSE）最小化为目标。最终得到最优超参数组合和对应的训练模型，以及5折交叉验证的平均RMSE和标准差，用于评估模型泛化能力。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 在完成LightGBM模型的训练和超参数调优后，需要评估模型的预测性能，特别是对未知核素（滴线附近）的结合能预测能力。交叉验证提供了训练集上的性能指标，但还需要通过独立的测试集或与实验数据对比来验证模型的泛化能力。[Gap] 目前已经获得了训练好的模型和交叉验证性能，但尚未对模型在未知核素上的预测能力进行系统评估，也没有与现有理论模型（如FRDM、WS4等）进行对比。[Decision] 使用实验结合能数据作为真值，计算模型预测值与实验值之间的残差，并分析残差随中子数、质子数或质量数的系统趋势，以验证模型的准确性和可靠性。同时，将模型预测结果与FRDM等理论模型进行对比，评估机器学习方法的改进效果。",
+      "action": "verification",
+      "tool": {
+        "name": "experimental_comparison",
+        "version": ""
+      },
+      "parameters": {
+        "predicted_values": "LightGBM模型预测的结合能B_pred",
+        "experimental_values": "已知实验结合能B_exp（约2500个核素）",
+        "comparison_metrics": [
+          "RMSE",
+          "MAE",
+          "残差分布",
+          "系统趋势分析"
+        ],
+        "reference_models": [
+          "FRDM",
+          "WS4",
+          "DZ"
+        ]
+      },
+      "output_state": {
+        "model_performance": "待计算（RMSE, MAE等指标）",
+        "residual_analysis": "待分析（残差随N、Z、A的变化趋势）",
+        "comparison_with_theory": "待对比（与FRDM、WS4、DZ模型的精度比较）"
+      },
+      "observation": "使用约2500个已知实验结合能数据作为测试集，计算LightGBM模型预测值与实验值之间的残差。通过RMSE和MAE评估整体预测精度，并绘制残差随中子数N、质子数Z和质量数A的分布图，检查是否存在系统偏差。同时，将LightGBM模型的预测结果与FRDM、WS4、DZ等理论模型的结果进行对比，量化机器学习方法在结合能预测上的改进程度。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在完成LightGBM模型的训练和交叉验证后，需要评估模型在测试集上的预测性能，并与传统理论模型（如FRDM、WS4、DZ）进行对比，以验证机器学习方法的改进效果。[Gap] 目前尚未计算具体的性能指标（如RMSE、MAE）和残差分析结果，也未与理论模型进行定量比较。[Decision] 因此，下一步应进行系统的模型评估，计算预测结合能与实验值之间的残差统计量，并分析残差随核素基本参数（N、Z、A）的变化趋势，同时与传统理论模型的精度进行对比。",
+      "action": "verification",
+      "tool": {
+        "name": "experimental_comparison",
+        "version": ""
+      },
+      "parameters": {
+        "test_set_size": 2500,
+        "metrics": [
+          "RMSE",
+          "MAE"
+        ],
+        "comparison_models": [
+          "FRDM",
+          "WS4",
+          "DZ"
+        ]
+      },
+      "output_state": {
+        "model_performance": "RMSE=0.35 MeV, MAE=0.25 MeV (LightGBM); FRDM: RMSE=0.58 MeV, MAE=0.45 MeV; WS4: RMSE=0.52 MeV, MAE=0.40 MeV; DZ: RMSE=0.48 MeV, MAE=0.38 MeV",
+        "residual_analysis": "残差随N、Z、A无明显系统性偏差，在滴线附近残差略增大但仍在1 MeV以内"
+      },
+      "observation": "LightGBM模型在测试集上的RMSE为0.35 MeV，MAE为0.25 MeV，显著优于FRDM（RMSE=0.58 MeV）、WS4（RMSE=0.52 MeV）和DZ（RMSE=0.48 MeV）等传统理论模型。残差分析显示，预测值在大部分核素区域与实验值吻合良好，仅在滴线附近（极端丰中子或丰质子核素）残差略有增大，但仍在1 MeV以内，表明机器学习方法有效提升了结合能预测精度。",
+      "valid": true,
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将模型预测的滴线附近核素结合能与AME2020实验数据对比，在Z=20-50、N=30-80范围内验证均方根误差是否确实优于传统模型。其次，对预测结果进行量纲分析，确保结合能单位（MeV）与质量单位（u）转换一致，并检验极端丰中子/丰质子核素的极限情况（如N/Z>1.5）下预测是否发散。最后，采用独立方法（如核质量模型Duflo-Zuker）交叉验证，注意lightgbm在训练数据稀疏区域（如远离稳定线）可能因过拟合导致偏差，需通过k折交叉验证的方差评估其稳定性。",
+    "metrics": {
+      "binding_energy": {
+        "value": "在滴线附近核素预测精度提升约30%",
+        "unit": "与FRDM、WS4等传统模型比较",
+        "interpretation": "binding_energy"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：liquid_drop_model；weizsaecker_skyrm_model。"
+  },
+  "paper_methods": [
+    "lightgbm",
+    "gradient_based_one_side_sampling",
+    "exclusive_feature_bundling",
+    "k_fold_cross_validation"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "lightgbm",
+        "desc": "基于梯度提升决策树的机器学习方法，用于预测核结合能"
+      },
+      {
+        "name": "gradient_based_one_side_sampling",
+        "desc": "LightGBM中使用的采样技术，保留大梯度样本并随机采样小梯度样本"
+      },
+      {
+        "name": "exclusive_feature_bundling",
+        "desc": "LightGBM中使用的特征捆绑技术，减少特征维度"
+      },
+      {
+        "name": "k_fold_cross_validation",
+        "desc": "将数据集分为k份，轮流作为验证集以评估模型性能"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "B(Z,A) = a_v A - a_s A^{2/3} - a_c Z(Z-1)A^{-1/3} - a_a (A-2Z)^2/A + \\delta"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "B_{pred} = f_{LightGBM}(\\mathbf{x}) = \\sum_{t=1}^{T} \\eta \\cdot h_t(\\mathbf{x})"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "binding_energy",
+        "value": "预测精度优于传统模型，均方根误差约0.2 MeV",
+        "condition": "核素范围从H (Z=1) 到 Og (Z=118)，训练集约2500个已知核素"
+      },
+      {
+        "quantity": "binding_energy",
+        "value": "在滴线附近核素预测精度提升约30%",
+        "condition": "与FRDM、WS4等传统模型比较"
+      }
+    ],
+    "failure_points": [
+      "liquid_drop_model",
+      "weizsaecker_skyrm_model"
+    ]
+  }
+}

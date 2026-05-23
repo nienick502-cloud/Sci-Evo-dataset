@@ -1,0 +1,448 @@
+{
+  "id": "NPP_0182",
+  "meta": {
+    "id": "NPP_0182",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "nuclear_scattering",
+    "source": {
+      "type": "paper",
+      "title": "Elastic Scattering and Total Reaction Cross Section for the $6$ He + 27Al System",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_nucl-ex_0612002"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "6He+27Al体系的弹性散射与总反应截面",
+    "input_data": "放射性晕核6He在27Al靶上的弹性散射实验数据，测量能量接近库仑势垒；已知6He为两中子晕核，具有Borromean性质；已知稳定弱束缚核（6,7Li, 9Be）和紧束缚核（16O）在27Al靶上的反应截面数据作为对比参考。",
+    "user_intent": "现有研究多集中于稳定弱束缚核（如6,7Li, 9Be）的熔合反应，其分离能高于放射性晕核。晕核具有更大的核半径（导致库仑势垒降低）、可能存在软偶极共振等重要耦合效应，以及晕核中两中子的强关联性，这些是稳定核反应中不具备的特征。晕核的破裂效应预计对散射机制有重要影响，会改变相互作用势的虚部，但目前关于弱束缚核熔合是增强还是抑制存在相互矛盾的预测，需要更直接的散射数据来理解晕核特有的反应机制。",
+    "quantifiable_goal": "提取弹性散射微分截面 dσ/dΩ（单位：mb/sr）随角度的分布，提取总反应截面 σ_R（单位：mb）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知实验测量了6He在27Al靶上的弹性散射数据，能量接近库仑势垒。实验数据包含不同角度的弹性散射计数。[Gap] 原始实验计数需要转换为物理上可解释的微分截面 dσ/dΩ，这需要绝对归一化，并扣除本底和探测效率的影响。[Decision] 使用 delta_e_e_si_telescope_detection 方法处理原始实验数据。该方法涉及使用硅望远镜探测器（ΔE-E）进行粒子鉴别，以区分弹性散射的6He与其他反应产物（如破裂碎片）。预期通过能量损失和总能量信息，筛选出弹性散射事件，并利用已知的靶厚度、束流积分和立体角因子，将计数转换为微分截面。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "delta_e_e_si_telescope_detection",
+        "version": ""
+      },
+      "parameters": {
+        "data_processing": "particle_identification_via_ΔE-E",
+        "normalization": "using_target_thickness_beam_integral_solid_angle"
+      },
+      "observation": "预期得到一组实验测量的弹性散射微分截面数据点 dσ_exp/dΩ (θ_i)，每个点对应一个散射角 θ_i，并带有统计误差和可能的系统误差。这些数据是后续与理论模型比较的基础。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得实验微分截面。在核反应光学模型框架下，弹性散射截面由复光学势决定，总反应截面 σ_R 与光学势的虚部（吸收势）直接相关。[Gap] 需要建立一个理论模型来描述6He+27Al体系的弹性散射，并从中提取总反应截面。光学势参数（如 Woods-Saxon 势的深度、半径、弥散度）是未知的，需要从实验数据中拟合得到。[Decision] 使用 optical_model_calculation 方法。首先构建一个参数化的复光学势 U(r) = V_C(r) + V_N(r) + i W(r)，其中 V_C 为库仑势，V_N 和 W 分别为实部和虚部的核势。对于晕核，核势的几何参数（如半径）可能需要根据晕核的扩展半径进行调整。然后求解薛定谔方程，计算理论弹性散射角分布。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "optical_model_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "potential_form": "Woods-Saxon_for_real_and_imaginary_parts",
+        "coulomb_potential": "uniform_charged_sphere",
+        "fitting_target": "elastic_angular_distribution"
+      },
+      "observation": "预期得到一个参数化的光学势 U(r)，以及由此势计算出的理论弹性散射微分截面 dσ_OM/dΩ。光学势的参数（如 V, r_V, a_V, W, r_W, a_W）是待拟合的自由参数。理论截面是散射角 θ 的函数。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已建立光学模型计算框架，可以得到理论角分布。为了将理论预测与实验数据（步骤1的输出）进行比较以确定最佳光学势参数，需要一个拟合或优化过程。[Gap] 光学势参数空间是多维的，直接解析拟合困难。需要一种系统的方法来寻找使理论预测与实验数据吻合最好的参数集。[Decision] 使用 monte_carlo_simulation 方法，但不是用于模拟反应过程，而是用于参数空间的随机采样和优化（例如，采用蒙特卡洛模拟退火或参数扫描）。在每次模拟中，从预设的参数范围内随机选取一组光学势参数，运行 optical_model_calculation 得到理论角分布，计算其与实验数据的 χ²。通过大量模拟迭代，寻找最小化 χ² 的参数集。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "monte_carlo_simulation",
+        "version": ""
+      },
+      "parameters": {
+        "purpose": "parameter_space_exploration_for_optical_potential",
+        "sampling_method": "random_or_Metropolis",
+        "figure_of_merit": "chi_squared_between_theory_and_experiment"
+      },
+      "observation": "预期得到一组最优的光学势参数，使得理论计算的弹性散射角分布 dσ_OM/dΩ 与实验数据 dσ_exp/dΩ 在最小二乘意义下最佳吻合。同时会得到拟合的 χ² 值，用于评估拟合质量。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 通过蒙特卡洛模拟优化，获得了描述6He+27Al体系的最佳光学势。根据光学模型理论，总反应截面 σ_R 可以直接从光学势的虚部（吸收势）计算得到，公式为 σ_R = (2π/ħv) ∫ (1 - |S_l|²) (2l+1)，其中 S_l 是分波 S 矩阵元，由求解含该光学势的薛定谔方程得到。[Gap] 需要从确定的光学势参数计算出 σ_R。[Decision] 再次运用 optical_model_calculation 方法，但这次使用步骤3确定的最优参数集作为输入，计算分波 S 矩阵元，然后代入总反应截面的公式进行数值积分。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "optical_model_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "input_potential": "optimized_parameters_from_step3",
+        "output_quantity": "S_matrix_elements_and_total_reaction_cross_section"
+      },
+      "observation": "预期得到一个总反应截面 σ_R 的数值（单位：mb）。这是从拟合弹性散射数据导出的关键物理量，反映了6He+27Al体系在给定能量下的总非弹性过程（包括熔合、破裂、非弹性激发等）的概率。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已经得到了实验微分截面和通过光学模型提取的总反应截面。为了更直观地理解晕核效应，需要将6He的数据与参考核（如紧束缚核16O）的数据进行对比。纯库仑散射（卢瑟福散射）提供了一个无核相互作用的基准。[Gap] 需要计算在相同能量和角度下，点电荷库仑散射的理论截面，以凸显核势（特别是晕核带来的吸收和折射效应）的贡献。[Decision] 使用 rutherford_scattering 方法，计算6He在27Al靶上的纯库仑微分截面 dσ_Ruth/dΩ。该公式为已知的解析表达式，依赖于电荷数、质心系能量和散射角。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "rutherford_scattering",
+        "version": ""
+      },
+      "parameters": {
+        "formula": "dσ/dΩ = (Z1 Z2 e^2 / (4E_cm))^2 * csc^4(θ_cm/2)",
+        "Z1": 2,
+        "Z2": 13,
+        "E_cm": "given_center_of_mass_energy"
+      },
+      "observation": "预期得到作为角度函数的卢瑟福散射微分截面 dσ_Ruth/dΩ。这将作为参考曲线，用于计算实验或光学模型截面对卢瑟福截面的比值，即归一化截面 dσ/dσ_Ruth，这有助于消除库仑主导的1/sin^4(θ/2)依赖，更清晰地显示核效应。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已获得实验截面、光学模型理论截面、卢瑟福截面以及提取的总反应截面 σ_R。[Gap] 需要验证光学模型提取的 σ_R 的可靠性，并讨论晕核的特殊性（如破裂、扩展半径）如何体现在光学势参数和截面中。一个关键的验证是将6He的 σ_R 与已知的稳定弱束缚核（6,7Li, 9Be）和紧束缚核（16O）在相似能量下的数据进行比较。[Decision] 进行对比分析。利用 optical_model_calculation 为对比核（如果其光学势参数已知或可从类似数据中获取）计算 σ_R，或者直接引用文献中的实验 σ_R 值。重点分析6He的 σ_R 是增强还是抑制，并联系其光学势参数（如更浅的实部深度、更强的虚部强度或更大的几何半径）进行物理解释。",
+      "action": "verification",
+      "tool": {
+        "name": "optical_model_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "comparison": "σ_R_for_6He_vs_stable_nuclei(6,7Li,9Be,16O)",
+        "interpretation": "relating_optical_potential_parameters_to_halo_features"
+      },
+      "observation": "预期得到一个对比表格或图表，显示6He的总反应截面 σ_R 相对于稳定核（尤其是弱束缚核）是增大、减小还是相当。同时，预期对6He最佳拟合光学势的参数进行讨论，例如可能观察到更大的半径参数（反映晕结构）或特定的虚部强度（反映破裂通道的耦合）。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文旨在研究6He+27Al系统的弹性散射和总反应截面，并与稳定弱束缚核（6,7Li, 9Be）和紧束缚核（16O）在相同靶上的数据进行对比。实验需要产生6He次级束流并测量其与27Al靶的散射。[Gap] 需要一种方法来产生和表征用于实验的6He放射性离子束。[Decision] 论文使用圣保罗大学新安装的RIB（放射性离子束）设施，通过特定的核反应来产生6He次级束流。",
+      "action": "rule_application",
+      "tool": {
+        "name": "secondary_beam_production",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "通过9Be(7Li, 6He)10B反应产生6He次级束流，该反应的Q值为-3.38 MeV。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 6He次级束流已经产生。[Gap] 需要确定束流在次级靶（27Al）处的能量，以评估其相对于库仑势垒的位置。[Decision] 论文根据初级束流（7Li）的能量和反应运动学，计算了次级束流在27Al靶中间位置的能量。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "RIB_facility_experiment",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "在27Al次级靶中间位置，6He束流的能量为9.5, 11.0, 12.0, 13.4 MeV，这分别对应7Li初级束流能量为19.0, 20.5, 21.0, 22.0 MeV。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 已知6He束流在27Al靶上的能量。[Gap] 需要评估这些能量与系统库仑势垒的关系，以理解反应发生的能量区域。[Decision] 论文给出了6He+27Al系统在实验室系中的库仑势垒值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "optical_model_calculation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "6He + 27Al系统在实验室系中的库仑势垒约为8.0 MeV。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 实验测量了弹性散射角分布。[Gap] 为了从测量的计数率得到微分截面，需要知道探测器的有效立体角和平均探测角度，并评估角度测量的不确定性。[Decision] 论文使用蒙特卡洛模拟来确定这些几何参数和不确定性。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Monte_Carlo_simulation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "通过蒙特卡洛模拟确定了有效立体角和平均探测角度，并计算出总的角度不确定性为±3.2度。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 实验测量了散射产物的计数，并已知探测几何参数。[Gap] 为了将计数率转化为绝对微分截面，需要知道入射束流的绝对强度。[Decision] 论文通过假设6He在金靶上发生纯卢瑟福散射，利用已知的卢瑟福散射公式来校准和计算次级束流的强度。",
+      "action": "rule_application",
+      "tool": {
+        "name": "Rutherford_scattering_calibration",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "假设6He在金靶上发生纯卢瑟福散射，以此计算次级束流强度。在所述能量下，6He次级束流强度约为0.7×10^5 pps/(μAe of 7Li)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 已经获得了绝对微分截面数据。[Gap] 需要从弹性散射角分布中提取总反应截面，这通常需要理论模型来拟合数据并提取光学势的虚部。[Decision] 论文使用光学模型计算来重现实验测量的弹性散射角分布，从而提取总反应截面。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "optical_model_calculation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "使用光学模型计算来重现角分布的弹性散射截面，并最终提取总反应截面σ_R（单位：mb）。",
+      "observation_source": "inferred",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 模型的预测轨迹与论文实际推导在物理推理上基本一致。[Gap] 无重大物理推理错误需要修正。[Decision] 预测合理，无需重大调整。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预测与论文一致，半盲预测（已知方法名）有效降低了方法层面的错误。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "primary_beam_intensity": {
+        "value": "约300 nAe",
+        "unit": "7Li初级束流轰击9Be生产靶",
+        "interpretation": "primary_beam_intensity"
+      },
+      "secondary_beam_energies": {
+        "value": "9.5, 11.0, 12.0, 13.4 MeV",
+        "unit": "在27Al次级靶中间位置，对应7Li初级束流能量为19.0, 20.5, 21.0, 22.0 MeV",
+        "interpretation": "secondary_beam_energies"
+      },
+      "Coulomb_barrier_lab": {
+        "value": "约8.0 MeV",
+        "unit": "6He + 27Al系统在实验室系中的库仑势垒",
+        "interpretation": "Coulomb_barrier_lab"
+      },
+      "energy_loss_in_Al_target": {
+        "value": "约3.2 MeV",
+        "unit": "6He束流在厚Al靶中的总能量损失",
+        "interpretation": "energy_loss_in_Al_target"
+      },
+      "energy_resolution_FWHM": {
+        "value": "约400 keV",
+        "unit": "使用厚Al靶时弹性峰的全宽半高",
+        "interpretation": "energy_resolution_FWHM"
+      },
+      "secondary_beam_intensity": {
+        "value": "约0.7×10^5 pps/(μAe of 7Li)",
+        "unit": "在所述能量下的6He次级束流强度",
+        "interpretation": "secondary_beam_intensity"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "optical_model_calculation",
+    "monte_carlo_simulation",
+    "rutherford_scattering",
+    "delta_e_e_si_telescope_detection"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知实验测量了6He在27Al靶上的弹性散射数据，能量接近库仑势垒。实验数据包含不同角度的弹性散射计数。[Gap] 原始实验计数需要转换为物理上可解释的微分截面 dσ/dΩ，这需要绝对归一化，并扣除本底和探测效率的影响。[Decision] 使用 delta_e_e_si_telescope_detection 方法处理原始实验数据。该方法涉及使用硅望远镜探测器（ΔE-E）进行粒子鉴别，以区分弹性散射的6He与其他反应产物（如破裂碎片）。预期通过能量损失和总能量信息，筛选出弹性散射事件，并利用已知的靶厚度、束流积分和立体角因子，将计数转换为微分截面。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "delta_e_e_si_telescope_detection",
+        "version": ""
+      },
+      "parameters": {
+        "data_processing": "particle_identification_via_ΔE-E",
+        "normalization": "using_target_thickness_beam_integral_solid_angle"
+      },
+      "observation": "预期得到一组实验测量的弹性散射微分截面数据点 dσ_exp/dΩ (θ_i)，每个点对应一个散射角 θ_i，并带有统计误差和可能的系统误差。这些数据是后续与理论模型比较的基础。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得实验微分截面。在核反应光学模型框架下，弹性散射截面由复光学势决定，总反应截面 σ_R 与光学势的虚部（吸收势）直接相关。[Gap] 需要建立一个理论模型来描述6He+27Al体系的弹性散射，并从中提取总反应截面。光学势参数（如 Woods-Saxon 势的深度、半径、弥散度）是未知的，需要从实验数据中拟合得到。[Decision] 使用 optical_model_calculation 方法。首先构建一个参数化的复光学势 U(r) = V_C(r) + V_N(r) + i W(r)，其中 V_C 为库仑势，V_N 和 W 分别为实部和虚部的核势。对于晕核，核势的几何参数（如半径）可能需要根据晕核的扩展半径进行调整。然后求解薛定谔方程，计算理论弹性散射角分布。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "optical_model_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "potential_form": "Woods-Saxon_for_real_and_imaginary_parts",
+        "coulomb_potential": "uniform_charged_sphere",
+        "fitting_target": "elastic_angular_distribution"
+      },
+      "observation": "预期得到一个参数化的光学势 U(r)，以及由此势计算出的理论弹性散射微分截面 dσ_OM/dΩ。光学势的参数（如 V, r_V, a_V, W, r_W, a_W）是待拟合的自由参数。理论截面是散射角 θ 的函数。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已建立光学模型计算框架，可以得到理论角分布。为了将理论预测与实验数据（步骤1的输出）进行比较以确定最佳光学势参数，需要一个拟合或优化过程。[Gap] 光学势参数空间是多维的，直接解析拟合困难。需要一种系统的方法来寻找使理论预测与实验数据吻合最好的参数集。[Decision] 使用 monte_carlo_simulation 方法，但不是用于模拟反应过程，而是用于参数空间的随机采样和优化（例如，采用蒙特卡洛模拟退火或参数扫描）。在每次模拟中，从预设的参数范围内随机选取一组光学势参数，运行 optical_model_calculation 得到理论角分布，计算其与实验数据的 χ²。通过大量模拟迭代，寻找最小化 χ² 的参数集。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "monte_carlo_simulation",
+        "version": ""
+      },
+      "parameters": {
+        "purpose": "parameter_space_exploration_for_optical_potential",
+        "sampling_method": "random_or_Metropolis",
+        "figure_of_merit": "chi_squared_between_theory_and_experiment"
+      },
+      "observation": "预期得到一组最优的光学势参数，使得理论计算的弹性散射角分布 dσ_OM/dΩ 与实验数据 dσ_exp/dΩ 在最小二乘意义下最佳吻合。同时会得到拟合的 χ² 值，用于评估拟合质量。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 通过蒙特卡洛模拟优化，获得了描述6He+27Al体系的最佳光学势。根据光学模型理论，总反应截面 σ_R 可以直接从光学势的虚部（吸收势）计算得到，公式为 σ_R = (2π/ħv) ∫ (1 - |S_l|²) (2l+1)，其中 S_l 是分波 S 矩阵元，由求解含该光学势的薛定谔方程得到。[Gap] 需要从确定的光学势参数计算出 σ_R。[Decision] 再次运用 optical_model_calculation 方法，但这次使用步骤3确定的最优参数集作为输入，计算分波 S 矩阵元，然后代入总反应截面的公式进行数值积分。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "optical_model_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "input_potential": "optimized_parameters_from_step3",
+        "output_quantity": "S_matrix_elements_and_total_reaction_cross_section"
+      },
+      "observation": "预期得到一个总反应截面 σ_R 的数值（单位：mb）。这是从拟合弹性散射数据导出的关键物理量，反映了6He+27Al体系在给定能量下的总非弹性过程（包括熔合、破裂、非弹性激发等）的概率。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已经得到了实验微分截面和通过光学模型提取的总反应截面。为了更直观地理解晕核效应，需要将6He的数据与参考核（如紧束缚核16O）的数据进行对比。纯库仑散射（卢瑟福散射）提供了一个无核相互作用的基准。[Gap] 需要计算在相同能量和角度下，点电荷库仑散射的理论截面，以凸显核势（特别是晕核带来的吸收和折射效应）的贡献。[Decision] 使用 rutherford_scattering 方法，计算6He在27Al靶上的纯库仑微分截面 dσ_Ruth/dΩ。该公式为已知的解析表达式，依赖于电荷数、质心系能量和散射角。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "rutherford_scattering",
+        "version": ""
+      },
+      "parameters": {
+        "formula": "dσ/dΩ = (Z1 Z2 e^2 / (4E_cm))^2 * csc^4(θ_cm/2)",
+        "Z1": 2,
+        "Z2": 13,
+        "E_cm": "given_center_of_mass_energy"
+      },
+      "observation": "预期得到作为角度函数的卢瑟福散射微分截面 dσ_Ruth/dΩ。这将作为参考曲线，用于计算实验或光学模型截面对卢瑟福截面的比值，即归一化截面 dσ/dσ_Ruth，这有助于消除库仑主导的1/sin^4(θ/2)依赖，更清晰地显示核效应。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已获得实验截面、光学模型理论截面、卢瑟福截面以及提取的总反应截面 σ_R。[Gap] 需要验证光学模型提取的 σ_R 的可靠性，并讨论晕核的特殊性（如破裂、扩展半径）如何体现在光学势参数和截面中。一个关键的验证是将6He的 σ_R 与已知的稳定弱束缚核（6,7Li, 9Be）和紧束缚核（16O）在相似能量下的数据进行比较。[Decision] 进行对比分析。利用 optical_model_calculation 为对比核（如果其光学势参数已知或可从类似数据中获取）计算 σ_R，或者直接引用文献中的实验 σ_R 值。重点分析6He的 σ_R 是增强还是抑制，并联系其光学势参数（如更浅的实部深度、更强的虚部强度或更大的几何半径）进行物理解释。",
+      "action": "verification",
+      "tool": {
+        "name": "optical_model_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "comparison": "σ_R_for_6He_vs_stable_nuclei(6,7Li,9Be,16O)",
+        "interpretation": "relating_optical_potential_parameters_to_halo_features"
+      },
+      "observation": "预期得到一个对比表格或图表，显示6He的总反应截面 σ_R 相对于稳定核（尤其是弱束缚核）是增大、减小还是相当。同时，预期对6He最佳拟合光学势的参数进行讨论，例如可能观察到更大的半径参数（反映晕结构）或特定的虚部强度（反映破裂通道的耦合）。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "RIB_facility_experiment",
+        "desc": "使用圣保罗大学新安装的RIB（放射性离子束）设施进行实验，产生6He次级束流。"
+      },
+      {
+        "name": "secondary_beam_production",
+        "desc": "通过9Be(7Li, 6He)10B反应产生6He次级束流，Q值为-3.38 MeV。"
+      },
+      {
+        "name": "Si_telescope_detection",
+        "desc": "使用两个ΔE-E硅望远镜探测器来探测次级束流的反应产物。"
+      },
+      {
+        "name": "Monte_Carlo_simulation",
+        "desc": "通过蒙特卡洛模拟确定有效立体角和平均探测角度，并计算总角度不确定性。"
+      },
+      {
+        "name": "Rutherford_scattering_calibration",
+        "desc": "假设6He在金靶上发生纯卢瑟福散射，以此计算次级束流强度。"
+      },
+      {
+        "name": "optical_model_calculation",
+        "desc": "使用光学模型计算来重现角分布的弹性散射截面。"
+      }
+    ],
+    "key_formulas": [],
+    "key_results": [
+      {
+        "quantity": "primary_beam_intensity",
+        "value": "约300 nAe",
+        "condition": "7Li初级束流轰击9Be生产靶"
+      },
+      {
+        "quantity": "secondary_beam_energies",
+        "value": "9.5, 11.0, 12.0, 13.4 MeV",
+        "condition": "在27Al次级靶中间位置，对应7Li初级束流能量为19.0, 20.5, 21.0, 22.0 MeV"
+      },
+      {
+        "quantity": "Coulomb_barrier_lab",
+        "value": "约8.0 MeV",
+        "condition": "6He + 27Al系统在实验室系中的库仑势垒"
+      },
+      {
+        "quantity": "energy_loss_in_Al_target",
+        "value": "约3.2 MeV",
+        "condition": "6He束流在厚Al靶中的总能量损失"
+      },
+      {
+        "quantity": "energy_resolution_FWHM",
+        "value": "约400 keV",
+        "condition": "使用厚Al靶时弹性峰的全宽半高"
+      },
+      {
+        "quantity": "secondary_beam_intensity",
+        "value": "约0.7×10^5 pps/(μAe of 7Li)",
+        "condition": "在所述能量下的6He次级束流强度"
+      },
+      {
+        "quantity": "angular_uncertainty",
+        "value": "±3.2度",
+        "condition": "由蒙特卡洛模拟计算的总角度不确定性"
+      }
+    ],
+    "failure_points": []
+  }
+}

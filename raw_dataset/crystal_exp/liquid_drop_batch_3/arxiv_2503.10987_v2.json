@@ -1,0 +1,440 @@
+{
+  "id": "NPP_0039",
+  "meta": {
+    "id": "NPP_0039",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_liquid_drop",
+    "source": {
+      "type": "paper",
+      "title": "Systematic calculation on α decay and cluster radioactivity of superheavy nuclei",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2503.10987"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T12:46:14.834723",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变与团簇放射性半衰期",
+    "input_data": "已知条件：核素范围 Z=87-96, 221≤A≤244；实验数据：41个原子核（从221Fr到244Cm）的α衰变与团簇放射性半衰期；模型参数：22种不同版本的邻近势形式（如Proximity Potential, Woods-Saxon Potential等）。",
+    "user_intent": "研究动机：现有多种邻近势形式被用于描述质子放射性、双质子放射性、重离子放射性等过程，但哪种形式最适合描述超重核的α衰变和团簇放射性尚不明确，需要系统评估以确定最合适的势能形式。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s），预测团簇放射性半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 根据前提，α衰变和团簇放射性的半衰期由势垒穿透概率决定，而势垒穿透概率依赖于总势能。总势能由库仑势、核势和离心势组成。论文方法中提到了coulomb_and_proximity_potential_model，因此需要先构建总势能模型。核势采用邻近势形式，但具体版本（如proximity_potential_77或proximity_potential_81）尚未确定。当前处于半盲预测模式，需从合法路径Path 1出发，第一步应计算有效势能，这需要先确定核势参数化形式。由于论文使用了多种邻近势版本，但未指定具体细节，我选择先采用经典的Proximity Potential 1977版本作为初始模型，因为它是最常用的基准模型之一。\n[Gap] 目前缺少核势的具体参数化表达式，以及如何与库仑势和离心势组装成有效势能。\n[Decision] 我将使用effective_potential_assembly工具，结合库仑势、离心势和Proximity Potential 1977核势，构建总有效势能，为后续计算势垒穿透概率做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "coulomb_potential": "standard_point_charge",
+        "nuclear_potential": "proximity_potential_1977",
+        "centrifugal_potential": "standard_centrifugal",
+        "deformation": "spherical",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_C(r) + V_N(r) + V_l(r)"
+      },
+      "observation": "构建了球形核的总有效势能，其中库仑势采用点电荷近似，核势采用Proximity Potential 1977参数化，离心势包含轨道角动量贡献。该势能是后续计算势垒穿透概率的基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在构建了总有效势能 V_eff(r) = V_C(r) + V_N(r) + V_l(r) 之后，下一步需要确定势垒的内外转折点 r_in 和 r_out，这是应用WKB近似计算穿透概率的必要前提。转折点由方程 V_eff(r) = Q_value 决定，其中Q_value是衰变能。[Gap] 当前尚未计算Q_value，也未求解转折点。根据合法路径 Path 1: half_life -> alpha_decay_width -> penetrability -> action_integral -> effective_potential -> deformation_parameter -> turning_points -> Q_value -> ...，在得到有效势后，下一步应计算Q_value，然后求解转折点。但Q_value的计算需要结合质量公式或实验数据，此处可先引用实验Q值或使用半经验质量公式计算。[Decision] 选择使用Q_value_calculation工具，基于Bethe-Weizsäcker质量公式或直接引用实验值来计算衰变能Q，为后续转折点求解做准备。由于论文方法中未明确指定Q值来源，此处采用半经验质量公式进行估算，同时保留实验值作为验证。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Q_value_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "daughter_mass": "M_daughter = A-4, Z-2",
+        "alpha_mass": "M_alpha = 4.002603 u",
+        "mass_formula": "Bethe-Weizsäcker with pairing term"
+      },
+      "output_state": {
+        "Q_value": "Q = [M_parent - (M_daughter + M_alpha)] * c^2 ≈ B(A,Z) - B(A-4,Z-2) - B(4,2)"
+      },
+      "observation": "计算得到衰变能Q值。对于偶偶核，Q值可由质量过剩或结合能差精确计算；对于奇A核，需考虑配对能修正。该Q值将用于求解势垒转折点。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 我们已经构建了有效势能 V_eff(r) 并计算了衰变能 Q 值。根据 WKB 近似，势垒穿透概率 P 需要先求解内外转折点 r_in 和 r_out，它们满足 V_eff(r) = Q 的条件。对于 α 衰变和团簇放射性，内转折点通常取在核表面附近，外转折点位于库仑势垒之外。[Gap] 当前尚未计算转折点，无法进行后续的 WKB 作用量积分。[Decision] 使用 turning_point_solver 工具，基于有效势能和 Q 值数值求解转折点。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_C(r) + V_N(r) + V_l(r)",
+        "Q_value": "Q",
+        "nuclear_radius": "R = 1.2 * A^(1/3) fm",
+        "turning_point_type": "inner_and_outer"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out"
+      },
+      "observation": "通过数值求解 V_eff(r) = Q 得到内转折点 r_in 和外转折点 r_out。对于球形核，内转折点通常位于核半径附近（约 1.2*A^(1/3) fm），外转折点位于库仑势垒下降至 Q 值处（通常为 10-20 fm 量级）。这两个转折点将用于下一步的 WKB 作用量积分计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 根据合法路径 Path 1: half_life -> alpha_decay_width -> penetrability -> action_integral -> effective_potential -> deformation_parameter -> turning_points -> Q_value -> binding_energy -> pairing_energy -> preformation_factor -> assault_frequency -> nuclear_radius，当前已获得有效势和转折点，下一步应计算WKB作用积分以得到势垒穿透概率。[Gap] 需要将有效势和转折点代入WKB作用积分公式，计算从内转折点到外转折点的积分值。[Decision] 使用WKB作用积分工具，基于已获得的转折点和有效势，计算作用积分S，为后续穿透概率计算做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "effective_potential": "V_eff(r)",
+        "Q_value": "Q",
+        "reduced_mass": "mu = (M_daughter * M_alpha) / (M_daughter + M_alpha)"
+      },
+      "output_state": {
+        "action_integral": "S = ∫_{r_in}^{r_out} sqrt(2*mu*(V_eff(r) - Q)) dr"
+      },
+      "observation": "计算得到WKB作用积分S，该积分值决定了势垒穿透概率P = exp(-2S/hbar)。对于球形核，采用数值积分方法（如高斯求积）精确计算积分值。该步骤是连接有效势与穿透概率的关键桥梁。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 根据合法路径 Path 1: half_life -> alpha_decay_width -> penetrability -> action_integral -> effective_potential -> deformation_parameter -> turning_points -> Q_value -> binding_energy -> pairing_energy -> preformation_factor -> assault_frequency -> nuclear_radius，当前已得到 WKB 作用积分 S，下一步应计算势垒穿透概率 P。穿透概率是 WKB 近似下的核心结果，直接由作用积分 S 通过指数关系给出。\n[Gap] 虽然 S 已计算，但穿透概率的表达式需要明确量子隧穿的指数衰减形式，并确保单位正确（hbar 需显式出现）。此外，对于球形核，无需考虑形变修正，可直接使用标准 WKB 公式。\n[Decision] 因此，下一步应使用 WKB 近似中的标准公式 P = exp(-2S/\\hbar) 计算穿透概率，其中 S 为上一步数值积分得到的 action_integral。该步骤属于严格推导，工具选择为 penetrability_from_action。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {
+        "action_integral": "S",
+        "hbar": "6.582119569e-22 MeV*s",
+        "formula": "P = exp(-2*S/hbar)"
+      },
+      "output_state": {
+        "penetrability": "P = exp(-2S/\\hbar)"
+      },
+      "observation": "根据 WKB 近似，势垒穿透概率 P 由作用积分 S 通过指数关系给出：P = exp(-2S/\\hbar)。其中 S 为上一步数值积分得到的 action_integral（单位 MeV·fm），hbar 取 6.582119569e-22 MeV·s，但需注意单位转换：1 fm = 1e-15 m，且 1 MeV·s = 1.602176634e-13 J·s，实际计算时需将 S 转换为能量×时间量纲或使用自然单位（hbar = 197.326 MeV·fm/c）。在核物理中，通常使用 hbar = 197.326 MeV·fm 以保持单位一致。该穿透概率是后续计算衰变宽度和半衰期的关键中间量。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5 分别使用 effective_potential_assembly -> Q_value_calculation -> turning_point_solver -> WKB_action_integral -> penetrability_from_action 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文基于库仑加邻近势模型（Coulomb plus Proximity Potential Model, CPPM）计算α衰变和团簇放射性的半衰期。该模型将总势能表示为库仑势、核势（邻近势）和离心势之和。核势采用不同版本的邻近势形式（如Proximity 1977和Proximity 1981），并考虑球形核近似。\n[Gap] 需要构建总相互作用势能，作为后续求解WKB穿透概率的基础。第一步应明确总势能的表达式，并选择核势的具体形式。\n[Decision] 采用Proximity 1977势作为核势，写出总势能表达式，并说明各组成部分。",
+      "action": "model_building",
+      "tool": {
+        "name": "proximity_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "potential_version": "Proximity 1977",
+        "nucleus_shape": "spherical",
+        "decay_type": "alpha_decay"
+      },
+      "output_state": {
+        "total_potential": "V_total(r) = V_Coulomb(r) + V_Nuclear(r) + V_Centrifugal(r)",
+        "V_Coulomb": "Z_d * Z_p * e^2 / r",
+        "V_Nuclear": "4πγR_bar b Φ(ξ)  (Proximity 1977)",
+        "V_Centrifugal": "ħ^2 l(l+1) / (2μ r^2)",
+        "reduced_mass": "μ = m_d * m_p / (m_d + m_p)",
+        "proximity_function": "Φ(ξ) = -1.7817 + 0.9270ξ + 0.0169ξ^2 - 0.05148ξ^3, for ξ ≤ 1.9475; Φ(ξ) = -4.41 exp(-ξ/0.7176), for ξ > 1.9475",
+        "surface_energy_coefficient": "γ = 0.9517 * (1 - 1.7826 * ((N-Z)/A)^2) MeV/fm^2",
+        "mean_curvature_radius": "R_bar = C_d * C_p / (C_d + C_p), with C_i = R_i - b^2/R_i, R_i = 1.28A_i^(1/3) - 0.76 + 0.8A_i^(-1/3) fm",
+        "diffuseness": "b ≈ 1 fm"
+      },
+      "observation": "建立了总势能表达式，采用Proximity 1977核势。库仑势为点电荷近似，离心势包含角动量量子数l。核势由表面能系数γ、平均曲率半径R_bar和普适邻近函数Φ(ξ)给出，其中ξ = (r - C_d - C_p)/b为无量纲分离距离。该势能是后续求解WKB作用积分和穿透概率的基础。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 在第一步中，我们已经建立了总势能表达式，采用了Proximity 1977核势模型。为了计算α衰变和团簇放射性的半衰期，我们需要求解势垒穿透概率。根据WKB近似，穿透概率P由势垒区域内外的两个转折点之间的作用量积分决定。[Gap] 目前我们有了总势能V_total(r)的表达式，但尚未确定势垒的内转折点r_in和外转折点r_out。这些转折点由方程V_total(r) = Q值决定，其中Q值是衰变能。因此，下一步需要计算Q值，并求解转折点。[Decision] 我将使用Q_value_calculation工具计算衰变Q值，然后使用turning_point_solver工具求解转折点。由于论文中假设原子核为球形且忽略形变效应，Q值可由质量过剩或结合能差计算。这里先计算Q值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Q_value_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "parent_mass": "A",
+        "parent_charge": "Z",
+        "daughter_mass": "A - A_cluster",
+        "daughter_charge": "Z - Z_cluster",
+        "cluster_mass": "A_cluster",
+        "cluster_charge": "Z_cluster",
+        "mass_excess_data": "来自实验或质量公式"
+      },
+      "output_state": {
+        "Q_value": "Q = (M_parent - M_daughter - M_cluster) * c^2 = B_daughter + B_cluster - B_parent",
+        "decay_energy": "E = Q"
+      },
+      "observation": "计算得到衰变Q值。对于α衰变，A_cluster=4, Z_cluster=2；对于团簇放射性，A_cluster和Z_cluster对应具体团簇（如14C, 24Ne等）。Q值由母核、子核和出射团簇的质量差决定，也可通过结合能差计算。该Q值将用于后续求解势垒转折点。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: binding_energy",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 在建立了总势能表达式（Step 1）和计算了衰变Q值（Step 2）后，为了计算势垒穿透概率，需要确定经典转折点。在WKB近似中，穿透概率依赖于势垒内外转折点之间的作用量积分。第一个转折点r_in位于势阱内部，通常取为核表面附近或内部某点；第二个转折点r_out位于势垒外部，由V_total(r_out) = Q决定。由于核势在短程起主导作用，库仑势在长程起主导作用，r_out一般远大于核半径。\n[Gap] 当前已有总势能V_total(r)和衰变能量Q，但尚未求解转折点。需要求解方程V_total(r) = Q，得到两个实根r_in和r_out（对于势垒穿透，通常r_in < r_out）。由于势能表达式包含核势（指数衰减或短程）和库仑势（长程），r_out的求解需要数值方法。\n[Decision] 使用turning_point_solver工具，基于已构建的总势能V_total(r)和Q值，数值求解转折点r_in和r_out。对于α衰变和团簇放射性，r_in通常取在核半径附近（约1.2A^(1/3) fm），但更精确地由势阱底部决定；r_out由库仑势主导，可近似为Z_d*Z_p*e^2/Q。这里采用数值求解以获得精确值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V_total(r) = V_Coulomb(r) + V_Nuclear(r) + V_Centrifugal(r)",
+        "energy": "Q",
+        "nuclear_potential_type": "Proximity 1977",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "cluster_mass": "A_cluster",
+        "cluster_charge": "Z_cluster",
+        "angular_momentum": "l"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "turning_point_equation": "V_total(r) = Q"
+      },
+      "observation": "数值求解得到两个转折点：内转折点r_in位于核表面附近（约1.2A^(1/3) fm量级），外转折点r_out由库仑势主导，近似为Z_d*Z_p*e^2/Q。对于α衰变，r_out通常远大于核半径（几十到上百fm）。转折点的精确值依赖于具体核素和角动量l。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: effective_potential",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 我们已经建立了总势能表达式并求解了转折点。根据WKB近似，穿透概率P由作用量积分S决定：P = exp(-2S)，其中S = ∫_{r_in}^{r_out} sqrt(2μ|V_total(r) - Q|)/ħ dr。这是计算α衰变和团簇放射性半衰期的核心步骤。[Gap] 目前我们有了转折点r_in和r_out，但尚未计算WKB作用量积分。需要数值积分得到S，进而得到穿透概率。[Decision] 使用WKB作用量积分工具，对总势能与Q值的差进行数值积分，计算穿透概率。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V_total(r) = V_Coulomb(r) + V_Nuclear(r) + V_Centrifugal(r)",
+        "energy": "Q",
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "reduced_mass": "μ"
+      },
+      "output_state": {
+        "WKB_action": "S = ∫_{r_in}^{r_out} sqrt(2μ|V_total(r) - Q|)/ħ dr",
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "数值计算WKB作用量积分S。对于α衰变，典型穿透概率P在10^-20到10^-30量级，取决于Q值和核电荷数。对于团簇放射性，由于质量更大、库仑势垒更高，P通常更小。该积分需在转折点之间进行高精度数值积分，通常采用自适应辛普森或高斯求积法。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: effective_potential",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 我们已经建立了总势能表达式、计算了Q值、求解了转折点，并通过WKB作用量积分得到了穿透概率P。根据α衰变和团簇放射性的半衰期理论，半衰期与穿透概率、预形成因子和撞击频率有关。半衰期公式为 T_{1/2} = (ln2) / λ，其中衰变常数 λ = P × ν × S_α，ν 是撞击频率（assault frequency），S_α 是预形成因子（preformation factor）。[Gap] 当前我们已有穿透概率P，但还需要计算撞击频率ν和预形成因子S_α才能得到半衰期。撞击频率通常由核内运动估算，预形成因子在论文中常取为常数或经验值。[Decision] 因此，下一步应计算撞击频率。撞击频率ν = v / (2R)，其中v是团簇在核内的速度，可由动能关系估算：v = sqrt(2E/μ)，E为衰变能（近似为Q值），R为核半径。核半径可采用经验公式R = r0 * A^(1/3)，r0 ≈ 1.2 fm。我们将使用assault_frequency_calculation工具来计算撞击频率。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Q_value": "Q",
+        "reduced_mass": "μ",
+        "nuclear_radius": "R = r0 * A^(1/3), r0=1.2 fm",
+        "velocity_formula": "v = sqrt(2Q/μ)",
+        "frequency_formula": "ν = v / (2R)"
+      },
+      "output_state": {
+        "assault_frequency": "ν = sqrt(2Q/μ) / (2 * r0 * A^(1/3))",
+        "velocity": "v = sqrt(2Q/μ)"
+      },
+      "observation": "计算得到撞击频率ν。对于α衰变，典型ν值约为10^21 s^-1量级。该频率表示团簇在核内来回撞击势垒的次数，是衰变常数的重要组成部分。下一步将结合预形成因子S_α和穿透概率P计算衰变常数λ，进而得到半衰期。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: nuclear_radius",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 根据论文的CPPM模型，衰变常数λ由预形成因子S、撞击频率ν和穿透概率P的乘积给出：λ = S * ν * P。半衰期T_{1/2} = ln2 / λ。目前已经得到了Q值、转折点、WKB作用量积分（穿透概率）和撞击频率。 [Gap] 需要将预形成因子S（对于α衰变通常取为常数或经验值，对于团簇放射性需考虑团簇形成概率）与已知量结合，计算衰变常数λ，进而得到半衰期。 [Decision] 使用decay_width_formula工具，将预形成因子、撞击频率和穿透概率组合，计算衰变宽度Γ = ħ * λ = ħ * S * ν * P，然后得到半衰期T_{1/2} = ħ * ln2 / Γ。",
+      "action": "model_building",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": ""
+      },
+      "parameters": {
+        "preformation_factor": "S (对于α衰变取经验值0.1-1.0，对于团簇放射性需单独计算或取经验值)",
+        "assault_frequency": "ν = sqrt(2Q/μ) / (2 * r0 * A^(1/3))",
+        "penetrability": "P = exp(-2S_WKB)",
+        "decay_constant": "λ = S * ν * P",
+        "half_life": "T_{1/2} = ln2 / λ"
+      },
+      "output_state": {
+        "decay_width": "Γ = ħ * S * ν * P",
+        "half_life": "T_{1/2} = ħ * ln2 / Γ = ln2 / (S * ν * P)"
+      },
+      "observation": "计算得到衰变宽度Γ和半衰期T_{1/2}。对于α衰变，预形成因子S_α通常取为0.1-1.0之间的常数（如Bassem和Elsayed的工作中取S_α=0.5），撞击频率ν~10^21 s^-1，穿透概率P由WKB积分得到。最终半衰期T_{1/2}与实验值比较，验证模型准确性。对于团簇放射性，预形成因子S_cluster需考虑团簇在母核表面的形成概率，通常远小于α衰变的预形成因子。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 当前已通过WKB作用量积分得到穿透概率P，通过撞击频率公式得到ν，并建立了半衰期与预形成因子S、ν、P的关系式 T_{1/2} = ln2 / (S * ν * P)。[Gap] 需要确定预形成因子S的具体取值或模型。论文中通常将S视为常数或通过经验公式给出，但不同模型（如邻近势77、81或双折叠模型）可能对应不同的S值，从而影响半衰期的理论预测。[Decision] 采用经验常数模型，根据Bassem和Elsayed的工作，对α衰变取S_α=0.5，对团簇放射性取S_cluster=1.0，并代入公式计算半衰期，与实验值比较。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {
+        "alpha_preformation_factor": 0.5,
+        "cluster_preformation_factor": 1.0,
+        "model_type": "empirical_constant"
+      },
+      "output_state": {
+        "preformation_factor_S": "S_α = 0.5 (for alpha decay), S_cluster = 1.0 (for cluster radioactivity)"
+      },
+      "observation": "采用经验常数模型，α衰变的预形成因子S_α取0.5，团簇放射性的预形成因子S_cluster取1.0。该取值基于Bassem和Elsayed在Coulomb and proximity potential model中的常用设定，后续将代入半衰期公式计算理论值并与实验数据对比。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 我们已经通过WKB近似计算了穿透概率P，通过撞击频率公式得到了ν，并引入了预形成因子S_α（α衰变取0.5，团簇放射性取1.0）。现在需要将这些量组合成衰变常数λ，进而得到半衰期T_{1/2}。这是衰变宽度公式的直接应用，属于模型构建步骤。[Gap] 当前步骤需要明确写出半衰期的最终表达式，并代入已获得的参数值，为后续与实验数据比较做准备。[Decision] 因此，我选择使用decay_width_formula工具，将预形成因子、撞击频率和穿透概率相乘得到衰变常数，再转换为半衰期。",
+      "action": "model_building",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": ""
+      },
+      "parameters": {
+        "preformation_factor": "S_α = 0.5 (alpha), S_cluster = 1.0 (cluster)",
+        "assault_frequency": "ν = sqrt(2Q/μ) / (2 * r0 * A^(1/3))",
+        "penetrability": "P = exp(-2S), S = ∫_{r_in}^{r_out} sqrt(2μ|V_total(r) - Q|)/ħ dr"
+      },
+      "output_state": {
+        "decay_constant": "λ = S * ν * P",
+        "half_life": "T_{1/2} = ln2 / λ = ln2 / (S * ν * P)"
+      },
+      "observation": "得到半衰期的最终表达式。对于α衰变，S_α=0.5，ν~10^21 s^{-1}，P由WKB积分给出，代入即可计算理论半衰期。对于团簇放射性，S_cluster=1.0，但ν和P因团簇质量更大而不同。该表达式将用于与实验数据比较，验证Coulomb and proximity potential model的准确性。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将模型预测的α衰变半衰期与ENSDF等数据库中Z≥84、N≥126的偶偶核实验值对比，验证偏差是否在0.5以内；对于团簇放射性，对比14C、20O等发射体的已知数据，确认1.0-1.5的偏差范围。其次，对极端质量数（如A<210或A>250）进行极限情况检验，若偏差显著增大则表明WKB近似在低库仑势垒或高形变下失效。最后，采用独立方法如统一衰变模型（UDM）交叉验证，若结果不一致则提示库仑和近程势模型可能低估了核势的壳效应修正。",
+    "metrics": {
+      "half_life": {
+        "value": "log10(T1/2) 计算值与实验值偏差约1.0-1.5",
+        "unit": "Z=87-96, A=221-244, 使用Proximity 1981势",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：proximity_potential_81；double_folding_model。"
+  },
+  "paper_methods": [
+    "coulomb_and_proximity_potential_model",
+    "wkb_approximation",
+    "proximity_potential_77",
+    "proximity_potential_81",
+    "double_folding_model"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "coulomb_and_proximity_potential_model",
+        "desc": "使用库仑势加不同版本邻近势作为核势，结合WKB近似计算α衰变和团簇放射性的半衰期"
+      },
+      {
+        "name": "wkb_approximation",
+        "desc": "用于计算势垒穿透概率，进而得到衰变半衰期"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "V(r) = V_C(r) + V_N(r) + V_l(r)"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "T = \\exp\\left[-2\\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r)-Q)} dr\\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "log10(T1/2) 计算值与实验值偏差在0.5以内",
+        "condition": "Z=87-96, A=221-244, 使用Proximity 1977势"
+      },
+      {
+        "quantity": "half_life",
+        "value": "log10(T1/2) 计算值与实验值偏差约1.0-1.5",
+        "condition": "Z=87-96, A=221-244, 使用Proximity 1981势"
+      }
+    ],
+    "failure_points": [
+      "proximity_potential_81",
+      "double_folding_model"
+    ]
+  }
+}

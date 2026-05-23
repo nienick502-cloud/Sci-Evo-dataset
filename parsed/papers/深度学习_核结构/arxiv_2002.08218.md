@@ -1,0 +1,137 @@
+# Estimations of First $2 ^ { + }$ Energy States of Even-even
+
+# Nuclei by Using Artificial Neural Networks
+
+Serkan Akkoyuna,b,*, Hüseyin Kayaa, Yunis Torunb,c
+
+aDepartment of Physics, Sivas Cumhuriyet University, Sivas, 58140, Turkey
+
+bArtificial Intelligence Systems and Data Science Application and Research Center, Sivas
+
+Cumhuriyet University, Sivas, 58140, Turkey
+
+cDepartment of Electric and Electronic Engineering, Sivas Cumhuriyet University, Sivas,
+
+58140, Turkey
+
+# Abstract
+
+The first excited $2 ^ { + }$ energy states of nuclei give much substantial information related to the nuclear structure. Including these levels, all excited states of nuclei are shown regularities in spin, parity and energy. In the even-even nuclei, the first excited state is generally $2 ^ { + }$ and the energy values of them increase as the closed shells are approached. The excited levels in nuclei can be investigated by using theoretical nuclear models such as nuclear shell model. In the present study for the first time, we have used artificial neural networks for the determination of the energies of the first $2 ^ { + }$ states in the even-even nuclei in the nuclidic chart as a function of Z and N numbers. According to the results, the method is convenient for this goal and one can confidently use the method for the prediction of the first $2 ^ { + }$ state energy values whose experimental values do not exist in the literature.
+
+Keywords: First $2 ^ { + }$ energy, artificial neural network, even-even nuclei
+
+PACS: 21.10.-k, 21.60.-n, 84.35.+i
+
+Corresponding author e-mail: sakkoyun@cumhuriyet.edu.tr; Phone: +90 346 219 1010
+
+# 1. INTRODUCTION
+
+By using a central attractive force, it is found that the ground state is $0 ^ { + }$ and the first excited state is generally $2 ^ { + }$ of even-even nuclei [1]. The energy value of the first excited state in nuclei depends regularly on the proton and neutron numbers [2]. Whereas, some regularities are observed in the energy values of the first excited state and these regularities can be explained in terms of mixtures of states of excitation of different neutron and proton pairs [3]. Both the jj coupling model and the liquid drop model of the nucleus can explain the regularities in spins and parities of first and second excited states of even-even nuclei [4]. In even-even nuclei, the first excited state includes much information about the nuclear structure such as deformation and shape of nuclei, lifetime of the nuclear states and transitions between levels. Some information about the proton and neutron interactions in partially-filled shells might also be obtained from the first excited state. The energy values of these states increase as the closed-shell is approached. Namely, closing a shell causes a sharp increase in the energy of the first excited state [5]. Therefore, first excited state energy and spin values are sensitive to the shell structure of the nuclei [6]. According to the shell model (SM) of the nucleus, large shell gaps are observed between the shells for stable nuclei. These nuclei have magic proton and neutron numbers whose values are 2, 8, 20, 28, 50, 82 and 126 [7]. Due to these large gaps, large transition energy values are measured between the first $2 ^ { + }$ and ground states in nuclei. Thus, the transition probability from the first excited state to the ground-state decreases monotonically. Related to these levels, the second excited state has about twice as much energy [8] and if we excite an odd A nucleus, we would expect to find its first excited state at least as low as that of its even-even core.
+
+Theoretically, the predominance of spin 2 and even parity first excited states of eveneven nuclei has been explained by using nuclear SM. The first excited state of nuclei is assumed due to the excitation of a single pair of nucleons. If the proton (neutron) shell is
+
+closed in nuclei, the first excited state is ascribed to neutron (proton) excitations [6]. Considering the perfect fit with spin and parity values in the experimental data, it is seen that this statement is correct. This is in excellent agreement with the experimental data. The spin and parity of the first excited state can be identified by some methods such as conversion coefficient, pair creation, lifetime, E/M ratio, angular correlation and nuclear reactions. In this study, the energies of the first $2 ^ { + }$ excited states of even-even nuclei have been estimated by using the artificial neural network (ANN) method [9]. The data has been borrowed from the Pritychenko et al. [10] in which adopted values cover the $Z = 2 \mathrm { - } 1 0 4$ region including 636 first $2 ^ { + }$ energy states in the nuclidic chart. The results show that the ANN method is a quite useful method for this type of estimation. Furthermore, the ANN estimated results are compared to the results from nuclear SM [7] calculations for some p, sd, sdpf and pf-shell nuclei given in Table 4 in the reference [10]. According to this comparison, ANN predicts the first $2 ^ { + }$ energy state energy better than SM calculations. In recent years, ANN has been used in many fields in nuclear physics. It has been used successfully for developing nuclear mass systematic [11, 12], obtaining fission barrier heights [13], obtaining nuclear charge radii [14, 15], estimation of beta decay energies [16] and alpha half-lives calculations of super-heavy nuclei [17]. Since this method is successful in an understanding non-linear relationship between input and output data, layered feed-forward ANN can be used to estimate generate first $2 ^ { + }$ excited state energy values in even-even nuclei.
+
+# 2. ARTIFICIAL NEURAL NETWORK (ANN)
+
+The ANN method is a strong tool that is used when standard techniques fail [9]. The method mimics the brain functionality of all creatures. Like in the real brain, ANN, which is the base of artificial intelligence, can learn everything by an appropriate algorithm in order to do what it learned. Additionally, artificial intelligence can store lots of data in its memory and
+
+keep them in mind through long ages. For this task, ANN is composed of mainly three different layers. The data is taken from outside to the input layer as inputs and the output data is the desired one which is exported from output layers. The number of input neurons depends on the problem and inputs are independent variables. The number of output neurons is the number of output variables which would be estimated. Between these two layers, there is one (or more) additional layer in which data is mainly processed in this layer which is called as hidden layer. In each layer, they have their neurons that are processing units of ANN. Data flows in one direction from input to outputs neurons. Each neuron in the layers is connected to all other neurons in the next layer. Therefore, all neurons in hidden and output layers have at least one own entry. As given in Eq.1 that all these entries $\mathrm { ( x _ { i } ) }$ are multiplied by the weight values of their connections (wi) and then summed in order to get the net entries $( \mathrm { n j } )$ of the neurons.
+
+$$
+n _ {j} = \sum_ {i = 1} ^ {N} w _ {i} \times x _ {i} \tag {1}
+$$
+
+After this step, the neurons are activated by a chosen function and the outcomes of the neurons are transmitted to the neurons in the next layer. In the case of the output neurons, the outcome goes outside.
+
+In the ANN calculations, all data belonging to the given problem has been divided into two main separate sets. The first part of the data (about $8 0 \%$ ) is used for the training of ANN in order to get the relationship between input (independent) and the output (dependent) variables. But in order to see the success of the method, it must be tested over another set of data which is the rest (about $2 0 \%$ ) of all data. The main task in the training (learning) process is assigning the values to each weighted connection between neurons. In other words, in the training process, it is aimed to find the best weight values which give the best estimation yi
+
+starting from the input $\mathbf { X } \mathbf { i }$ . Therefore, the weight values are modified until the acceptable deviation level between desired $\mathrm { ( d _ { i } ) }$ and neural network (yi) outputs. Generally, the mean square error function (MSE) has been used for the comparison (Eq.2). In order to reach the best weight values, some parameters are tuned up such as hidden layer number, hidden neuron number, learning algorithm, activation function and/or kind of neural network in the training stage. In this study to get the best values, one hidden layer with 12 neurons, Levenberg-Marquardt learning algorithm [18, 19], tangent hyperbolic activation function (Eq.3) and multi-layer feed-forward neural network have been used (Fig.1). The total number of weighted connections is 36 whose 24 of them are from the input to the hidden layer and 12 are from the hidden layer to the output layer.
+
+$$
+M S E = \frac {1}{N} \sum_ {i = 1} ^ {N} \left(y _ {i} - d _ {i}\right) ^ {2} \tag {2}
+$$
+
+$$
+G \left(n _ {j}\right) = \frac {e ^ {n _ {j}} - e ^ {- n _ {j}}}{e ^ {n _ {j}} + e ^ {- n _ {j}}} \tag {3}
+$$
+
+After a successful training step, the constructed ANN is tested over the training data set which is used in the learning process. By using final weights values, the comparison has been made between neural network outputs and the desired values. However, this result is not sufficient to decide whether the method is good or not. The final weights must also be tested over an unseen data set. The test data set is used for this purpose and if the ANN outputs are also close to the desired values on this data set, it is safely concluded that the ANN is generalized the data. Namely, one can confidently use the constructed ANN with its final weights to solve the problem of the same type of data.
+
+![](images/07d84b8b361211df8876fee8d469ac6d6309990b38bd3713706d44f46e484ef5.jpg)  
+Fig. 1: Used 2-12-1 ANN architecture for the estimation of first $2 ^ { + }$ excited state energies of even-even nuclei
+
+In the present study, the inputs were proton $( Z )$ and neutron (N) numbers of the atomic nuclei and the output was the first $2 ^ { + }$ state energy values of the even-even nuclei. Note that the range of activation function is (-1; 1) for the hyperbolic tangent of the hidden layer. Therefore, it can be said that it can potentially be difficult to train cases without normalizing or softening the data. Also generally in the method, the data is normalized or smoothed in order to speed up the learning process and increasing the learning rate. In case of data are always positive and their scales vary drastically, one simple way is to use the logarithm transformation of the data. Thus, we have taken the logarithm of the output values (first $2 ^ { + }$ state energies) into consideration in the calculations.
+
+# 3. RESULTS AND DISCUSSION
+
+The estimation of the first $2 ^ { + }$ state energy values in even-even nuclei whose atomic numbers are between 2 and 104 has been performed by using ANN. The total number of nuclei under consideration (which is indicated as data points in the figures) is 631. The adopted literature data (which the recommended values based on all the available experimental data) has been taken from a previous compilation [10]. Due to the different behavior of the regions according to the atomic masses, the estimations have been performed upon two separated parts of the nuclidic chart (Fig.2). there is a dataset of ‘‘adopted’’ level and $\gamma$ -ray transition
+
+![](images/50ed9c10184eab59947d41cc2c2feb31fcc2b00e9841e9519548f010f0191603.jpg)  
+Fig. 2: First $2 ^ { + }$ excited energy values of nuclei for $Z < 4 0$ (left) and $Z \ge 4 0$ (right) regions.
+
+Also, for the heavy elements after atomic number 90, the first excited state energies are lower than the order of $4 0 \mathrm { k e V }$ . The first part includes the nuclei whose atomic mass smaller than 40 and the second one includes greater than or equal 40. As is clear in Fig.2 that the first part includes many more nuclei whose first $2 ^ { + }$ excited states are higher in energy. The average value of this region is $1 3 9 3 { \mathrm { ~ k e V } }$ . The average value of the second part is just $4 7 9 { \mathrm { ~ k e V } }$ and
+
+only for two nuclei, the first $2 ^ { + }$ excited states have energy values greater than $2 0 0 0 \ \mathrm { k e V }$ . These nuclei are $^ { 1 3 2 } \mathrm { S n }$ and $^ { 2 0 8 } \mathrm { { P b } }$ which are doubly magic nuclei and the first $2 ^ { + }$ excited state energy values are $4 0 4 1 . 2 0  { \mathrm { ~ \ k e V } }$ and $4 0 8 5 . 5 2 \mathrm { k e V }$ , respectively. In each calculation for different regions, the data in the range has been portioned into two separate parts for training and test of the ANN.
+
+In the estimations on $Z < 4 0$ region, 142 data points have been used for the training of the ANN. After applying the ANN method, the results are converted to normal values from their logarithms. The root minimum square error (rmse) and correlation coefficient (r) values have been obtained as $1 2 5 . 1 \ \mathrm { k e V }$ and 0.96, respectively. The correlation coefficient indicates that the method is very useful for the determination of the first excited $2 ^ { + }$ state energy values for the atomic nuclei. In Fig.3, we have shown the adopted versus neural network predicted values of even-even nuclei in $Z < 4 0$ region. It is clear in the figure that the neural network estimation is in agreement with the adopted values. The data in the figure is concentrated in the (adopted $=$ neural network) line.
+
+![](images/5fb50e6a5b2449639f96864e1538c0e563bae63b193bcbca6cfb405989785008.jpg)  
+Fig. 3: Adopted [10] vs. ANN estimated first $2 ^ { + }$ excited state energies (log) for $Z < 4 0$ eveneven nuclei in train data
+
+After the training of the ANN, the constructed ANN with final weight values has been used in order to see the generalization ability of the method. In this test stage, the rest of all data (33 data points) has been used for this purpose. The rmse and r values have been obtained as $1 4 0 . 1 \ \mathrm { k e V }$ and 0.94, respectively. The correlation coefficient again indicates that the method is still useful for the determination of the energies for the first excited states in the nuclei. In Fig.4, the values of adopted and neural network predicted first $2 ^ { + }$ energies of even-even nuclei in $Z < 4 0$ region in comparison with each other have been given.
+
+![](images/a1765b560f871b93c16b9a704ccd89754f834004bc7b537bc08b4beaa79bdf06.jpg)  
+Fig. 4: Adopted [10] and ANN estimated first $2 ^ { + }$ excited state energies for $Z < 4 0$ even-even nuclei in test data
+
+In the second part of the work, we have estimated the first $2 ^ { + }$ excited state energies in $Z \geq 4 0$ region. 364 data points have been used for the training of the ANN. The results are again presented as real energy values after converting ANN results from logarithmic values. The rmse and r values have been obtained as $8 2 . 4 \mathrm { k e V }$ and 0.97, respectively. The r has taken its almost maximum value which indicates that the method is still useful for the determination
+
+of the first excited $2 ^ { + }$ state energy values for the atomic nuclei. In Fig.5, we have given the adopted versus neural network predicted energy values of even-even nuclei in $Z \geq 4 0$ region. The data in the figure is concentrated in the (adopted $=$ neural network) line indicating the neural network estimations are in agreement with the adopted values in the literature.
+
+![](images/fc12f5b7e15ef3effef12c41e839730ff0ecfc1cc9552c5857681cfc89e275e9.jpg)  
+Fig. 5: Adopted [10] vs. ANN estimated first $2 ^ { + }$ excited state energies (log) for $Z \ge 4 0$ eveneven nuclei in train data
+
+After the training stage for the nuclei in $Z \geq 4 0$ region, the constructed ANN with final weight values has been tested on the test dataset. The rest of all data (92 data points) has been taken into account for this purpose. The rmse and r values have been obtained as 91.4 keV and 0.94, respectively. The correlation coefficients for both stages indicate that the method is quite useful for the determination of the first excited states of the atomic nuclei. The log values of adopted and neural network predicted energies of even-even nuclei in $Z \geq$ 40 region in comparison with each other have been presented in Fig.6. The fact that ANN results do not have the same values as the adopted data indicates that ANN performs well and
+
+does not memorize. All rmse and r values in the training and test data for both regions also support this.
+
+![](images/b5b3b70c6255504129d55c5b5a249704e7e284d487834f40c9db47c949829370.jpg)  
+Fig. 6: Adopted [10] and ANN estimated first $2 ^ { + }$ excited state energies for $Z \ge 4 0$ even-even nuclei in test data
+
+In the final stage, the ANN estimations for the first $2 ^ { + }$ excited state energies from the present study and nuclear SM results are both compared to the adopted values of some nuclei given in Table 4 of the reference [10]. SM is one of the most common and best theoretical models for the calculations of nuclear excited states. However, due to some reasons such as the limitation of the model space used in the SM calculations and the not exact values of twobody interaction matrix elements and single-particle energies, the theoretical results cannot be expected to be exactly the same as the experimental ones. As is seen in Table 1 that the mean absolute error values from the adopted values are $1 3 6 . 0  { \mathrm { ~ k e V } }$ and 174.6 keV for ANN estimations and SM results, respectively. For 28 of the total 49 data points, the ANN gives closer results than the SM calculations. Maximum and minimum deviations of ANN estimations from adopted values are $8 6 9 \ \mathrm { k e V }$ and $2  { \mathrm { \ k e V } }$ , respectively. Whereas for SM calculations, these values are $1 2 1 7 \mathrm { k e V }$ and $3 \mathrm { k e V }$ . According to the results of ANN and SM
+
+that the ANN predictions outperforms SM for $5 7 \%$ of the test nuclei, and leads to an overall reduction of $2 2 \%$ of the test error with 80 parameters of ANN structure. Of course, different results can be obtained by using SM calculations using different effective interactions. However, the present effective interactions used are usually those that work best for the respective nuclei. Therefore, the values given in this reference are considered to be the closest results to the adopted results.
+
+Table 1: Comparison of first $2 ^ { + }$ excited state energies from SM calculations [10] and ANN estimations   
+
+<table><tr><td colspan="3"></td><td colspan="5">Energy (keV)</td></tr><tr><td>A</td><td>Z</td><td>N</td><td>Adopted</td><td>ANN</td><td>SM</td><td>ANN Dev.</td><td>SM Dev.</td></tr><tr><td>6</td><td>2</td><td>4</td><td>1797</td><td>1801</td><td>1894</td><td>4</td><td>97</td></tr><tr><td>10</td><td>4</td><td>6</td><td>3368</td><td>3261</td><td>3704</td><td>107</td><td>336</td></tr><tr><td>12</td><td>4</td><td>8</td><td>2102</td><td>2338</td><td>3319</td><td>236</td><td>1217</td></tr><tr><td>18</td><td>8</td><td>10</td><td>1982</td><td>2057</td><td>1999</td><td>75</td><td>17</td></tr><tr><td>20</td><td>8</td><td>12</td><td>1674</td><td>2543</td><td>1746</td><td>869</td><td>72</td></tr><tr><td>22</td><td>8</td><td>14</td><td>3199</td><td>2768</td><td>3158</td><td>431</td><td>41</td></tr><tr><td>18</td><td>10</td><td>8</td><td>1887</td><td>1576</td><td>1999</td><td>311</td><td>112</td></tr><tr><td>20</td><td>10</td><td>10</td><td>1634</td><td>1529</td><td>1747</td><td>105</td><td>113</td></tr><tr><td>22</td><td>10</td><td>12</td><td>1275</td><td>1636</td><td>1363</td><td>361</td><td>88</td></tr><tr><td>24</td><td>10</td><td>14</td><td>1982</td><td>1848</td><td>2111</td><td>134</td><td>129</td></tr><tr><td>26</td><td>10</td><td>16</td><td>2018</td><td>1879</td><td>2063</td><td>139</td><td>45</td></tr><tr><td>28</td><td>10</td><td>18</td><td>1304</td><td>1433</td><td>1623</td><td>129</td><td>319</td></tr><tr><td>20</td><td>12</td><td>8</td><td>1598</td><td>1601</td><td>1746</td><td>3</td><td>148</td></tr><tr><td>22</td><td>12</td><td>10</td><td>1247</td><td>1275</td><td>1363</td><td>28</td><td>116</td></tr><tr><td>24</td><td>12</td><td>12</td><td>1369</td><td>1306</td><td>1502</td><td>63</td><td>133</td></tr><tr><td>26</td><td>12</td><td>14</td><td>1809</td><td>1544</td><td>1897</td><td>265</td><td>88</td></tr><tr><td>28</td><td>12</td><td>16</td><td>1474</td><td>1681</td><td>1518</td><td>207</td><td>44</td></tr><tr><td>30</td><td>12</td><td>18</td><td>1483</td><td>1434</td><td>1591</td><td>49</td><td>108</td></tr><tr><td>24</td><td>14</td><td>10</td><td>1879</td><td>1794</td><td>2111</td><td>85</td><td>232</td></tr><tr><td>26</td><td>14</td><td>12</td><td>1796</td><td>1874</td><td>1897</td><td>78</td><td>101</td></tr><tr><td>28</td><td>14</td><td>14</td><td>1779</td><td>2159</td><td>1932</td><td>380</td><td>153</td></tr><tr><td>30</td><td>14</td><td>16</td><td>2235</td><td>2331</td><td>2266</td><td>96</td><td>31</td></tr><tr><td>30</td><td>16</td><td>14</td><td>2211</td><td>2076</td><td>2266</td><td>135</td><td>55</td></tr><tr><td>32</td><td>14</td><td>18</td><td>1941</td><td>2084</td><td>2053</td><td>143</td><td>112</td></tr><tr><td>32</td><td>16</td><td>16</td><td>2231</td><td>2368</td><td>2160</td><td>137</td><td>71</td></tr><tr><td>34</td><td>16</td><td>18</td><td>2128</td><td>2251</td><td>2131</td><td>123</td><td>3</td></tr><tr><td>36</td><td>14</td><td>22</td><td>1399</td><td>1168</td><td>1723</td><td>231</td><td>324</td></tr><tr><td>38</td><td>14</td><td>24</td><td>1084</td><td>1132</td><td>1395</td><td>48</td><td>311</td></tr><tr><td>38</td><td>16</td><td>22</td><td>1292</td><td>1156</td><td>1459</td><td>136</td><td>167</td></tr><tr><td>40</td><td>14</td><td>26</td><td>986</td><td>1095</td><td>1217</td><td>109</td><td>231</td></tr><tr><td>40</td><td>16</td><td>24</td><td>904</td><td>1019</td><td>942</td><td>115</td><td>38</td></tr><tr><td>42</td><td>16</td><td>26</td><td>890</td><td>1077</td><td>999</td><td>187</td><td>109</td></tr><tr><td>32</td><td>18</td><td>14</td><td>1867</td><td>1816</td><td>2053</td><td>51</td><td>186</td></tr><tr><td>34</td><td>18</td><td>16</td><td>2091</td><td>2312</td><td>2131</td><td>221</td><td>40</td></tr><tr><td>58</td><td>28</td><td>30</td><td>1454</td><td>1485</td><td>1478</td><td>31</td><td>24</td></tr><tr><td>60</td><td>28</td><td>32</td><td>1333</td><td>1310</td><td>1474</td><td>23</td><td>141</td></tr><tr><td>62</td><td>28</td><td>34</td><td>1173</td><td>1193</td><td>1149</td><td>20</td><td>24</td></tr><tr><td>66</td><td>28</td><td>38</td><td>1425</td><td>1647</td><td>1265</td><td>222</td><td>160</td></tr><tr><td>68</td><td>28</td><td>40</td><td>2034</td><td>1727</td><td>1963</td><td>307</td><td>71</td></tr><tr><td>70</td><td>28</td><td>42</td><td>1260</td><td>1354</td><td>1599</td><td>94</td><td>339</td></tr><tr><td>72</td><td>28</td><td>44</td><td>1096</td><td>1036</td><td>1505</td><td>60</td><td>409</td></tr><tr><td>76</td><td>28</td><td>48</td><td>992</td><td>994</td><td>1374</td><td>2</td><td>382</td></tr><tr><td>62</td><td>30</td><td>32</td><td>954</td><td>947</td><td>1013</td><td>7</td><td>59</td></tr><tr><td>66</td><td>30</td><td>36</td><td>1039</td><td>1018</td><td>950</td><td>21</td><td>89</td></tr><tr><td>68</td><td>30</td><td>38</td><td>1077</td><td>1087</td><td>879</td><td>10</td><td>198</td></tr><tr><td>70</td><td>30</td><td>40</td><td>885</td><td>909</td><td>1109</td><td>24</td><td>224</td></tr><tr><td>72</td><td>30</td><td>42</td><td>653</td><td>690</td><td>1007</td><td>37</td><td>354</td></tr><tr><td>76</td><td>30</td><td>46</td><td>599</td><td>594</td><td>976</td><td>5</td><td>377</td></tr><tr><td>78</td><td>30</td><td>48</td><td>730</td><td>718</td><td>1045</td><td>12</td><td>315</td></tr><tr><td></td><td></td><td></td><td></td><td></td><td>Total Dev.</td><td>136.0</td><td>174.6</td></tr></table>
+
+# 4. CONCLUSIONS
+
+In this work, the first $2 ^ { + }$ excited state energies of even-even nuclei in the nuclidic chart have been predicted the first time by using the ANN method. The inputs of the ANN are atomic and neutron numbers of the nuclei. One hidden layer with 12 neurons that gives better results for the problem has been used after several trials. According to estimation performance as obtained from correlation coefficients, the method can be useful for the prediction of the first excited $^ { 2 + }$ energy states of nuclei. The method has been applied to the nuclei in two regions of the nuclidic chart. One region contains the nuclei whose atomic number less than 40 and the other includes $Z \geq 4 0$ region. The rmse values of ANN estimations on the test dataset are $2 3 7 . 9  { \mathrm { ~ k e V } }$ and $9 1 . 4 \mathrm { \ k e V }$ for $Z < 4 0$ and $Z \geq 4 0$ , respectively. The obtained correlation coefficients for $Z < 4 0$ region are 0.96 and 0.94 for the training and test phase respectively. For $Z \geq 4 0$ regions, correlation coefficients are almost the same as 0.97 and 0.94 for the training and test phase respectively. Also, the results of the ANN method have been compared to the results from nuclear SM calculations in order to see the success of the method. The ANN results give better results than the theoretical SM calculations. By getting better information about the first $^ { 2 + }$ state energy values, more accurate nuclear structure properties might be obtained. Therefore, in order to predict the excited state energy values of the nuclei, the ANN method can be a good alternative with many advantages, such as quick calculation, no need for any complex formulation and easy applicability.
+
+# CONFLICT OF INTEREST
+
+The authors declare that they have no conflict of interest.
+
+# REFERENCES
+
+[1] M Goldhaber and A W Sunyar Physical Review 83 906 (1951)   
+[2] P Stahelin and P Preiswerk Phys. Acta 24 623 (1951)   
+[3] A De-Shalit and M Goldhaber, Physical Review 92 1211 (1953)   
+[4] G Scharfi-Goldhaber Physical Review 90 587 (1953)   
+[5] K W Ford Physical Review 90 29 (1953)   
+[6] P Preiswerk and P Stahelin Physica 18 1118 (1952)   
+[7] M G Mayer Physical Review 74 235 (1948)   
+[8] S T Balyaev Journal of Experimental and Theoretical Physics 12 968 (1961)   
+[9] S Haykin Neural Networks: A Comprehensive Foundation. Prentice-Hall In. Englewood Clifis NJ USA (1999)   
+[10] B Pritychenko, et al. Atomic Data and Nuclear Data Tables 107 1 (2016)   
+[11] T Bayram, et al. Annals of Nuclear Energy 63 172 (2014)   
+[12] R Utama, J Piekarewicz and H B Prosper Physical Review C 93 014311 (2016)   
+[13] S Akkoyun and T Bayram International Journal of Modern Physics E 23 1450064 (2014)   
+[14] S Akkoyun, et al. Journal of Physics G 40 055106 (2013)   
+[15] R Utama, et al. Journal of Physics G 43 114002 (2016)   
+[16] S Akkoyun, et al. Radiation Physics and Chemistry 96 186 (2014)   
+[17] U B Rodriguez, et al. Journal of Physics G 46 115109 (2019)   
+[18] K Levenberg Quarterly of Applied Math. 2 164 (1944)   
+[19] D Marquardt SIAM Journal of Applied Mathematics 11 431 (1963)

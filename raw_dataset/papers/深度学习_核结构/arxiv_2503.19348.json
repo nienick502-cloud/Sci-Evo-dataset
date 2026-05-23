@@ -1,0 +1,476 @@
+{
+  "id": "NPP_0136",
+  "meta": {
+    "id": "NPP_0136",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Deep Learning approaches for nuclear binding energy prediction: A comparative study of RNN, GRU and LSTM Models",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2503.19348"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "原子核结合能预测",
+    "input_data": "数据来源：原子质量评估（AME2020）；输入特征：质子数、中子数、液滴模型项、壳修正效应项；用于验证的基准：Garvey-Kelson关系、WS/WS3/WS4模型。",
+    "user_intent": "传统全局模型（如液滴模型、FRDM、WS模型）在核素图上，特别是滴线附近区域，预测精度存在显著差异；局部模型（如Garvey-Kelson关系）在已知实验数据区域精度高，但外推能力有限。需要探索能够有效捕捉核数据中复杂非线性依赖关系的新方法，以提高整个核素图上核质量预测的精度和鲁棒性。",
+    "quantifiable_goal": "预测原子核结合能（单位：MeV）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知原子核结合能数据（AME2020）和传统模型（液滴模型、壳模型等）的局限性。液滴模型提供了一个结合能的平滑全局趋势，包含体积能、表面能、库仑能、对称能和对能等项。[Gap] 需要建立一个结合能预测的基准全局模型，作为后续神经网络模型的一个输入特征或比较基准。[Decision] 使用液滴模型公式，基于质子数Z和中子数N，计算结合能的液滴模型部分 $B_{LDM}(Z, N)$。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "liquid_drop_model",
+        "version": ""
+      },
+      "parameters": {
+        "input_variables": "Z, N",
+        "model_terms": "volume, surface, coulomb, asymmetry, pairing"
+      },
+      "observation": "预期得到结合能 $B_{LDM}(Z, N)$ 的解析表达式，形式为 $B_{LDM} = a_V A - a_S A^{2/3} - a_C Z^2/A^{1/3} - a_A (A-2Z)^2/A + \\delta a_P / A^{1/2}$ 或其变体，其中包含待拟合或预设的系数 $a_V, a_S, a_C, a_A, a_P$。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得液滴模型结合能 $B_{LDM}$ 的表达式。[Gap] 液滴模型预测与实验值（AME2020）之间存在系统偏差，这些偏差主要源于壳效应、形变等微观效应。需要量化这些残差，作为神经网络学习的目标或输入特征。[Decision] 对每个核素 $(Z, N)$，计算实验结合能 $B_{exp}$ 与液滴模型预测 $B_{LDM}$ 的差值：$\\Delta B_{shell} = B_{exp} - B_{LDM}$。这个残差序列将作为后续循环神经网络（RNN）的主要学习目标。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "liquid_drop_model",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "compute_residual",
+        "experimental_data": "AME2020",
+        "target_quantity": "Delta_B_shell = B_exp - B_LDM"
+      },
+      "observation": "预期得到一个残差数据集 $\\{ \\Delta B_{shell}(Z_i, N_i) \\}$，其值在几MeV到十几MeV量级（估计），反映了壳修正等微观效应。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已获得结合能残差序列 $\\Delta B_{shell}$。核素图上的结合能（或残差）具有强烈的序列相关性（沿质子数Z或中子数N方向）。[Gap] 需要一种能够捕捉这种序列依赖关系的模型。循环神经网络（RNN）是处理序列数据的自然选择。[Decision] 将核素图沿某一方向（例如，固定质子数Z，变化中子数N）视为一个序列。使用基本的RNN单元，以前几个核素的残差作为输入，预测下一个核素的残差。输入特征可能包括Z, N, $\\Delta B_{shell}$ 的历史值。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "recurrent_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_sequence": "Delta_B_shell for nuclei along isotopic or isotonic chains",
+        "network_architecture": "simple RNN cell",
+        "target": "predict Delta_B_shell for next nucleus in chain"
+      },
+      "observation": "预期建立一个RNN模型，其隐藏状态 $h_t$ 更新规则为 $h_t = \\tanh(W_{xh} x_t + W_{hh} h_{t-1} + b_h)$，输出 $\\hat{y}_t = W_{hy} h_t + b_y$，其中 $x_t$ 包含当前核素的Z, N和/或历史残差，$\\hat{y}_t$ 是预测的残差 $\\Delta \\hat{B}_{shell}$。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 基本RNN存在梯度消失/爆炸问题，难以学习长序列依赖。核素序列可能较长（例如，一个同位素链）。[Gap] 需要改进的RNN结构来更好地捕捉长程关联。[Decision] 采用长短期记忆（LSTM）网络，它通过门控机制（输入门、遗忘门、输出门）控制信息流，能有效缓解梯度问题。将步骤3中的基本RNN单元替换为LSTM单元，输入序列不变。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "long_short_term_memory",
+        "version": ""
+      },
+      "parameters": {
+        "input_sequence": "Same as step 3",
+        "network_architecture": "LSTM cell with input, forget, output gates and cell state",
+        "target": "predict Delta_B_shell for next nucleus in chain"
+      },
+      "observation": "预期建立一个LSTM模型，其核心是细胞状态 $C_t$ 和隐藏状态 $h_t$，通过门控向量 $i_t, f_t, o_t$ 更新：$C_t = f_t \\odot C_{t-1} + i_t \\odot \\tilde{C}_t$， $h_t = o_t \\odot \\tanh(C_t)$。输出层仍预测 $\\Delta \\hat{B}_{shell}$。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] LSTM是有效的，但结构相对复杂。门控循环单元（GRU）是LSTM的一种简化变体，合并了部分门，参数更少，训练可能更快。[Gap] 需要比较不同循环架构在核质量预测任务上的性能。[Decision] 构建一个GRU模型作为LSTM的替代。GRU使用更新门和重置门来控制信息流。同样使用核素序列数据作为输入，预测残差。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "gated_recurrent_unit",
+        "version": ""
+      },
+      "parameters": {
+        "input_sequence": "Same as step 3 and 4",
+        "network_architecture": "GRU cell with update and reset gates",
+        "target": "predict Delta_B_shell for next nucleus in chain"
+      },
+      "observation": "预期建立一个GRU模型，其隐藏状态更新规则为 $z_t = \\sigma(W_{xz} x_t + W_{hz} h_{t-1} + b_z)$ (更新门)， $r_t = \\sigma(W_{xr} x_t + W_{hr} h_{t-1} + b_r)$ (重置门)， $\\tilde{h}_t = \\tanh(W_{xh} x_t + W_{hh} (r_t \\odot h_{t-1}) + b_h)$， $h_t = (1 - z_t) \\odot h_{t-1} + z_t \\odot \\tilde{h}_t$。输出层预测 $\\Delta \\hat{B}_{shell}$。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已建立了基于RNN/LSTM/GRU的残差预测模型。[Gap] 需要将神经网络的预测与液滴模型的基线结合，得到最终的总结合能预测，并与实验值及其他模型（Garvey-Kelson, WS系列）进行比较。[Decision] 最终结合能预测为液滴模型值加上神经网络预测的残差：$B_{pred}(Z, N) = B_{LDM}(Z, N) + \\Delta \\hat{B}_{shell}(Z, N)$。在训练集上优化网络参数，在验证集/测试集上评估预测精度（如均方根误差RMSE）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "recurrent_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "combine_predictions",
+        "base_model": "B_LDM from step 1",
+        "residual_model": "Delta_hat_B_shell from RNN/LSTM/GRU",
+        "final_prediction": "B_pred = B_LDM + Delta_hat_B_shell",
+        "evaluation_metric": "RMSE against AME2020"
+      },
+      "observation": "预期得到一系列结合能预测值 $B_{pred}(Z, N)$。通过比较RNN、LSTM、GRU模型在测试集上的RMSE，预期LSTM或GRU的性能优于基本RNN，并且混合模型（液滴+RNN）的精度有望优于单独的液滴模型，并可能与WS系列模型或Garvey-Kelson关系在已知区域精度相当，在外推区域（如滴线附近）可能表现出更好的鲁棒性（估计）。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已得到不同神经网络架构的预测结果和精度评估。[Gap] 需要验证模型预测是否满足一些基本的物理关系或约束，例如Garvey-Kelson关系，这是一种基于相邻核素质量的局部关系式。[Decision] 选取一组相邻核素，用训练好的模型预测它们的结合能，然后代入Garvey-Kelson关系式，检查等式两边的符合程度。这可以作为模型物理合理性的一个间接验证。",
+      "action": "verification",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "verification_method": "Garvey-Kelson_relation_check",
+        "predicted_masses": "B_pred from step 6",
+        "relation_formula": "M(N,Z)+M(N-1,Z-2)-M(N-1,Z)-M(N,Z-2) \\approx 0 或类似形式"
+      },
+      "observation": "预期计算Garvey-Kelson关系左右两边的差值，该差值应接近于零（在几百keV量级内，估计）。如果神经网络模型成功学习了核质量的局部相关性，其预测应能较好地满足该关系。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 论文旨在预测原子核结合能，并引入了液滴模型（LDM）作为基础理论框架。[Gap] 需要确定液滴模型公式（Eq.1）中各项能量贡献的具体系数，以便模型能够准确描述核结合能。[Decision] 论文采用最小二乘法拟合（least_squares_fitting）来优化这些系数。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "least_squares_fitting",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "拟合得到的系数为：a_V = 15.45, a_S = 16.91, a_C = 0.70, a_A = 22.62, a_P = 9.35, k_p = -3/4。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 液滴模型系数已通过拟合确定，但模型预测精度有限（σRMSE = 3.29 MeV）。[Gap] 需要一种能够捕捉核数据中复杂序列依赖性和长程关联的方法，以改进结合能预测。[Decision] 论文引入循环神经网络（RNN）架构，利用其反馈机制来动态学习核关联。",
+      "action": "rule_application",
+      "tool": {
+        "name": "RNN",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "RNN通过公式 h_t = f(W_h x_t + U_h h_{t-1} + b_h) 和 y_t = f(W_y h_t + b_y) 处理序列数据，将历史状态 h_{t-1} 作为当前输入的一部分，以保留信息用于预测。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 简单RNN存在梯度消失问题，可能难以学习长期依赖关系。[Gap] 需要一种改进的RNN变体来解决梯度问题，从而更有效地捕获核结合能变化中的长期模式。[Decision] 论文采用长短期记忆网络（LSTM），它通过门控机制（遗忘门、输入门、输出门）来调节信息流。",
+      "action": "rule_application",
+      "tool": {
+        "name": "LSTM",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "LSTM使用公式 f_t = σ(W_f x_t + U_f h_{t-1} + b_f), i_t = σ(W_i x_t + U_i h_{t-1} + b_i), \\tilde{C}_t = tanh(W_C x_t + U_C h_{t-1} + b_C), C_t = f_t ⊙ C_{t-1} + i_t ⊙ \\tilde{C}_t, o_t = σ(W_o x_t + U_o h_{t-1} + b_o), h_t = o_t ⊙ tanh(C_t) 来更新细胞状态和隐藏状态。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] LSTM结构有效但计算复杂度较高。[Gap] 需要在保持捕获长期依赖关系能力的同时，降低模型复杂度以提高计算效率。[Decision] 论文还采用了门控循环单元（GRU），它是LSTM的简化变体，合并了门控结构。",
+      "action": "rule_application",
+      "tool": {
+        "name": "GRU",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "GRU使用公式 r_t = σ(W_r x_t + U_r h_{t-1} + b_r), z_t = σ(W_z x_t + U_z h_{t-1} + b_z), \\tilde{h}_t = tanh(W_h (r_t ⊙ h_{t-1}) + U_h x_t + b_h), h_t = z_t ⊙ \\tilde{h}_t + (1 - z_t) ⊙ h_{t-1} 来更新隐藏状态。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 模型的预测轨迹与论文实际推导在物理推理上基本一致。[Gap] 无重大物理推理错误需要修正。[Decision] 预测合理，无需重大调整。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预测与论文一致，半盲预测（已知方法名）有效降低了方法层面的错误。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "RMSE": {
+        "value": "3.29 MeV",
+        "unit": "对于包含约3264个核素（Z≥8, N≥8）的数据集，使用最小二乘法拟合液滴模型（LDM）得到的结果。",
+        "interpretation": "σRMSE"
+      },
+      "a_V": {
+        "value": "15.45",
+        "unit": "通过最小二乘法拟合液滴模型（LDM）得到的体积能系数。",
+        "interpretation": "a_V"
+      },
+      "a_S": {
+        "value": "16.91",
+        "unit": "通过最小二乘法拟合液滴模型（LDM）得到的表面能系数。",
+        "interpretation": "a_S"
+      },
+      "a_C": {
+        "value": "0.70",
+        "unit": "通过最小二乘法拟合液滴模型（LDM）得到的库仑能系数。",
+        "interpretation": "a_C"
+      },
+      "a_A": {
+        "value": "22.62",
+        "unit": "通过最小二乘法拟合液滴模型（LDM）得到的对称能系数。",
+        "interpretation": "a_A"
+      },
+      "a_P": {
+        "value": "9.35",
+        "unit": "通过最小二乘法拟合液滴模型（LDM）得到的对能系数。",
+        "interpretation": "a_P"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "liquid_drop_model",
+    "recurrent_neural_network",
+    "long_short_term_memory",
+    "gated_recurrent_unit"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知原子核结合能数据（AME2020）和传统模型（液滴模型、壳模型等）的局限性。液滴模型提供了一个结合能的平滑全局趋势，包含体积能、表面能、库仑能、对称能和对能等项。[Gap] 需要建立一个结合能预测的基准全局模型，作为后续神经网络模型的一个输入特征或比较基准。[Decision] 使用液滴模型公式，基于质子数Z和中子数N，计算结合能的液滴模型部分 $B_{LDM}(Z, N)$。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "liquid_drop_model",
+        "version": ""
+      },
+      "parameters": {
+        "input_variables": "Z, N",
+        "model_terms": "volume, surface, coulomb, asymmetry, pairing"
+      },
+      "observation": "预期得到结合能 $B_{LDM}(Z, N)$ 的解析表达式，形式为 $B_{LDM} = a_V A - a_S A^{2/3} - a_C Z^2/A^{1/3} - a_A (A-2Z)^2/A + \\delta a_P / A^{1/2}$ 或其变体，其中包含待拟合或预设的系数 $a_V, a_S, a_C, a_A, a_P$。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得液滴模型结合能 $B_{LDM}$ 的表达式。[Gap] 液滴模型预测与实验值（AME2020）之间存在系统偏差，这些偏差主要源于壳效应、形变等微观效应。需要量化这些残差，作为神经网络学习的目标或输入特征。[Decision] 对每个核素 $(Z, N)$，计算实验结合能 $B_{exp}$ 与液滴模型预测 $B_{LDM}$ 的差值：$\\Delta B_{shell} = B_{exp} - B_{LDM}$。这个残差序列将作为后续循环神经网络（RNN）的主要学习目标。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "liquid_drop_model",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "compute_residual",
+        "experimental_data": "AME2020",
+        "target_quantity": "Delta_B_shell = B_exp - B_LDM"
+      },
+      "observation": "预期得到一个残差数据集 $\\{ \\Delta B_{shell}(Z_i, N_i) \\}$，其值在几MeV到十几MeV量级（估计），反映了壳修正等微观效应。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已获得结合能残差序列 $\\Delta B_{shell}$。核素图上的结合能（或残差）具有强烈的序列相关性（沿质子数Z或中子数N方向）。[Gap] 需要一种能够捕捉这种序列依赖关系的模型。循环神经网络（RNN）是处理序列数据的自然选择。[Decision] 将核素图沿某一方向（例如，固定质子数Z，变化中子数N）视为一个序列。使用基本的RNN单元，以前几个核素的残差作为输入，预测下一个核素的残差。输入特征可能包括Z, N, $\\Delta B_{shell}$ 的历史值。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "recurrent_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_sequence": "Delta_B_shell for nuclei along isotopic or isotonic chains",
+        "network_architecture": "simple RNN cell",
+        "target": "predict Delta_B_shell for next nucleus in chain"
+      },
+      "observation": "预期建立一个RNN模型，其隐藏状态 $h_t$ 更新规则为 $h_t = \\tanh(W_{xh} x_t + W_{hh} h_{t-1} + b_h)$，输出 $\\hat{y}_t = W_{hy} h_t + b_y$，其中 $x_t$ 包含当前核素的Z, N和/或历史残差，$\\hat{y}_t$ 是预测的残差 $\\Delta \\hat{B}_{shell}$。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 基本RNN存在梯度消失/爆炸问题，难以学习长序列依赖。核素序列可能较长（例如，一个同位素链）。[Gap] 需要改进的RNN结构来更好地捕捉长程关联。[Decision] 采用长短期记忆（LSTM）网络，它通过门控机制（输入门、遗忘门、输出门）控制信息流，能有效缓解梯度问题。将步骤3中的基本RNN单元替换为LSTM单元，输入序列不变。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "long_short_term_memory",
+        "version": ""
+      },
+      "parameters": {
+        "input_sequence": "Same as step 3",
+        "network_architecture": "LSTM cell with input, forget, output gates and cell state",
+        "target": "predict Delta_B_shell for next nucleus in chain"
+      },
+      "observation": "预期建立一个LSTM模型，其核心是细胞状态 $C_t$ 和隐藏状态 $h_t$，通过门控向量 $i_t, f_t, o_t$ 更新：$C_t = f_t \\odot C_{t-1} + i_t \\odot \\tilde{C}_t$， $h_t = o_t \\odot \\tanh(C_t)$。输出层仍预测 $\\Delta \\hat{B}_{shell}$。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] LSTM是有效的，但结构相对复杂。门控循环单元（GRU）是LSTM的一种简化变体，合并了部分门，参数更少，训练可能更快。[Gap] 需要比较不同循环架构在核质量预测任务上的性能。[Decision] 构建一个GRU模型作为LSTM的替代。GRU使用更新门和重置门来控制信息流。同样使用核素序列数据作为输入，预测残差。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "gated_recurrent_unit",
+        "version": ""
+      },
+      "parameters": {
+        "input_sequence": "Same as step 3 and 4",
+        "network_architecture": "GRU cell with update and reset gates",
+        "target": "predict Delta_B_shell for next nucleus in chain"
+      },
+      "observation": "预期建立一个GRU模型，其隐藏状态更新规则为 $z_t = \\sigma(W_{xz} x_t + W_{hz} h_{t-1} + b_z)$ (更新门)， $r_t = \\sigma(W_{xr} x_t + W_{hr} h_{t-1} + b_r)$ (重置门)， $\\tilde{h}_t = \\tanh(W_{xh} x_t + W_{hh} (r_t \\odot h_{t-1}) + b_h)$， $h_t = (1 - z_t) \\odot h_{t-1} + z_t \\odot \\tilde{h}_t$。输出层预测 $\\Delta \\hat{B}_{shell}$。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已建立了基于RNN/LSTM/GRU的残差预测模型。[Gap] 需要将神经网络的预测与液滴模型的基线结合，得到最终的总结合能预测，并与实验值及其他模型（Garvey-Kelson, WS系列）进行比较。[Decision] 最终结合能预测为液滴模型值加上神经网络预测的残差：$B_{pred}(Z, N) = B_{LDM}(Z, N) + \\Delta \\hat{B}_{shell}(Z, N)$。在训练集上优化网络参数，在验证集/测试集上评估预测精度（如均方根误差RMSE）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "recurrent_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "combine_predictions",
+        "base_model": "B_LDM from step 1",
+        "residual_model": "Delta_hat_B_shell from RNN/LSTM/GRU",
+        "final_prediction": "B_pred = B_LDM + Delta_hat_B_shell",
+        "evaluation_metric": "RMSE against AME2020"
+      },
+      "observation": "预期得到一系列结合能预测值 $B_{pred}(Z, N)$。通过比较RNN、LSTM、GRU模型在测试集上的RMSE，预期LSTM或GRU的性能优于基本RNN，并且混合模型（液滴+RNN）的精度有望优于单独的液滴模型，并可能与WS系列模型或Garvey-Kelson关系在已知区域精度相当，在外推区域（如滴线附近）可能表现出更好的鲁棒性（估计）。",
+      "valid": true
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已得到不同神经网络架构的预测结果和精度评估。[Gap] 需要验证模型预测是否满足一些基本的物理关系或约束，例如Garvey-Kelson关系，这是一种基于相邻核素质量的局部关系式。[Decision] 选取一组相邻核素，用训练好的模型预测它们的结合能，然后代入Garvey-Kelson关系式，检查等式两边的符合程度。这可以作为模型物理合理性的一个间接验证。",
+      "action": "verification",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "verification_method": "Garvey-Kelson_relation_check",
+        "predicted_masses": "B_pred from step 6",
+        "relation_formula": "M(N,Z)+M(N-1,Z-2)-M(N-1,Z)-M(N,Z-2) \\approx 0 或类似形式"
+      },
+      "observation": "预期计算Garvey-Kelson关系左右两边的差值，该差值应接近于零（在几百keV量级内，估计）。如果神经网络模型成功学习了核质量的局部相关性，其预测应能较好地满足该关系。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "least_squares_fitting",
+        "desc": "用于确定液滴模型（LDM）中结合能公式系数的优化值。"
+      },
+      {
+        "name": "RNN",
+        "desc": "用于通过动态学习复杂的核关联来改进核结合能预测，特别适用于处理具有序列依赖性的核数据。"
+      },
+      {
+        "name": "LSTM",
+        "desc": "通过引入门控记忆单元（输入门、遗忘门、输出门）来调节信息流，以解决RNN中的梯度消失问题，从而改进对核结合能的预测。"
+      },
+      {
+        "name": "GRU",
+        "desc": "作为LSTM的简化变体，将遗忘门和输入门合并为单个更新门，以降低计算复杂度，同时保留对核数据中长期依赖关系的记忆，用于有效捕获结合能变化。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "BE = a_{\\mathrm{V}} A - a_{\\mathrm{S}} A^{2/3} - a_{\\mathrm{C}} \\frac{Z(Z-1)}{A^{1/3}} - a_{\\mathrm{A}} \\frac{(N-Z)^{2}}{A} + \\delta(N, Z)"
+      },
+      {
+        "label": "Eq.2",
+        "content": "\\delta(N, Z) = \\left\\{ \\begin{array}{l l} + \\delta_{0}, & \\text{for even} Z, N (\\text{even} A), \\\\ 0, & \\text{for odd} A, \\\\ - \\delta_{0}, & \\text{for odd} Z, N (\\text{even} A), \\end{array} \\right."
+      },
+      {
+        "label": "Eq.3",
+        "content": "h_{t} = f \\left(W_{h} x_{t} + U_{h} h_{t - 1} + b_{h}\\right)"
+      },
+      {
+        "label": "Eq.4",
+        "content": "y_{t} = f \\left(W_{y} h_{t} + b_{y}\\right)"
+      },
+      {
+        "label": "Eq.5-10",
+        "content": "f_{t} = \\sigma(W_{f} x_{t} + U_{f} h_{t - 1} + b_{f}), \\quad i_{t} = \\sigma \\left(W_{i} x_{t} + U_{i} h_{t - 1} + b_{i}\\right), \\quad \\tilde{C}_{t} = \\tanh \\left(W_{C} x_{t} + U_{C} h_{t - 1} + b_{C}\\right), \\quad C_{t} = f_{t} \\odot C_{t - 1} + i_{t} \\odot \\tilde{C}_{t}, \\quad y_{t} = \\sigma \\left(W_{o} x_{t} + U_{o} h_{t - 1} + b_{o}\\right), \\quad h_{t} = o_{t} \\odot \\tanh \\left(C_{t}\\right)"
+      },
+      {
+        "label": "Eq.11-14",
+        "content": "r_{t} = \\sigma \\left(W_{r} x_{t} + U_{r} h_{t - 1} + b_{r}\\right), \\quad z_{t} = \\sigma \\left(W_{z} x_{t} + U_{z} h_{t - 1} + b_{z}\\right), \\quad \\tilde{h}_{t} = \\tanh \\left(W_{h} \\left(r_{t} \\odot h_{t - 1}\\right) + U_{h} x_{t} + b_{h}\\right), \\quad h_{t} = z_{t} \\odot \\tilde{h}_{t} + (1 - z_{t}) \\odot h_{t - 1}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "σRMSE",
+        "value": "3.29 MeV",
+        "condition": "对于包含约3264个核素（Z≥8, N≥8）的数据集，使用最小二乘法拟合液滴模型（LDM）得到的结果。"
+      },
+      {
+        "quantity": "a_V",
+        "value": "15.45",
+        "condition": "通过最小二乘法拟合液滴模型（LDM）得到的体积能系数。"
+      },
+      {
+        "quantity": "a_S",
+        "value": "16.91",
+        "condition": "通过最小二乘法拟合液滴模型（LDM）得到的表面能系数。"
+      },
+      {
+        "quantity": "a_C",
+        "value": "0.70",
+        "condition": "通过最小二乘法拟合液滴模型（LDM）得到的库仑能系数。"
+      },
+      {
+        "quantity": "a_A",
+        "value": "22.62",
+        "condition": "通过最小二乘法拟合液滴模型（LDM）得到的对称能系数。"
+      },
+      {
+        "quantity": "a_P",
+        "value": "9.35",
+        "condition": "通过最小二乘法拟合液滴模型（LDM）得到的对能系数。"
+      },
+      {
+        "quantity": "k_p",
+        "value": "-3/4",
+        "condition": "通过最小二乘法拟合液滴模型（LDM）得到的对能指数。"
+      }
+    ],
+    "failure_points": []
+  }
+}

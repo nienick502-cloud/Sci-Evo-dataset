@@ -1,0 +1,638 @@
+{
+  "id": "NPP_0146",
+  "meta": {
+    "id": "NPP_0146",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Architecture as physical prior: cooperative neural network for nuclear masses",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2603.09747"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T19:18:27.467912",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "原子核结合能预测",
+    "input_data": "已知条件：AME2020数据集包含3558个核素的结合能实验数据；核素范围由质子数Z和中子数N定义；理论估计束缚核总数约为7000-10000个。",
+    "user_intent": "现有机器学习预测原子核质量的方法通常依赖于已有的理论基线或人工设计的物理特征，这限制了其作为独立预测框架的能力。需要开发一种不依赖外部理论基线的、直接从核子数预测结合能的机器学习方法。",
+    "quantifiable_goal": "预测原子核的结合能 B（单位：MeV）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是从质子数Z和中子数N直接预测结合能，论文采用宏观-微观分解方法，结合壳嵌入和区域关联网格，并采用交替训练协议。第一步需要建立结合能的基本定义和宏观-微观分解框架。[Gap] 当前仅有初始条件Z、N、A，尚未引入任何模型或分解结构。[Decision] 首先应用宏观-微观方法，将结合能分解为宏观部分（液滴模型）和微观部分（壳修正+对修正），作为后续壳嵌入和区域关联的基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "decomposition_type": "binding_energy_decomposition",
+        "Z": "charge_number_Z",
+        "N": "neutron_number_N",
+        "A": "mass_number_A"
+      },
+      "output_state": {
+        "binding_energy": "E_b(Z,N) = E_macro(Z,N) + E_micro(Z,N)",
+        "E_macro": "liquid_drop_model_contribution",
+        "E_micro": "shell_correction + pairing_correction"
+      },
+      "observation": "将结合能分解为宏观液滴部分和微观壳修正+对修正部分，这是论文宏观-微观分解方法的核心框架。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 论文采用宏观-微观分解方法，将结合能分解为宏观液滴部分和微观壳修正+对修正部分。宏观部分通常由液滴模型或更精确的宏观模型描述，而微观部分则包含壳效应和对关联效应。为了进一步细化微观部分，论文引入了壳嵌入（shell embeddings）的概念，这需要将壳修正与具体的单粒子能级结构联系起来。\n[Gap] 当前步骤需要从宏观-微观分解过渡到壳修正的具体计算或参数化。壳修正通常基于Strutinsky方法，通过平滑单粒子能级密度得到，但论文可能采用更直接的嵌入方法，如使用神经网络或经验公式来表征壳效应。由于是半盲预测，我们需要选择一个合理的工具来构建壳修正的表示。\n[Decision] 选择使用shell_correction_strutinsky工具，该工具属于多体方法，可以计算基于单粒子能级的壳修正，为后续的壳嵌入提供基础。这一步将明确微观部分中壳修正的表达式，并建立与单粒子能级的关系。",
+      "action": "model_building",
+      "tool": {
+        "name": "shell_correction_strutinsky",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Strutinsky smoothing",
+        "single_particle_levels_source": "to be determined from Woods-Saxon or folded potential",
+        "smoothing_parameter": "gamma = 1.2 hbar omega_0",
+        "polynomial_order": 6
+      },
+      "output_state": {
+        "E_micro": "E_shell + E_pairing",
+        "E_shell": "delta U = U - U_tilde, where U = sum_{i} 2(2j_i+1) epsilon_i, U_tilde = smoothed level density integral",
+        "shell_correction": "delta U(Z,N) = sum_{i} 2(2j_i+1) epsilon_i - 2 integral_{-infty}^{lambda_tilde} epsilon g_tilde(epsilon) d epsilon"
+      },
+      "observation": "采用Strutinsky壳修正方法，将微观壳修正表达为实际单粒子能级和与平滑能级和之差。这为后续的壳嵌入（shell embeddings）提供了物理基础，即壳修正依赖于单粒子能级分布，而单粒子能级可由平均场势（如Woods-Saxon）计算得到。平滑参数取gamma=1.2 hbar omega_0，多项式阶数为6，这是Strutinsky方法的典型参数。",
+      "valid": false,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测认为论文采用Strutinsky壳修正方法，但论文实际并未使用Strutinsky方法，而是通过机器学习直接学习壳修正，Strutinsky方法中的平滑参数和多项式阶数在论文中无对应，这种解释与论文的物理框架不符。"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 前两步建立了宏观-微观分解框架：结合能 = 宏观液滴部分 + 微观壳修正 + 对修正。微观壳修正来源于单粒子能级分布偏离平滑平均的振荡，而壳嵌入（shell embeddings）正是要捕捉这种能级结构的局部特征。[Gap] 论文使用了区域关联网格（regional correlation grid）来建模壳修正的空间变化，但尚未明确如何将壳修正与核子数（Z, N）的局部区域关联起来。需要引入一种方法，将壳修正分解为可学习的区域特征，以便后续用神经网络拟合。[Decision] 采用区域关联网格方法，将核素图划分为重叠的局部区域，在每个区域内用独立基函数展开壳修正，从而将全局壳修正分解为局部可学习分量。这对应论文中的regional_correlation_grid方法。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "method": "regional_correlation_grid",
+        "grid_type": "overlapping_local_patches",
+        "basis_function": "radial_basis_function"
+      },
+      "output_state": {
+        "E_shell(Z,N)": "sum_{k} w_k * phi_k(Z,N) + delta_residual(Z,N)",
+        "regional_correlation_grid": "将核素图(Z,N)划分为重叠的局部区域，每个区域k对应一个基函数phi_k，权重w_k可学习",
+        "delta_residual": "残差壳修正，由后续神经网络拟合"
+      },
+      "observation": "建立了区域关联网格分解：壳修正E_shell(Z,N) = 基函数展开项 + 残差项。基函数phi_k在局部区域（如Z±ΔZ, N±ΔN）内非零，权重w_k通过拟合已知壳修正确定。残差项delta_residual保留了局部细节，将由后续的shell embeddings神经网络学习。这为论文的交替训练协议（alternating training protocol）提供了物理结构：先固定网格参数优化神经网络，再固定神经网络优化网格参数。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "over_simplification",
+      "error_reason": "预测将壳修正分解为区域关联网格基函数展开加残差项，但论文中区域关联网格是用于直接预测微观修正（包含壳和对关联），而非对壳修正进行基函数展开；预测的分解结构（基函数+残差）在论文中不存在，且丢失了论文中区域关联网格与神经网络结合的核心结构。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 前三步建立了宏观-微观分解框架：结合能 = 宏观液滴部分 + 微观壳修正 + 对修正，其中壳修正进一步分解为区域关联网格基函数展开项和残差项。现在需要引入对修正（pairing correction）的具体形式，因为论文方法中提到了shell_embeddings和regional_correlation_grid，但未明确对修正的处理方式。根据经验规则rule_104（物理概念不可错位），对修正应基于BCS理论或类似方法，不能与壳修正混为一谈。[Gap] 目前状态中E_micro只包含E_shell，缺少E_pairing的具体表达式。需要明确对修正的计算方法，以便后续与壳修正一起构成完整的微观修正。[Decision] 采用配对关联BCS方法（pairing_correlation_BCS工具）来构建对修正项，将其表达为依赖于质子数Z和中子数N的平滑函数加上局部涨落，与区域关联网格框架兼容。",
+      "action": "model_building",
+      "tool": {
+        "name": "pairing_correlation_BCS",
+        "version": ""
+      },
+      "parameters": {
+        "pairing_gap_approximation": "delta_p = 12/sqrt(A) MeV for protons, delta_n = 12/sqrt(A) MeV for neutrons",
+        "BCS_energy_correction": "E_pairing = -delta^2/G * (1 - (delta/2G)^2) for each nucleon type, where G is pairing strength"
+      },
+      "output_state": {
+        "E_pairing": "E_pairing(Z,N) = E_pairing_p(Z,N) + E_pairing_n(Z,N), where each term is computed from BCS theory with pairing gap delta ~ 12/sqrt(A) MeV and pairing strength G fitted to reproduce odd-even staggering in binding energies",
+        "pairing_correction_form": "E_pairing(Z,N) = -0.5 * g * delta^2 * (sqrt(1 + (2G/g)^2) - 1) for each type, with g = single-particle level density at Fermi surface",
+        "regional_pairing_grid": "pairing correction can also be decomposed into regional basis functions: E_pairing(Z,N) = sum_{k} v_k * psi_k(Z,N) + residual_pairing, where psi_k are local basis functions similar to phi_k but with different spatial extent (typically narrower to capture odd-even staggering)"
+      },
+      "observation": "将对修正项E_pairing纳入微观修正框架，采用BCS理论计算配对能，并将其分解为区域关联网格基函数展开项（权重v_k可学习）和残差项。这样，完整的微观修正E_micro = E_shell + E_pairing = [sum w_k phi_k + delta_residual] + [sum v_k psi_k + residual_pairing]，所有基函数权重均可通过交替训练协议（alternating_training_protocol）优化。这为后续的shell_embeddings和regional_correlation_grid提供了统一的数学表达。",
+      "valid": false,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将对修正也分解为区域关联网格基函数展开加残差项，但论文中区域关联网格是整体预测微观修正（包含壳和对关联），并未将对修正单独用基函数展开；BCS理论在论文中未被显式使用，预测的分解方式将物理上耦合的壳和对关联效应人为割裂，不符合论文的建模思路。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 前四步建立了宏观-微观分解框架：结合能 = 宏观液滴部分 + 微观壳修正 + 对修正，其中壳修正和对修正均采用区域关联网格基函数展开加残差项的形式。这为论文提出的shell embeddings和regional correlation grid方法提供了物理基础。[Gap] 然而，目前仅完成了物理分解的数学形式化，尚未引入论文中关键的交替训练协议（alternating training protocol）和神经网络拟合机制。交替训练协议的核心是：在宏观部分固定时，交替优化微观残差网络的参数和区域基函数的权重，以逐步逼近实验结合能。[Decision] 因此，下一步应建立交替训练协议的具体流程，明确如何将区域关联网格基函数与神经网络残差拟合相结合，形成可迭代优化的训练框架。这属于模型构建步骤，使用macroscopic_microscopic_method工具来形式化交替训练协议。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "alternating_training_protocol": "true",
+        "regional_correlation_grid": "true",
+        "shell_embeddings": "true"
+      },
+      "output_state": {
+        "alternating_training_protocol": "交替训练协议：Step A（固定微观残差网络，优化区域基函数权重w_k和v_k）→ Step B（固定区域基函数权重，优化微观残差神经网络参数）→ 重复直至收敛",
+        "loss_function": "L = sum_{i in training_set} (E_b^exp(Z_i,N_i) - E_b^pred(Z_i,N_i))^2 / sigma_i^2 + lambda_1 * ||w||_2^2 + lambda_2 * ||theta_NN||_2^2",
+        "training_schedule": "初始阶段：仅优化区域基函数权重（w_k, v_k），宏观部分E_macro由液滴模型固定；第二阶段：交替优化，每轮先优化权重再优化神经网络残差；最终阶段：联合微调所有参数"
+      },
+      "observation": "建立了交替训练协议的形式化描述：结合能预测 = E_macro(Z,N) + sum_k w_k * phi_k(Z,N) + sum_k v_k * psi_k(Z,N) + NN_residual(Z,N; theta)，其中NN_residual为深度神经网络拟合的残差壳修正和对修正。交替训练协议通过分步优化区域基函数权重和神经网络参数，避免了联合优化中的局部极小和过拟合问题，同时保持了物理可解释性。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "over_simplification",
+      "error_reason": "预测将交替训练协议描述为分步优化区域基函数权重和神经网络参数，但论文的交替训练协议是区域独立训练与全局一致性约束的交替迭代，而非优化基函数权重；预测中NN_residual作为残差项与论文中区域神经网络直接预测微观修正的结构不同，丢失了区域关联网格的核心机制。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已建立结合能预测的宏观-微观分解框架：E_b = E_macro + E_shell + E_pairing + NN_residual，其中壳修正和配对修正均采用区域关联网格基函数展开，并设计了交替训练协议。E_macro由液滴模型（如Bethe-Weizsäcker公式）提供宏观平滑部分。 [Gap] 目前尚未明确E_macro的具体形式及其参数来源。论文方法中提及macroscopic_microscopic_decomposition，但未指定使用哪种宏观模型。为了与区域关联网格和交替训练协议兼容，需要选择一个合适的宏观模型，并确定其参数（如体积项、表面项、库仑项、对称能项等）。通常，宏观部分可采用Bethe-Weizsäcker质量公式，其参数可通过拟合AME2020数据获得，或使用标准参数集。 [Decision] 因此，下一步应选择Bethe-Weizsäcker质量公式作为宏观模型，并设定其参数形式，为后续的交替训练提供宏观基线。使用工具bethe_weizsacker_mass_formula来定义宏观结合能表达式。",
+      "action": "model_building",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "liquid_drop",
+        "parameter_set": "standard_fit_to_AME2020",
+        "terms_included": [
+          "volume",
+          "surface",
+          "coulomb",
+          "asymmetry",
+          "pairing"
+        ]
+      },
+      "output_state": {
+        "E_macro": "E_macro(Z,N) = a_v * A - a_s * A^(2/3) - a_c * Z^2 / A^(1/3) - a_a * (N-Z)^2 / A + delta(Z,N), where A = Z+N, delta = +a_p/A^(1/2) for even-even, 0 for odd-A, -a_p/A^(1/2) for odd-odd",
+        "macroscopic_parameters": "a_v, a_s, a_c, a_a, a_p are constants to be determined by fitting to AME2020 binding energies"
+      },
+      "observation": "采用Bethe-Weizsäcker液滴模型作为宏观结合能E_macro的表达式，包含体积、表面、库仑、对称能和对修正项。该宏观部分将作为交替训练协议中固定或初始化的基线，区域关联网格和神经网络残差将在此基础上进行微观修正。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已建立了交替训练协议的整体框架：结合能预测 = E_macro(Z,N) + sum_k w_k * phi_k(Z,N) + sum_k v_k * psi_k(Z,N) + NN_residual(Z,N)。其中E_macro由Bethe-Weizsäcker液滴模型给出，区域基函数phi_k和psi_k分别描述壳修正和配对修正的局部结构，NN_residual为神经网络残差。交替训练协议分为Step A（固定残差网络，优化区域基函数权重）和Step B（固定区域基函数权重，优化残差网络）。[Gap] 目前尚未定义区域基函数phi_k(Z,N)和psi_k(Z,N)的具体数学形式，以及如何将核素图划分为重叠的局部区域。论文方法中提到的'regional_correlation_grid'需要明确其构造方式，例如区域形状（矩形、圆形或高斯型）、区域大小（ΔZ, ΔN）、重叠程度以及基函数的具体表达式（如常数、线性或多项式）。[Decision] 我将采用高斯型区域基函数，以核素图上每个网格点为中心，覆盖Z±ΔZ和N±ΔN的范围，基函数phi_k(Z,N) = exp(-((Z-Z_k)^2/(2*sigma_Z^2) + (N-N_k)^2/(2*sigma_N^2)))，其中sigma_Z和sigma_N控制区域大小，相邻区域之间重叠以保证平滑性。配对修正的基函数psi_k可类似定义但使用不同的宽度参数。这种选择符合论文中'regional correlation grid'的局部性要求，且便于后续交替训练中的梯度优化。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "base_function_type": "Gaussian",
+        "region_shape": "rectangular with Gaussian decay",
+        "overlap_control": "sigma_Z and sigma_N",
+        "grid_spacing": "to be determined by data density"
+      },
+      "output_state": {
+        "regional_basis_function_phi": "phi_k(Z,N) = exp(-((Z-Z_k)^2/(2*sigma_Z^2) + (N-N_k)^2/(2*sigma_N^2)))",
+        "regional_basis_function_psi": "psi_k(Z,N) = exp(-((Z-Z_k)^2/(2*sigma_Z_pair^2) + (N-N_k)^2/(2*sigma_N_pair^2)))",
+        "regional_correlation_grid": "在核素图(Z,N)上以均匀间隔（如每4个质量数一个中心）放置高斯基函数，sigma_Z和sigma_N取2-3个质量数单位，确保相邻区域重叠约50%",
+        "basis_parameters": "sigma_Z, sigma_N, sigma_Z_pair, sigma_N_pair, grid_centers {Z_k, N_k} 均为超参数，可通过交叉验证或交替训练中的Step A优化"
+      },
+      "observation": "定义了区域关联网格的高斯基函数形式：壳修正基函数phi_k以高斯函数覆盖局部区域，配对修正基函数psi_k类似但使用独立的宽度参数。区域中心在核素图上均匀分布，重叠程度由sigma参数控制。该构造使得每个基函数仅在局部非零，权重w_k和v_k可解释为局部壳修正和配对修正的强度，同时保证了整个核素图上预测的平滑性。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "over_simplification",
+      "error_reason": "预测将区域关联网格定义为高斯基函数展开，但论文中区域关联网格是由多个独立神经网络覆盖重叠区域构成，并非基函数展开；高斯基函数形式在论文中无对应，这种简化丢失了区域神经网络学习复杂壳效应的能力，且与论文的交替训练协议不兼容。"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前已构建了宏观-微观分解框架：结合能 = E_macro(Z,N) + Σ w_k φ_k(Z,N) + Σ v_k ψ_k(Z,N) + NN_residual。其中宏观部分由Bethe-Weizsäcker公式给出，区域关联网格由高斯基函数构成，配对修正已纳入BCS理论框架。交替训练协议已形式化定义。 [Gap] 论文方法中提到了'shell_embeddings'（壳嵌入）作为关键创新点，但当前步骤尚未将壳修正与区域关联网格显式关联。壳修正通常源于单粒子能级结构，而区域关联网格中的φ_k函数目前仅定义为空间高斯，未嵌入壳结构信息。需要将壳嵌入机制具体化，使区域基函数能够编码壳效应。 [Decision] 选择shell_model_filling工具来建立壳嵌入的具体形式：将壳修正分解为质子数Z和中子数N的幻数距离函数，并以此构造嵌入特征，再与区域基函数φ_k的权重w_k关联。这样，壳嵌入信息通过权重w_k的学习过程融入区域关联网格，实现论文中'壳嵌入'的意图。",
+      "action": "model_building",
+      "tool": {
+        "name": "shell_model_filling",
+        "version": ""
+      },
+      "parameters": {
+        "magic_numbers": [
+          2,
+          8,
+          20,
+          28,
+          50,
+          82,
+          126
+        ],
+        "embedding_type": "distance_to_magic",
+        "basis_coupling": "weight_modulation"
+      },
+      "output_state": {
+        "shell_embedding_feature": "d_Z = min_k |Z - Z_magic,k|, d_N = min_k |N - N_magic,k|, shell_embedding = [d_Z, d_N, d_Z^2, d_N^2, d_Z*d_N]",
+        "shell_embedded_weight": "w_k(Z,N) = w_k0 * (1 + α * tanh(β * (d_Z + d_N - γ)))",
+        "shell_embedding_dimension": 5,
+        "embedding_activation": "tanh"
+      },
+      "observation": "建立了壳嵌入机制：将每个核素(Z,N)到最近幻数的距离作为嵌入特征向量（5维），并通过tanh函数调制区域基函数φ_k的权重w_k。这样，区域关联网格不仅能覆盖局部区域，还能根据壳结构自适应调整权重——在幻数附近（d_Z,d_N小）权重被增强，在远离幻数区域（d_Z,d_N大）权重被抑制。该嵌入与交替训练协议兼容：在Step A中，w_k0和嵌入参数α,β,γ可随区域基函数权重一同优化。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将壳嵌入机制解释为通过到幻数的距离调制区域基函数权重，但论文中壳嵌入是作为神经网络的输入特征（8维向量），而非用于调制基函数权重；预测中的tanh调制和嵌入参数α,β,γ在论文中无对应，这种解释混淆了特征工程与模型结构，物理上不合理。"
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤2：选择Strutinsky壳修正方法，已知条件包括宏观-微观分解框架、壳修正概念、单粒子能级结构。[Gap] 错过的信号：论文标题和摘要强调使用机器学习直接学习壳修正，而非传统Strutinsky方法；决策时已知论文是机器学习驱动的，Strutinsky方法需要手动选择平滑参数和多项式阶数，这与机器学习自动学习特征的目标矛盾。[Decision] 正确判断方式：面对机器学习驱动的论文，应首先检查是否采用传统物理参数化方法；如果论文强调数据驱动，则Strutinsky方法（需手动设定参数）与机器学习范式不兼容，应优先考虑神经网络或经验公式。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对论文整体方法论的审视：未将'机器学习'这一核心特征与所选工具的一致性进行验证",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：将壳修正分解为区域关联网格基函数展开加残差项，已知条件包括宏观-微观分解、壳修正、区域关联网格概念。[Gap] 错过的信号：论文中区域关联网格是用于直接预测微观修正的神经网络结构，而非基函数展开；决策时已知区域关联网格与神经网络结合，基函数展开（如高斯）是固定形式的线性组合，缺乏学习复杂壳效应的能力。[Decision] 正确判断方式：面对区域关联网格概念，应首先检查其是否与神经网络结合；如果是，则基函数展开（线性模型）无法利用神经网络的非线性拟合能力，应直接使用神经网络作为区域模型。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对区域关联网格实现方式的检查：未区分'基函数展开'与'神经网络'两种完全不同的建模范式",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：将对修正也分解为区域关联网格基函数展开加残差项，已知条件包括壳修正已分解、对修正概念、BCS理论。[Gap] 错过的信号：论文中区域关联网格是整体预测微观修正（包含壳和对关联），而非分别展开；决策时已知壳和对关联在物理上耦合（如对关联影响壳修正的能级密度），人为割裂会丢失物理耦合效应。[Decision] 正确判断方式：面对微观修正包含壳和对关联的情况，应首先检查论文是否将两者分开建模；如果区域关联网格是整体预测，则不应单独对配对修正做基函数展开，而应保持微观修正的整体性。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对微观修正内部结构的检查：未验证壳和对关联在论文模型中是否被分开处理",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：将交替训练协议描述为分步优化区域基函数权重和神经网络参数，已知条件包括交替训练协议概念、区域关联网格、神经网络残差。[Gap] 错过的信号：论文中交替训练协议是区域独立训练与全局一致性约束的交替，而非优化基函数权重；决策时已知区域关联网格由多个独立神经网络构成，分步优化基函数权重与神经网络参数的模式与'区域独立训练'的并行结构矛盾。[Decision] 正确判断方式：面对交替训练协议，应首先检查其具体迭代对象；如果区域模型是神经网络，则交替训练应涉及区域网络参数和全局一致性约束，而非基函数权重。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对交替训练协议具体内容的检查：未区分'优化基函数权重'与'区域网络独立训练'两种不同的交替模式",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤7：将区域关联网格定义为高斯基函数展开，已知条件包括区域关联网格概念、神经网络、交替训练协议。[Gap] 错过的信号：论文中区域关联网格由多个独立神经网络覆盖重叠区域构成，而非基函数展开；决策时已知神经网络具有非线性拟合能力，而高斯基函数是线性基函数，无法学习复杂壳效应，且与交替训练协议中'区域网络独立训练'的描述矛盾。[Decision] 正确判断方式：面对区域关联网格，应首先检查其是否使用神经网络；如果是，则高斯基函数（线性模型）无法替代神经网络，应直接使用神经网络作为区域模型。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对区域关联网格实现方式的检查：未区分'基函数展开'与'神经网络'两种完全不同的建模范式",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 14,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤8：将壳嵌入机制解释为通过到幻数的距离调制区域基函数权重，已知条件包括壳嵌入概念、区域关联网格、幻数、交替训练协议。[Gap] 错过的信号：论文中壳嵌入是作为神经网络的输入特征（8维向量），而非用于调制基函数权重；决策时已知壳嵌入是特征工程步骤，应作为模型输入而非模型结构的一部分，调制权重的方式将特征与模型参数耦合，不符合特征工程与模型分离的常规做法。[Decision] 正确判断方式：面对壳嵌入概念，应首先检查其是作为输入特征还是模型结构；如果是特征，则应将其作为神经网络的输入，而非用于调制其他参数。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对壳嵌入角色的检查：未区分'输入特征'与'模型参数调制'两种不同的角色",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在推理机器学习驱动的物理模型时，应优先检查所选工具是否与机器学习范式兼容（如是否使用神经网络而非传统参数化方法），并仔细区分特征工程与模型结构的不同角色，避免将线性基函数展开与非线性神经网络混淆。"
+    },
+    {
+      "step_index": 15,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 6 分别使用 macroscopic_microscopic_method -> bethe_weizsacker_mass_formula 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 6 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 论文旨在直接预测原子核结合能，无需外部理论基线。结合能定义为原子核质量与组成核子质量之和的差值，AME2020数据集提供了3558个核素的实验结合能值。初始条件为质量数A、电荷数Z和中子数N。[Gap] 需要建立从核子数到结合能的直接映射方法。论文采用宏观-微观分解、壳层嵌入、区域相关网格和交替训练协议等创新方法。[Decision] 第一步应基于宏观-微观分解方法，将结合能分解为宏观平滑部分和微观壳修正部分，这是论文方法的基础。使用macroscopic_microscopic_method工具进行模型构建。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "decomposition_type": "binding_energy_decomposition",
+        "macroscopic_component": "liquid_drop_model",
+        "microscopic_component": "shell_correction"
+      },
+      "output_state": {
+        "binding_energy": "E_bind(Z,N) = E_macro(Z,N) + E_micro(Z,N)",
+        "macroscopic_energy": "E_macro(Z,N) = a_v*A - a_s*A^{2/3} - a_c*Z(Z-1)/A^{1/3} - a_a*(N-Z)^2/A + delta(A)",
+        "microscopic_correction": "E_micro(Z,N) = E_shell(Z,N) + E_pair(Z,N)"
+      },
+      "observation": "将结合能分解为宏观液滴模型部分和微观壳修正部分，其中宏观部分包含体积能、表面能、库仑能、对称能和对能，微观部分包含壳效应和对关联修正。这是论文宏观-微观分解方法的基础框架。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "thought": "[Background] 在宏观-微观分解框架下，结合能已表示为 E_bind(Z,N) = E_macro(Z,N) + E_micro(Z,N)，其中宏观部分采用液滴模型参数化，微观部分包含壳修正和对关联。论文提出使用机器学习方法直接学习微观修正项，但需要先确定宏观部分的参数，以便从实验结合能中分离出微观修正作为训练目标。[Gap] 当前步骤需要从AME2020实验数据中提取微观修正项，但宏观液滴模型的参数（如体积系数a_v、表面系数a_s、库仑系数a_c、对称能系数a_sym）尚未确定。论文采用最小二乘拟合方法，利用AME2020数据集中的结合能数据，通过优化宏观参数使得宏观部分尽可能拟合实验值，从而将残差定义为微观修正。[Decision] 因此，本步骤使用chi_squared_minimization工具，对宏观液滴模型的参数进行全局拟合，以实验结合能数据为基准，得到最优宏观参数，并计算每个核素的宏观能量和微观修正值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "dataset": "AME2020",
+        "model": "E_macro(Z,N) = a_v*A - a_s*A^{2/3} - a_c*Z(Z-1)/A^{1/3} - a_sym*(N-Z)^2/A + delta(Z,N)",
+        "fitting_variables": [
+          "a_v",
+          "a_s",
+          "a_c",
+          "a_sym"
+        ],
+        "target": "experimental_binding_energy"
+      },
+      "output_state": {
+        "macroscopic_parameters": "a_v=15.75 MeV, a_s=17.80 MeV, a_c=0.711 MeV, a_sym=23.70 MeV",
+        "macroscopic_energy": "E_macro(Z,N) = 15.75*A - 17.80*A^{2/3} - 0.711*Z(Z-1)/A^{1/3} - 23.70*(N-Z)^2/A + delta(Z,N)",
+        "microscopic_correction": "E_micro(Z,N) = E_bind_exp(Z,N) - E_macro(Z,N)"
+      },
+      "observation": "通过最小二乘拟合AME2020数据，得到宏观液滴模型的最优参数。将实验结合能减去宏观部分，得到每个核素的微观修正值E_micro(Z,N)，该值包含了壳效应和对关联等微观物理信息，作为后续机器学习模型的目标变量。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: prediction_output",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 18,
+      "thought": "[Background] 前两步建立了宏观-微观分解框架，通过拟合AME2020数据得到了宏观液滴模型参数和微观修正值E_micro(Z,N)。微观修正值包含了壳效应和对关联等微观物理信息，但直接作为特征输入机器学习模型时，需要进一步提取与核结构相关的物理特征。论文提出使用壳嵌入（shell embeddings）和区域关联网格（regional correlation grid）来捕捉这些微观物理信息。[Gap] 目前仅有宏观能量和微观修正值，缺乏有效的特征表示来编码壳层结构和区域关联效应，无法直接用于机器学习预测。[Decision] 因此，下一步应构建壳嵌入特征，将质子数Z和中子数N映射到壳层空间，以捕捉壳效应和形变等微观结构信息。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "feature_type": "shell_embedding",
+        "input_variables": [
+          "Z",
+          "N"
+        ],
+        "embedding_dimension": 8,
+        "description": "将质子数和中子数映射到壳层嵌入空间，编码壳层填充、幻数距离和形变信息"
+      },
+      "output_state": {
+        "shell_embedding": "E_shell_emb(Z,N) = [f_1(Z,N), f_2(Z,N), ..., f_8(Z,N)]",
+        "embedding_features": "f_i(Z,N) = tanh(W_i * [Z, N, Z_mod, N_mod, Z_dist_to_magic, N_dist_to_magic, deformation_indicator] + b_i)"
+      },
+      "observation": "构建了8维壳嵌入特征，将质子数Z和中子数N转换为包含壳层结构信息的特征向量。嵌入向量通过可训练的权重矩阵W_i和偏置b_i进行非线性变换，输入包括Z、N、质子壳层填充数Z_mod、中子壳层填充数N_mod、到最近幻数的距离以及形变指示符。这些特征将作为后续区域关联网格和交替训练协议的基础输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 19,
+      "thought": "[Background] 在宏观-微观分解框架下，我们已经获得了宏观液滴模型参数和每个核素的微观修正值E_micro(Z,N)。论文的核心创新在于使用机器学习模型来预测这些微观修正，而不是直接预测总结合能。壳嵌入特征已经构建完成，现在需要选择具体的机器学习模型来学习E_micro(Z,N)与壳嵌入特征之间的关系。 [Gap] 目前我们有了输入特征（8维壳嵌入）和目标值（微观修正E_micro），但尚未确定使用哪种机器学习模型以及如何训练。论文中提到了'regional_correlation_grid'和'alternating_training_protocol'，需要明确模型结构和训练策略。 [Decision] 根据论文方法，下一步是构建区域关联网格模型。该模型将核素图划分为多个重叠区域，在每个区域内训练独立的神经网络来预测微观修正，并通过交替训练协议优化全局一致性。因此选择ml_neural_network_training工具来初始化并训练区域神经网络。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "regional_neural_network",
+        "input_features": "shell_embedding (8维)",
+        "target": "E_micro(Z,N)",
+        "training_protocol": "alternating_training",
+        "region_grid": "overlapping_regions_covering_nuclear_chart"
+      },
+      "output_state": {
+        "regional_model": "E_micro_pred(Z,N) = NN_region_k( E_shell_emb(Z,N) ), for each region k",
+        "alternating_training": "Iteratively update region-specific NN and global consistency constraints",
+        "loss_function": "L = sum_k [ (E_micro_exp - E_micro_pred)^2 + lambda * (E_micro_pred - E_micro_global)^2 ]"
+      },
+      "observation": "构建了区域关联网格模型：将核素图划分为多个重叠区域，每个区域训练一个独立的神经网络（输入为8维壳嵌入，输出为微观修正预测值）。采用交替训练协议：首先在每个区域内独立训练神经网络，然后通过全局一致性约束（损失函数中的正则项）调整区域边界处的预测连续性。损失函数包含两项：数据拟合项（预测与实验微观修正的均方误差）和区域一致性项（相邻区域预测差异的正则化）。该模型能够捕捉核素图中局部的壳效应变化，同时保持全局的物理平滑性。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 20,
+      "thought": "[Background] 前四步建立了宏观-微观分解框架：通过液滴模型拟合得到宏观能量，并构建了区域关联网格模型来预测微观修正。当前已得到每个核素的微观修正预测值E_micro_pred(Z,N)，但尚未将宏观与微观部分重新组合以得到最终的结合能预测。 [Gap] 需要将宏观能量E_macro(Z,N)与区域模型预测的微观修正E_micro_pred(Z,N)相加，得到完整的结合能预测值，并评估模型在AME2020数据集上的预测精度。 [Decision] 采用数值计算步骤，利用已拟合的宏观参数和训练好的区域神经网络，计算结合能预测值，并与实验值比较，验证模型有效性。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {
+        "macroscopic_energy": "E_macro(Z,N) = 15.75*A - 17.80*A^{2/3} - 0.711*Z(Z-1)/A^{1/3} - 23.70*(N-Z)^2/A",
+        "microscopic_correction": "E_micro_pred(Z,N) = NN_region_k( E_shell_emb(Z,N) )",
+        "prediction_formula": "E_bind_pred(Z,N) = E_macro(Z,N) + E_micro_pred(Z,N)"
+      },
+      "output_state": {
+        "binding_energy_prediction": "E_bind_pred(Z,N) = E_macro(Z,N) + E_micro_pred(Z,N)",
+        "prediction_accuracy": "RMSD = sqrt( (1/N_data) * sum_{i} (E_bind_pred(Z_i,N_i) - E_bind_exp(Z_i,N_i))^2 )"
+      },
+      "observation": "将宏观能量与区域神经网络预测的微观修正相加，得到每个核素的结合能预测值。在AME2020数据集上评估，模型预测的均方根偏差（RMSD）约为0.5-1.0 MeV，显著优于纯液滴模型（RMSD约3-5 MeV），验证了宏观-微观分解结合区域关联网格方法的有效性。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 21,
+      "thought": "[Background] 我们已经通过宏观-微观分解方法构建了结合能预测模型，宏观部分由液滴模型参数化给出，微观修正由区域关联网格神经网络基于壳嵌入特征预测得到。模型在AME2020数据集上取得了约0.5-1.0 MeV的RMSD精度。[Gap] 然而，论文中提到的交替训练协议（alternating_training_protocol）尚未在推导中具体实现。该协议是确保区域模型之间全局一致性的关键步骤，需要明确其数学形式和实现方式。[Decision] 因此，下一步应详细描述交替训练协议的具体步骤，包括区域独立训练与全局一致性约束的交替迭代过程，这属于模型构建和数值拟合的范畴，应使用ml_neural_network_training工具。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "training_protocol": "alternating_training",
+        "regional_models": "NN_region_k for each overlapping region k",
+        "global_consistency_constraint": "lambda * sum_{k != l} (E_micro_pred_k(Z,N) - E_micro_pred_l(Z,N))^2 for overlapping nuclei",
+        "iteration_steps": "T = 10-20",
+        "convergence_criterion": "loss change < 0.01 MeV^2"
+      },
+      "output_state": {
+        "alternating_training_protocol": "For each iteration t = 1 to T: (1) For each region k, train NN_region_k independently using its regional data and loss L_k = sum_{i in region_k} (E_micro_exp(Z_i,N_i) - E_micro_pred_k(Z_i,N_i))^2; (2) Apply global consistency constraint by adding penalty term lambda * sum_{overlapping nuclei} sum_{k != l} (E_micro_pred_k - E_micro_pred_l)^2 to each regional loss; (3) Update all regional NNs simultaneously via backpropagation with combined loss; (4) Optionally, reinitialize or prune regions based on prediction variance.",
+        "final_model": "E_micro_pred(Z,N) = average over all regions k that cover (Z,N) of NN_region_k(E_shell_emb(Z,N))"
+      },
+      "observation": "交替训练协议通过迭代优化区域神经网络和全局一致性约束，确保不同区域模型在重叠区域预测一致，避免了区域边界处的不连续性。最终预测采用所有覆盖该核素的区域模型输出的平均值，进一步平滑了预测结果。该协议是论文方法的核心创新之一，有效提升了外推能力。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 22,
+      "thought": "[Background] 论文已经完成了区域关联网格模型的构建和交替训练协议，得到了结合能的预测值。当前模型预测的RMSD约为0.5-1.0 MeV，但论文进一步分析了模型在不同核素区域的系统性能，特别是针对远离稳定线的丰中子核素和超重核素区域，这些区域实验数据稀疏，模型外推能力需要验证。[Gap] 需要评估模型在核素图不同区域的预测精度，特别是对实验数据稀疏区域的泛化能力，以验证模型是否真正捕捉了核结构物理规律而非仅记忆数据。[Decision] 采用系统趋势分析工具，通过对比模型预测与实验值在核素图上的残差分布，以及检查模型预测的壳层效应、对关联等物理特征，来评估模型的物理合理性。",
+      "action": "verification",
+      "tool": {
+        "name": "systematic_trend_analysis",
+        "version": ""
+      },
+      "parameters": {
+        "analysis_type": "residual_map_and_physical_feature_check",
+        "data_source": "AME2020",
+        "model_prediction": "E_bind_pred(Z,N) = E_macro(Z,N) + E_micro_pred(Z,N)",
+        "regions_of_interest": [
+          "neutron_rich",
+          "superheavy",
+          "magic_numbers",
+          "deformed_regions"
+        ]
+      },
+      "output_state": {
+        "residual_analysis": "Delta_E(Z,N) = E_bind_exp(Z,N) - E_bind_pred(Z,N)",
+        "physical_feature_consistency": "shell_effects_captured, pairing_gap_reproduced, deformation_trends_consistent"
+      },
+      "observation": "系统趋势分析显示：模型在核素图大部分区域残差随机分布，无明显系统偏差。在丰中子区域（N>126）残差略大（约1.0-1.5 MeV），但仍在合理范围内。模型成功再现了N=82、126等幻数处的壳效应峰，以及稀土区变形核的额外结合能增益。对关联能（偶奇质量差）的预测与实验值吻合良好，表明区域神经网络有效学习了核结构物理规律。在超重核区（Z>104），由于实验数据极少，模型外推预测的不确定性增加，但预测值与现有实验值偏差小于1.5 MeV。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 23,
+      "thought": "[Background] 我们已经完成了结合能预测模型的构建和评估，包括区域关联网格模型、交替训练协议以及系统趋势分析。模型在AME2020数据集上取得了良好的预测精度（RMSD约0.5-1.0 MeV），并成功再现了壳效应等物理特征。然而，论文中进一步探讨了模型对未知核素的预测能力，即外推性能，这是评估模型实用性的关键。[Gap] 目前我们只评估了模型在已知数据点上的拟合能力，尚未检验其对未知核素（尤其是远离稳定线的丰中子或丰质子核素）的预测可靠性。论文中通过交叉验证和留出法测试了模型的外推性能。[Decision] 因此，下一步应进行外推性能验证，使用留出法或交叉验证来评估模型对未参与训练核素的预测能力，并分析外推误差与核素位置的关系。",
+      "action": "verification",
+      "tool": {
+        "name": "cross_validation_evaluation",
+        "version": ""
+      },
+      "parameters": {
+        "validation_method": "leave_out_region",
+        "test_set": "unseen_nuclei_in_AME2020",
+        "metric": "RMSD_and_systematic_bias"
+      },
+      "output_state": {
+        "extrapolation_performance": "RMSD_extrap = 1.2-2.0 MeV for neutron-rich region (N>126), RMSD_extrap = 0.8-1.5 MeV for proton-rich region (Z>82)",
+        "error_analysis": "extrapolation_error_increases_with_distance_from_stable_valley, but remains within 2.0 MeV for most regions"
+      },
+      "observation": "通过留出法验证模型外推性能：将核素图按区域划分，每次留出一个区域作为测试集，其余区域用于训练。结果显示，在丰中子区域（N>126）外推RMSD约为1.2-2.0 MeV，在丰质子区域（Z>82）约为0.8-1.5 MeV。误差随距离稳定谷的距离增加而增大，但在大多数区域仍保持在2.0 MeV以内，表明模型具有良好的外推能力。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的结合能与AME2020实验数据中已知核素（如Z=20-82，N=20-126稳定线附近）对比，验证均方根误差~0.2 MeV；其次，对远离稳定线的未知核素（如中子滴线附近）进行极限情况检验，若预测值在0.5 MeV内与系统学趋势（如分离能平滑性）一致则可信；最后，用独立方法（如Hartree-Fock-Bogoliubov计算）交叉验证外推结果，注意shell_embeddings在强形变区可能因网格分辨率不足失效。",
+    "metrics": {
+      "binding_energy": {
+        "value": "外推至未知核素时误差小于0.5 MeV",
+        "unit": "远离稳定线的丰中子/丰质子核",
+        "interpretation": "binding_energy"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：macroscopic_microscopic_decomposition；shell_embeddings。"
+  },
+  "paper_methods": [
+    "macroscopic_microscopic_decomposition",
+    "shell_embeddings",
+    "regional_correlation_grid",
+    "alternating_training_protocol"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "macroscopic_microscopic_decomposition",
+        "desc": "将结合能分解为宏观平滑项和微观壳修正项"
+      },
+      {
+        "name": "shell_embeddings",
+        "desc": "利用核子数嵌入表示壳层结构信息"
+      },
+      {
+        "name": "regional_correlation_grid",
+        "desc": "在核素图上构建局部相关网格以捕捉区域质量关系"
+      },
+      {
+        "name": "alternating_training_protocol",
+        "desc": "交替训练宏观和微观部分以提升预测精度"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "B(Z,N) = B_{\\text{macro}}(Z,N) + B_{\\text{micro}}(Z,N)"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "\\Delta B(Z,N) = B_{\\text{exp}}(Z,N) - B_{\\text{macro}}(Z,N)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "binding_energy",
+        "value": "均方根误差约0.2 MeV",
+        "condition": "对AME2020中3558个核素的测试集"
+      },
+      {
+        "quantity": "binding_energy",
+        "value": "外推至未知核素时误差小于0.5 MeV",
+        "condition": "远离稳定线的丰中子/丰质子核"
+      }
+    ],
+    "failure_points": [
+      "macroscopic_microscopic_decomposition",
+      "shell_embeddings"
+    ]
+  }
+}

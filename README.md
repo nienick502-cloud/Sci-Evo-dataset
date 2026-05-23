@@ -175,6 +175,19 @@ for path in sorted(final_dir.rglob("*.json")):
 
 ---
 
+## Repository Contents
+
+| Directory | Description |
+|-----------|-------------|
+| `dataset/` | Final 219 samples (JSON) + metadata index |
+| `schema/` | Full schema specification |
+| `scripts/` | 24 reproduction scripts (parse → generate → postprocess → audit) |
+| `raw_pdf/` | Original PDF sources (textbooks + 179 papers, 8 subdomains) |
+| `parsed/` | MinerU-parsed Markdown output from raw PDFs |
+| `raw_dataset/` | Intermediate data: extracted paper JSONs, Crystal experiment results, unsolved problems |
+| `tex/` | LaTeX source for the dataset technical report |
+| `presentation.md` / `presentation.pptx` | Dataset presentation slides |
+
 ## License
 
 This dataset is released under the [Creative Commons Attribution 4.0 International License (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).

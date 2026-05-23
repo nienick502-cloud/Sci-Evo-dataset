@@ -1,0 +1,520 @@
+{
+  "id": "NPP_0041",
+  "meta": {
+    "id": "NPP_0041",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_liquid_drop",
+    "source": {
+      "type": "paper",
+      "title": "Unified Royer Law Revision for $\\alpha$ -Decay Half-Lives: Shell Corrections, Pairing, and Orbital-Angular-Momentum",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2512.22057"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "α衰变半衰期的统一Royer定律修正",
+    "input_data": "550个实验α衰变半衰期数据点，包括NUBASE2020数据库的539个核素及近期发表的11个核素（^{170}Hg, ^{214}U, ^{216}U, ^{218}U, ^{160}Os, ^{190}At, ^{207}Th, ^{272}Hs, ^{276}Ds, ^{210}Pa, ^{286}Mc）。研究仅限于基态到基态的α衰变，并考虑了实验分支比R。",
+    "user_intent": "广泛使用的Royer定律依赖12个宇称相关参数，且在N=126壳层闭合附近存在系统性偏差。现有模型在该区域与实验数据有显著偏离，需要一种更精确、参数更少的统一框架来改进α衰变半衰期的计算。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知有550个实验α衰变半衰期数据点，覆盖了从轻到重的核素，包括N=126壳层附近的核素。Royer定律是一个广泛使用的经验公式，用于计算α衰变半衰期，它依赖于12个宇称相关参数。[Gap] 原始的Royer定律在N=126壳层闭合附近存在系统性偏差，表明其参数化形式或物理基础在该区域不充分。需要评估原始公式的偏差模式。[Decision] 首先，将使用原始的Royer定律公式，对550个核素计算预测的半衰期，并与实验值进行比较，以量化偏差，特别是识别N≈126区域的系统性偏离。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "input_variables": "Z (子核原子序数), A (母核质量数), Q_alpha (衰变能)",
+        "output": "log10_T12_pred (预测的半衰期对数)",
+        "purpose": "计算原始Royer定律的预测值，作为基准"
+      },
+      "observation": "预期得到每个核素基于原始Royer定律的预测半衰期对数 log10_T12_pred_original。该结果将与实验对数 log10_T12_exp 进行比较，生成残差图（如 log10_T12_exp - log10_T12_pred 对中子数N作图），预期在N≈126区域会显示出系统性的正或负偏差。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 步骤1已获得原始Royer定律的预测残差，确认了在壳层区域存在偏差。[Gap] 需要构建一个改进的公式框架，该框架应能捕捉壳效应，同时可能减少参数数量（相对于12个）。改进的Royer定律（improved_rover_law）是候选方法。[Decision] 假设改进的Royer定律将保留原始公式的基本结构（如对Z、A、Q的依赖），但会引入一个与壳修正能量相关的修正项，以物理方式处理壳层效应，从而减少对大量宇称参数的依赖。将推导改进公式的一般形式。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "improved_rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "base_form": "log10_T12 = a*Z/\\sqrt{Q} + b*Z + c",
+        "new_term": "引入一个与壳修正能量 delta_E_shell 相关的项，例如 d * delta_E_shell / \\sqrt{Q} 或类似形式",
+        "goal": "得到参数化形式：log10_T12 = a*Z/\\sqrt{Q} + b*Z + c + f(delta_E_shell, Z, Q)"
+      },
+      "observation": "预期得到一个改进的半衰期公式的符号表达式，其核心是原始Royer项加上一个与壳修正能量 delta_E_shell 相关的修正项。该表达式将包含待拟合的参数（如a, b, c, d等），但参数总数预期少于原始的12个。修正项旨在使预测值在壳层区域与实验数据更好吻合。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 改进的Royer定律公式需要一个关键的物理输入：壳修正能量 delta_E_shell。[Gap] 壳修正能量不能直接从实验数据获得，需要从理论模型计算。liquid_drop_model 可以提供核的结合能趋势，而 shell_correction_energy 方法用于计算实际核质量与液滴模型预测的偏差，即壳修正。[Decision] 首先使用液滴模型计算每个核素（母核和子核）的结合能 B_ld，然后通过 shell_correction_energy 方法计算壳修正 delta_E_shell，定义为实验或精细模型结合能与液滴模型结合能之差。对于α衰变，需要考虑母核和子核的壳修正对衰变能Q的影响，或者直接用于修正半衰期公式。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "liquid_drop_model",
+        "version": ""
+      },
+      "parameters": {
+        "input": "Z, A",
+        "output": "B_ld(Z, A) (液滴模型结合能公式)",
+        "purpose": "获得核结合能的平滑部分"
+      },
+      "observation": "预期得到一个液滴模型结合能公式 B_ld(Z, A)，例如包含体积能、表面能、库仑能、对称能和对能项。该公式将用于计算每个核素的“平滑”结合能，作为计算壳修正的基准。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已从液滴模型得到平滑结合能 B_ld。[Gap] 需要计算每个核素（特别是母核）的壳修正能量 delta_E_shell。这通常定义为真实结合能（来自质量表，如NUBASE2020）与液滴模型结合能之差：delta_E_shell = B_exp - B_ld。[Decision] 使用 shell_correction_energy 方法，利用实验质量（或来自质量模型的精确质量）计算 delta_E_shell。对于α衰变，衰变能 Q_alpha 本身已包含壳效应，但改进的公式可能直接使用母核的壳修正作为额外变量。将计算所有550个核素的 delta_E_shell。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "shell_correction_energy",
+        "version": ""
+      },
+      "parameters": {
+        "experimental_mass_source": "NUBASE2020及补充数据",
+        "liquid_drop_energy": "B_ld from step 3",
+        "calculation": "delta_E_shell = M_exp - M_ld (或等价的 B_exp - B_ld)"
+      },
+      "observation": "预期得到每个核素的壳修正能量值 delta_E_shell（单位可能是MeV）。这些值在闭壳核（如N=126）附近预期为较大的负值（表示额外的稳定性）。这些数值将作为步骤2中改进的Royer定律公式的输入变量。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤中定义壳修正能量为 delta_E_shell = B_exp - B_ld，并预期在闭壳核附近为较大的负值。然而，在核物理中，壳修正能量通常定义为 E_sh = B_ld - B_exp（或 B_exp - B_ld 的负值），使得闭壳核的壳修正能量为正值，表示额外的稳定性（结合能更强）。预测中的符号预期与标准物理定义相反，会导致后续公式中修正项的物理意义和符号错误。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 现在拥有了所有必要数据：实验半衰期 T_exp，衰变能 Q（从质量差计算），原子序数 Z，质量数 A，以及新计算的壳修正能量 delta_E_shell。[Gap] 需要确定改进的Royer定律公式（步骤2中推导的形式）中的具体参数。[Decision] 将使用数值拟合方法，以550个数据点为训练集，拟合改进公式中的参数（如a, b, c, d等）。拟合的目标是最小化预测的 log10_T12 与实验值之间的均方根误差（RMSE）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "improved_rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "fitting_variables": "Z, Q, delta_E_shell",
+        "target_variable": "log10_T12_exp",
+        "method": "最小二乘法或类似优化算法",
+        "formula": "从步骤2得到的参数化形式"
+      },
+      "observation": "预期得到一组最优的拟合参数（例如a, b, c, d的数值），使得改进的Royer定律公式能够重现550个实验数据点。预期拟合的RMSE将低于使用原始Royer定律（步骤1）得到的RMSE，特别是在N=126区域，偏差应显著减小。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已获得改进的Royer定律的拟合参数。[Gap] 需要验证改进模型的有效性和泛化能力。验证包括：1）检查在整个核素图上的残差是否随机分布（无系统偏差）；2）特别关注N=126附近核素的预测精度；3）可能使用部分数据（如留出法）进行交叉验证。[Decision] 使用拟合好的改进公式，重新计算所有550个核素的预测半衰期，生成新的残差图，并与步骤1的残差图进行对比。",
+      "action": "verification",
+      "tool": {
+        "name": "improved_rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "action": "计算预测值并比较残差",
+        "comparison_baseline": "原始Royer定律残差（步骤1）",
+        "focus_region": "N ≈ 126"
+      },
+      "observation": "预期得到新的残差（实验值-改进预测值）分布图。预期在N=126区域的系统性偏差将基本消除，残差在整个数据范围内呈现更随机的分布。可能还会计算标准偏差和平均绝对误差等指标，显示改进模型相对于原始模型的精度提升。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 改进的模型已经过验证，显示出更好的性能。[Gap] 为了展示模型的预测能力，并作为可量化目标的输出，需要提供一个使用改进公式计算任意核素α衰变半衰期的最终程序或公式。[Decision] 将总结最终确定的改进Royer定律公式，明确写出其数学形式、所有拟合参数值，并说明输入要求（Z, A, Q, 以及可能需要的 delta_E_shell 计算方式）。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "improved_rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "final_form": "log10(T_{1/2}/s) = a * Z / \\sqrt{Q/\\mathrm{MeV}} + b * Z + c + d * (\\delta E_{\\mathrm{shell}}/\\mathrm{MeV}) / \\sqrt{Q/\\mathrm{MeV}}",
+        "output": "T_{1/2} = 10^{\\text{(上述表达式)}} s"
+      },
+      "observation": "预期得到一个清晰的最终公式，用于预测α衰变半衰期 T_{1/2}。该公式将包含确定的数值参数（a, b, c, d...），并明确说明如何获取输入量：衰变能Q（可从质量表计算），壳修正能量 delta_E_shell（可通过提供的液滴模型公式和实验质量计算，或可能被近似为N和Z的简单函数）。公式预期在N=126壳层区域提供更准确的预测。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 论文以原始的Royer定律（Eq.1）作为基准模型，该模型依赖12个宇称相关参数，且在N=126壳层闭合附近存在系统性偏差。[Gap] 原始模型对壳效应、配对关联和角动量贡献的考虑不足，需要一种更精确、参数更少的统一框架。[Decision] 论文在原始Royer定律中引入壳修正能项、配对项和角动量项，构建改进的统一公式（Eq.2）。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "improved_Royer_formula",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "\\log_{10} T_{1/2} = a + b A^{1/6} \\sqrt{Z} + c \\frac{Z}{\\sqrt{Q}} + d \\left\\{E_{\\mathrm{sh}} - \\left[ (-1)^{Z} + (-1)^{N} \\right] + \\frac{l(l+1)}{2} \\right\\}",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 改进的Royer公式（Eq.2）中引入了壳修正能项E_sh，用于表征母核的结构效应。[Gap] 需要从实验数据中计算出每个核素的壳修正能E_sh。[Decision] 论文通过计算实验结合能与基于液滴模型的宏观结合能之差来得到壳修正能（Eq.3）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "shell_correction_energy_calculation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "E_{\\mathrm{sh}} = \\frac{B_{\\mathrm{expt}} - B_{\\mathrm{LD}}}{1 \\mathrm{MeV}}",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 计算壳修正能E_sh需要液滴模型宏观结合能B_LD的表达式及其参数。[Gap] 需要确定液滴模型公式（Eq.4）中的参数（a_v, a_s, a_a, a_c, a_p）。[Decision] 论文使用最小二乘法拟合AME2020质量表中2463个原子核的实验结合能，以确定这些液滴模型参数。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "least_squares_method",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "拟合得到液滴模型参数：a_v = 15.5287 MeV, a_s = 16.9043 MeV, a_a = 91.9686 MeV, a_c = 0.7025 MeV, a_p = 12.4439 MeV，拟合的均方根偏差为3.02 MeV。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 改进的Royer公式（Eq.2）已经建立，其中包含参数a, b, c, d。[Gap] 需要确定这些参数的具体数值，以使公式能够准确预测α衰变半衰期。[Decision] 论文使用550个实验α衰变半衰期数据点，通过拟合来确定改进Royer公式的四个参数。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "improved_Royer_formula",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "拟合得到参数：a = -28.1919 ± 0.1510 s, b = -1.0853 ± 0.0055 s, c = 1.6260 ± 0.0039 s·√MeV, d = 0.1078 ± 0.0026 s。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 改进的Royer公式（Eq.2）及其参数已经确定。[Gap] 需要评估改进模型相对于原始Royer定律（Eq.1）的预测精度提升。[Decision] 论文计算并比较了两种模型对于406个有利α衰变（l=0）核的半衰期预测与实验值的均方根偏差（RMSD）。",
+      "action": "verification",
+      "tool": {
+        "name": "improved_Royer_formula",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "原始Royer定律（Eq.1）的RMSD为0.311，改进的Royer公式（Eq.2）的RMSD为0.242，精度显著提升。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：定义壳修正能量为 delta_E_shell = B_exp - B_ld，并预期闭壳核附近为较大的负值。[Gap] 错过的信号：在核物理中，结合能B通常定义为负值（系统更稳定时B的绝对值更大）。液滴模型结合能B_ld是平滑背景，实验结合能B_exp包含壳效应。更强的结合意味着B_exp比B_ld更负（即B_exp < B_ld）。因此，B_exp - B_ld在闭壳核处应为负值，但这表示结合能更强，所以壳修正能量（表征额外稳定性）应定义为该差值的相反数（B_ld - B_exp）才能得到正值。预测中直接使用差值并预期为负值，混淆了“差值符号”与“物理修正量符号”的关系。。[Decision] 正确判断方式：经验丰富的物理学家会首先明确物理量的定义：壳修正能量E_sh应量化“额外稳定性”，因此稳定核的E_sh应为正。从B_exp = B_ld + E_sh（或类似形式）出发，由于B_exp和B_ld均为负，且|B_exp| > |B_ld|，可得E_sh = B_exp - B_ld < 0。但若定义E_sh为正的修正量，则需取E_sh = -(B_exp - B_ld) = B_ld - B_exp。关键检查点是：闭壳核（如208Pb）的实验结合能比液滴模型预测更负，因此B_exp - B_ld为负，但壳修正能量本身应为正。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：混淆了结合能差值（B_exp - B_ld）的数学符号与壳修正能量物理定义的符号，未将“额外稳定性”映射为正的修正量。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "定义物理修正项时，必须确保其数学符号与物理意义一致：表征“额外稳定性”或“增强结合”的修正量应为正值，这通常需要取实验值与模型值之差的相反数。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "RMSD_for_l_0_nuclei__Eq_1": {
+        "value": "0.311",
+        "unit": "使用原始Royer定律（Eq.1）计算406个有利α衰变（l=0）核的半衰期，与实验值的均方根偏差",
+        "interpretation": "RMSD for l=0 nuclei (Eq.1)"
+      },
+      "RMSD_for_l_0_nuclei__Eq_2": {
+        "value": "0.242",
+        "unit": "使用改进的Royer公式（Eq.2）计算406个有利α衰变（l=0）核的半衰期，与实验值的均方根偏差",
+        "interpretation": "RMSD for l=0 nuclei (Eq.2)"
+      },
+      "Liquid_drop_model_parameter_a_v": {
+        "value": "15.5287 MeV",
+        "unit": "通过最小二乘法拟合AME2020质量表中2463个原子核（Z≥8, N≥8）的实验结合能得到的体积能系数",
+        "interpretation": "Liquid drop model parameter a_v"
+      },
+      "Liquid_drop_model_parameter_a_s": {
+        "value": "16.9043 MeV",
+        "unit": "通过最小二乘法拟合AME2020质量表中2463个原子核（Z≥8, N≥8）的实验结合能得到的表面能系数",
+        "interpretation": "Liquid drop model parameter a_s"
+      },
+      "Liquid_drop_model_parameter_a_a": {
+        "value": "91.9686 MeV",
+        "unit": "通过最小二乘法拟合AME2020质量表中2463个原子核（Z≥8, N≥8）的实验结合能得到的对称能系数",
+        "interpretation": "Liquid drop model parameter a_a"
+      },
+      "Liquid_drop_model_parameter_a_c": {
+        "value": "0.7025 MeV",
+        "unit": "通过最小二乘法拟合AME2020质量表中2463个原子核（Z≥8, N≥8）的实验结合能得到的库仑能系数",
+        "interpretation": "Liquid drop model parameter a_c"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：原始Royer定律在N=126附近对壳效应的考虑不足，导致计算值与实验值存在显著偏差。；Wang等人引入的固定常数S=0.5的壳修正因子无法完全捕捉结构效应与α衰变半衰期之间的细微关系。；原始Royer定律的分段处理方法缺乏物理统一性，并且忽略了角动量的贡献。。推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "rover_law",
+    "improved_rover_law",
+    "liquid_drop_model",
+    "shell_correction_energy"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知有550个实验α衰变半衰期数据点，覆盖了从轻到重的核素，包括N=126壳层附近的核素。Royer定律是一个广泛使用的经验公式，用于计算α衰变半衰期，它依赖于12个宇称相关参数。[Gap] 原始的Royer定律在N=126壳层闭合附近存在系统性偏差，表明其参数化形式或物理基础在该区域不充分。需要评估原始公式的偏差模式。[Decision] 首先，将使用原始的Royer定律公式，对550个核素计算预测的半衰期，并与实验值进行比较，以量化偏差，特别是识别N≈126区域的系统性偏离。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "input_variables": "Z (子核原子序数), A (母核质量数), Q_alpha (衰变能)",
+        "output": "log10_T12_pred (预测的半衰期对数)",
+        "purpose": "计算原始Royer定律的预测值，作为基准"
+      },
+      "observation": "预期得到每个核素基于原始Royer定律的预测半衰期对数 log10_T12_pred_original。该结果将与实验对数 log10_T12_exp 进行比较，生成残差图（如 log10_T12_exp - log10_T12_pred 对中子数N作图），预期在N≈126区域会显示出系统性的正或负偏差。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 步骤1已获得原始Royer定律的预测残差，确认了在壳层区域存在偏差。[Gap] 需要构建一个改进的公式框架，该框架应能捕捉壳效应，同时可能减少参数数量（相对于12个）。改进的Royer定律（improved_rover_law）是候选方法。[Decision] 假设改进的Royer定律将保留原始公式的基本结构（如对Z、A、Q的依赖），但会引入一个与壳修正能量相关的修正项，以物理方式处理壳层效应，从而减少对大量宇称参数的依赖。将推导改进公式的一般形式。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "improved_rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "base_form": "log10_T12 = a*Z/\\sqrt{Q} + b*Z + c",
+        "new_term": "引入一个与壳修正能量 delta_E_shell 相关的项，例如 d * delta_E_shell / \\sqrt{Q} 或类似形式",
+        "goal": "得到参数化形式：log10_T12 = a*Z/\\sqrt{Q} + b*Z + c + f(delta_E_shell, Z, Q)"
+      },
+      "observation": "预期得到一个改进的半衰期公式的符号表达式，其核心是原始Royer项加上一个与壳修正能量 delta_E_shell 相关的修正项。该表达式将包含待拟合的参数（如a, b, c, d等），但参数总数预期少于原始的12个。修正项旨在使预测值在壳层区域与实验数据更好吻合。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 改进的Royer定律公式需要一个关键的物理输入：壳修正能量 delta_E_shell。[Gap] 壳修正能量不能直接从实验数据获得，需要从理论模型计算。liquid_drop_model 可以提供核的结合能趋势，而 shell_correction_energy 方法用于计算实际核质量与液滴模型预测的偏差，即壳修正。[Decision] 首先使用液滴模型计算每个核素（母核和子核）的结合能 B_ld，然后通过 shell_correction_energy 方法计算壳修正 delta_E_shell，定义为实验或精细模型结合能与液滴模型结合能之差。对于α衰变，需要考虑母核和子核的壳修正对衰变能Q的影响，或者直接用于修正半衰期公式。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "liquid_drop_model",
+        "version": ""
+      },
+      "parameters": {
+        "input": "Z, A",
+        "output": "B_ld(Z, A) (液滴模型结合能公式)",
+        "purpose": "获得核结合能的平滑部分"
+      },
+      "observation": "预期得到一个液滴模型结合能公式 B_ld(Z, A)，例如包含体积能、表面能、库仑能、对称能和对能项。该公式将用于计算每个核素的“平滑”结合能，作为计算壳修正的基准。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已从液滴模型得到平滑结合能 B_ld。[Gap] 需要计算每个核素（特别是母核）的壳修正能量 delta_E_shell。这通常定义为真实结合能（来自质量表，如NUBASE2020）与液滴模型结合能之差：delta_E_shell = B_exp - B_ld。[Decision] 使用 shell_correction_energy 方法，利用实验质量（或来自质量模型的精确质量）计算 delta_E_shell。对于α衰变，衰变能 Q_alpha 本身已包含壳效应，但改进的公式可能直接使用母核的壳修正作为额外变量。将计算所有550个核素的 delta_E_shell。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "shell_correction_energy",
+        "version": ""
+      },
+      "parameters": {
+        "experimental_mass_source": "NUBASE2020及补充数据",
+        "liquid_drop_energy": "B_ld from step 3",
+        "calculation": "delta_E_shell = M_exp - M_ld (或等价的 B_exp - B_ld)"
+      },
+      "observation": "预期得到每个核素的壳修正能量值 delta_E_shell（单位可能是MeV）。这些值在闭壳核（如N=126）附近预期为较大的负值（表示额外的稳定性）。这些数值将作为步骤2中改进的Royer定律公式的输入变量。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 现在拥有了所有必要数据：实验半衰期 T_exp，衰变能 Q（从质量差计算），原子序数 Z，质量数 A，以及新计算的壳修正能量 delta_E_shell。[Gap] 需要确定改进的Royer定律公式（步骤2中推导的形式）中的具体参数。[Decision] 将使用数值拟合方法，以550个数据点为训练集，拟合改进公式中的参数（如a, b, c, d等）。拟合的目标是最小化预测的 log10_T12 与实验值之间的均方根误差（RMSE）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "improved_rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "fitting_variables": "Z, Q, delta_E_shell",
+        "target_variable": "log10_T12_exp",
+        "method": "最小二乘法或类似优化算法",
+        "formula": "从步骤2得到的参数化形式"
+      },
+      "observation": "预期得到一组最优的拟合参数（例如a, b, c, d的数值），使得改进的Royer定律公式能够重现550个实验数据点。预期拟合的RMSE将低于使用原始Royer定律（步骤1）得到的RMSE，特别是在N=126区域，偏差应显著减小。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已获得改进的Royer定律的拟合参数。[Gap] 需要验证改进模型的有效性和泛化能力。验证包括：1）检查在整个核素图上的残差是否随机分布（无系统偏差）；2）特别关注N=126附近核素的预测精度；3）可能使用部分数据（如留出法）进行交叉验证。[Decision] 使用拟合好的改进公式，重新计算所有550个核素的预测半衰期，生成新的残差图，并与步骤1的残差图进行对比。",
+      "action": "verification",
+      "tool": {
+        "name": "improved_rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "action": "计算预测值并比较残差",
+        "comparison_baseline": "原始Royer定律残差（步骤1）",
+        "focus_region": "N ≈ 126"
+      },
+      "observation": "预期得到新的残差（实验值-改进预测值）分布图。预期在N=126区域的系统性偏差将基本消除，残差在整个数据范围内呈现更随机的分布。可能还会计算标准偏差和平均绝对误差等指标，显示改进模型相对于原始模型的精度提升。",
+      "valid": true
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 改进的模型已经过验证，显示出更好的性能。[Gap] 为了展示模型的预测能力，并作为可量化目标的输出，需要提供一个使用改进公式计算任意核素α衰变半衰期的最终程序或公式。[Decision] 将总结最终确定的改进Royer定律公式，明确写出其数学形式、所有拟合参数值，并说明输入要求（Z, A, Q, 以及可能需要的 delta_E_shell 计算方式）。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "improved_rover_law",
+        "version": ""
+      },
+      "parameters": {
+        "final_form": "log10(T_{1/2}/s) = a * Z / \\sqrt{Q/\\mathrm{MeV}} + b * Z + c + d * (\\delta E_{\\mathrm{shell}}/\\mathrm{MeV}) / \\sqrt{Q/\\mathrm{MeV}}",
+        "output": "T_{1/2} = 10^{\\text{(上述表达式)}} s"
+      },
+      "observation": "预期得到一个清晰的最终公式，用于预测α衰变半衰期 T_{1/2}。该公式将包含确定的数值参数（a, b, c, d...），并明确说明如何获取输入量：衰变能Q（可从质量表计算），壳修正能量 delta_E_shell（可通过提供的液滴模型公式和实验质量计算，或可能被近似为N和Z的简单函数）。公式预期在N=126壳层区域提供更准确的预测。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "Royer_law",
+        "desc": "作为基准关系，用于计算α衰变半衰期，其参数依赖于母核的质子数和中子数奇偶性。"
+      },
+      {
+        "name": "improved_Royer_formula",
+        "desc": "在原始Royer定律中引入壳修正能项、配对项和角动量项，以提供对壳稳定化、配对关联和角动量阻碍的统一描述。"
+      },
+      {
+        "name": "least_squares_method",
+        "desc": "用于拟合从AME2020质量表中选取的2463个原子核的实验结合能，以确定液滴模型参数。"
+      },
+      {
+        "name": "shell_correction_energy_calculation",
+        "desc": "通过实验结合能与基于液滴模型的宏观结合能之差来计算壳修正能，用于表征核结构效应。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "\\log_{10} T_{1/2} = a + b A^{1/6} \\sqrt{Z} + c \\frac{Z}{\\sqrt{Q}}"
+      },
+      {
+        "label": "Eq.2",
+        "content": "\\log_{10} T_{1/2} = a + b A^{1/6} \\sqrt{Z} + c \\frac{Z}{\\sqrt{Q}} + d \\left\\{E_{\\mathrm{sh}} - \\left[ (-1)^{Z} + (-1)^{N} \\right] + \\frac{l(l+1)}{2} \\right\\}"
+      },
+      {
+        "label": "Eq.3",
+        "content": "E_{\\mathrm{sh}} = \\frac{B_{\\mathrm{expt}} - B_{\\mathrm{LD}}}{1 \\mathrm{MeV}}"
+      },
+      {
+        "label": "Eq.4",
+        "content": "B_{\\mathrm{LD}} = a_{v} A - a_{s} A^{2/3} - a_{a} \\left(\\frac{A}{2} - Z\\right)^{2} / A - a_{c} \\frac{Z^{2}}{A^{1/3}} + a_{p} \\delta A^{-1/2}"
+      },
+      {
+        "label": "Eq.5",
+        "content": "\\sigma = \\left[ \\frac{1}{m} \\sum_{i=1}^{m} (\\log_{10} T_{1/2}^{\\mathrm{expt}, i} - \\log_{10} T_{1/2}^{\\mathrm{cal}, i})^{2} \\right]^{1/2}"
+      },
+      {
+        "label": "Eq.6",
+        "content": "l_{min} = \\left\\{ \\begin{array}{llllll} \\Delta_{j}, & for & even & \\Delta_{j} & and & \\pi_{p} = \\pi_{d} \\\\ \\Delta_{j}+1, & for & even & \\Delta_{j} & and & \\pi_{p} \\neq \\pi_{d} \\\\ \\Delta_{j}, & for & odd & \\Delta_{j} & and & \\pi_{p} \\neq \\pi_{d} \\\\ \\Delta_{j}+1, & for & odd & \\Delta_{j} & and & \\pi_{p} = \\pi_{d} \\end{array} \\right."
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "RMSD for l=0 nuclei (Eq.1)",
+        "value": "0.311",
+        "condition": "使用原始Royer定律（Eq.1）计算406个有利α衰变（l=0）核的半衰期，与实验值的均方根偏差"
+      },
+      {
+        "quantity": "RMSD for l=0 nuclei (Eq.2)",
+        "value": "0.242",
+        "condition": "使用改进的Royer公式（Eq.2）计算406个有利α衰变（l=0）核的半衰期，与实验值的均方根偏差"
+      },
+      {
+        "quantity": "Liquid drop model parameter a_v",
+        "value": "15.5287 MeV",
+        "condition": "通过最小二乘法拟合AME2020质量表中2463个原子核（Z≥8, N≥8）的实验结合能得到的体积能系数"
+      },
+      {
+        "quantity": "Liquid drop model parameter a_s",
+        "value": "16.9043 MeV",
+        "condition": "通过最小二乘法拟合AME2020质量表中2463个原子核（Z≥8, N≥8）的实验结合能得到的表面能系数"
+      },
+      {
+        "quantity": "Liquid drop model parameter a_a",
+        "value": "91.9686 MeV",
+        "condition": "通过最小二乘法拟合AME2020质量表中2463个原子核（Z≥8, N≥8）的实验结合能得到的对称能系数"
+      },
+      {
+        "quantity": "Liquid drop model parameter a_c",
+        "value": "0.7025 MeV",
+        "condition": "通过最小二乘法拟合AME2020质量表中2463个原子核（Z≥8, N≥8）的实验结合能得到的库仑能系数"
+      },
+      {
+        "quantity": "Liquid drop model parameter a_p",
+        "value": "12.4439 MeV",
+        "condition": "通过最小二乘法拟合AME2020质量表中2463个原子核（Z≥8, N≥8）的实验结合能得到的对能系数"
+      },
+      {
+        "quantity": "RMSD of liquid drop model fit",
+        "value": "3.02 MeV",
+        "condition": "液滴模型参数拟合的均方根偏差"
+      },
+      {
+        "quantity": "Improved Royer law parameter a",
+        "value": "-28.1919 ± 0.1510 s",
+        "condition": "通过拟合550个实验数据点得到的改进Royer公式（Eq.2）的参数a"
+      },
+      {
+        "quantity": "Improved Royer law parameter b",
+        "value": "-1.0853 ± 0.0055 s",
+        "condition": "通过拟合550个实验数据点得到的改进Royer公式（Eq.2）的参数b"
+      },
+      {
+        "quantity": "Improved Royer law parameter c",
+        "value": "1.6260 ± 0.0039 s·√MeV",
+        "condition": "通过拟合550个实验数据点得到的改进Royer公式（Eq.2）的参数c"
+      },
+      {
+        "quantity": "Improved Royer law parameter d",
+        "value": "0.1078 ± 0.0026 s",
+        "condition": "通过拟合550个实验数据点得到的改进Royer公式（Eq.2）的参数d"
+      }
+    ],
+    "failure_points": [
+      "原始Royer定律在N=126附近对壳效应的考虑不足，导致计算值与实验值存在显著偏差。",
+      "Wang等人引入的固定常数S=0.5的壳修正因子无法完全捕捉结构效应与α衰变半衰期之间的细微关系。",
+      "原始Royer定律的分段处理方法缺乏物理统一性，并且忽略了角动量的贡献。"
+    ]
+  }
+}

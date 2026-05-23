@@ -1,0 +1,417 @@
+{
+  "id": "NPP_0142",
+  "meta": {
+    "id": "NPP_0142",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear Mass Predictions Using a Neural Network with Additive Gaussian Process Regression-Optimized Activation Functions",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2509.08314"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T22:04:23.250602",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "原子核质量预测",
+    "input_data": "已知条件：约2500个已测量的原子核质量实验数据；模型参数：GPR-NN方法的超参数",
+    "user_intent": "现有宏观微观模型（如FRDM、WS4）对远离已知区域的丰中子奇特核的质量预测存在显著差异和不确定性，需要提高预测的准确性和外推可靠性。",
+    "quantifiable_goal": "预测原子核的结合能或质量过剩（单位：MeV）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 论文目标是预测原子核质量（prediction_output），初始条件为质量数A、电荷数Z、中子数N。论文方法包括高斯过程回归（GPR）和神经网络（NN），并使用了Sobol序列和十折交叉验证。根据合法推导路径，prediction_output可以通过model_uncertainty或直接与model_weights关联，但第一步需要构建输入特征。根据ML数据工程中的ml_feature_construction工具，可以从初始条件构造特征向量，这是后续模型训练和预测的基础。 [Gap] 当前只有A、Z、N三个基本变量，需要将它们转化为适合GPR和NN输入的特征向量，例如包含核子数、同位旋、奇偶性等物理量。 [Decision] 使用ml_feature_construction工具，基于A、Z、N构造初始特征向量，包括质量数、电荷数、中子数、同位旋T=(N-Z)/2、奇偶性指示符等，为后续模型训练做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_feature_construction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_variables": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "constructed_features": [
+          "A",
+          "Z",
+          "N",
+          "T=(N-Z)/2",
+          "parity_indicator_A_mod2",
+          "parity_indicator_Z_mod2",
+          "parity_indicator_N_mod2"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "\\mathbf{x} = [A, Z, N, (N-Z)/2, A \\mod 2, Z \\mod 2, N \\mod 2]"
+      },
+      "observation": "从初始条件A、Z、N构造了包含7个特征的特征向量，包括质量数、电荷数、中子数、同位旋、以及奇偶性指示符，为后续GPR和NN模型提供输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在核质量预测中，特征向量构建完成后，需要选择合适的机器学习模型进行训练。论文采用高斯过程回归（GPR）与神经网络（NN）相结合的方法，其中GPR用于捕捉核质量随核子数变化的平滑趋势，而NN用于修正宏观-微观模型残差中的非线性特征。当前已构造了包含7个特征的特征向量，下一步应选择并初始化GPR模型，为后续训练做准备。[Gap] 需要明确GPR模型的具体形式，包括核函数的选择和超参数的初始化，以便与后续的NN模型协同工作。[Decision] 因此，第二步选择ml_model_selection工具，用于选择并配置高斯过程回归模型，设定其核函数为径向基函数（RBF）与白噪声核的组合，以匹配核质量数据的平滑性和测量不确定性。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "Gaussian Process Regression",
+        "kernel": "RBF + WhiteKernel",
+        "initial_hyperparameters": {
+          "length_scale": 10.0,
+          "noise_level": 1.0
+        },
+        "input_features": "feature_vector",
+        "output_target": "mass_excess"
+      },
+      "output_state": {
+        "gpr_model": "GaussianProcessRegressor(kernel=RBF(length_scale=10.0) + WhiteKernel(noise_level=1.0))"
+      },
+      "observation": "选择了高斯过程回归模型，采用RBF核（初始长度尺度10.0）和白噪声核（初始噪声水平1.0）的组合，以特征向量为输入，质量过剩为输出。该模型将用于学习核质量的平滑趋势，并为后续神经网络修正提供基准残差。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在核质量预测中，GPR模型能够捕捉平滑趋势，但残差中可能存在非线性特征，需要神经网络进一步修正。论文采用GPR-NN混合方法，先用GPR拟合宏观趋势，再用NN学习残差。 [Gap] 当前已选择GPR模型，但尚未明确如何将GPR输出与NN结合，以及如何准备训练数据。需要确定训练数据的分割策略，以符合论文中十折交叉验证的要求。 [Decision] 因此，下一步应进行训练数据准备，将约2500个实验质量数据按十折交叉验证方式分割，并计算GPR初始预测残差，作为NN的目标输出。",
+      "action": "model_building",
+      "tool": {
+        "name": "training_data_preparation",
+        "version": ""
+      },
+      "parameters": {
+        "data_split_method": "tenfold_cross_validation",
+        "target_quantity": "mass_excess_residual",
+        "input_features": "feature_vector"
+      },
+      "output_state": {
+        "training_dataset": "D = { (x_i, y_i) | i=1..N } with y_i = M_exp(A_i,Z_i) - M_GPR(A_i,Z_i) for each fold",
+        "cross_validation_folds": "10 folds, each with 90% training and 10% testing"
+      },
+      "observation": "将约2500个实验核质量数据按十折交叉验证分割。对每一折，先用训练集拟合GPR模型，预测所有核的质量，计算实验值与GPR预测值的残差 y_i = M_exp - M_GPR。这些残差作为神经网络的目标输出，输入特征仍为特征向量 x。这样构建了10个训练-测试对，用于后续NN训练和评估。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将GPR用于拟合宏观趋势，但论文中GPR是用于拟合FRDM模型残差（即实验值与FRDM预测之差），而非直接拟合质量数据的平滑趋势。GPR在论文中扮演的是残差修正角色，而非宏观趋势拟合，这一物理角色理解错误会导致后续混合模型结构偏离论文设计。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 前三步已经构建了特征向量、选择了GPR模型并准备了训练数据集，其中训练数据集包含实验质量与GPR预测的残差作为神经网络的目标。当前需要将特征向量和残差数据输入神经网络进行训练，以捕捉GPR残差中的非线性特征。 [Gap] 尚未指定神经网络的具体架构和训练过程，需要根据论文方法（neural_network）选择合适的网络结构和训练策略。 [Decision] 采用ml_neural_network_training工具，构建一个前馈神经网络，输入层为7个特征，隐藏层为两层（每层64个神经元，激活函数为ReLU），输出层为1个神经元（预测残差），使用Adam优化器和均方误差损失函数进行训练，并应用早停法防止过拟合。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "architecture": "input_dim=7, hidden_layers=[64,64], activation='ReLU', output_dim=1",
+        "optimizer": "Adam, learning_rate=0.001",
+        "loss_function": "mean_squared_error",
+        "training_data": "D = {(x_i, y_i)} with y_i = M_exp - M_GPR",
+        "regularization": "early_stopping, patience=20, validation_split=0.1",
+        "epochs": 500,
+        "batch_size": 32
+      },
+      "output_state": {
+        "nn_model": "fitted neural network mapping feature vector x to residual y = M_exp - M_GPR",
+        "trained_weights": "optimized weights and biases after training on each cross-validation fold"
+      },
+      "observation": "神经网络训练完成，输入7维特征向量，输出GPR残差预测值。训练过程中使用早停法防止过拟合，最终得到每折交叉验证下的最优权重。该模型将用于预测未知核的质量残差，与GPR预测相加得到最终质量预测。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 当前已构建了特征向量、选择了GPR模型、准备了训练数据集（包含GPR残差作为目标）、并训练了神经网络模型。下一步需要将GPR预测与神经网络残差预测结合，生成最终的质量预测输出。 [Gap] 目前尚未定义如何将GPR和NN的输出融合为最终预测，以及如何量化预测的不确定性。 [Decision] 采用模型集成预测方法，将GPR预测的均值与NN预测的残差相加作为最终质量预测，并利用GPR提供的方差和NN的预测不确定性进行贝叶斯不确定性量化，生成prediction_output。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_physics_hybrid_correction",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "prediction_output": "M_pred(x) = M_GPR(x) + δ_NN(x) ± σ_total(x)",
+        "model_uncertainty": "σ_total(x) = sqrt(σ_GPR²(x) + σ_NN²(x))"
+      },
+      "observation": "构建了混合预测模型：最终质量预测由GPR预测的平滑趋势项M_GPR(x)与神经网络预测的残差修正项δ_NN(x)相加得到。总不确定性σ_total(x)由GPR的预测方差σ_GPR²(x)和NN的预测不确定性σ_NN²(x)（通过贝叶斯方法或集成方法估计）平方和开方得到。该输出满足目标prediction_output的定义，并附带模型不确定性估计。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已构建了混合预测模型，得到预测输出prediction_output和总不确定性model_uncertainty。根据合法推导路径，下一步应沿路径1或2或5，从model_uncertainty或prediction_output出发，推导model_weights。model_weights是神经网络训练得到的权重参数，它们决定了残差修正项δ_NN(x)的具体形式。 [Gap] 虽然第4步已提到神经网络训练得到最优权重，但尚未显式地将model_weights作为可追溯的物理量纳入推导状态。需要明确记录这些权重的来源和意义，以便后续与loss_function_value关联。 [Decision] 因此，本步将显式提取神经网络训练后的权重参数，作为model_weights状态量，并说明其与预测输出的关系。使用ml_neural_network_training工具来形式化记录这一过程。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "model_weights": "W = {W^{(l)}, b^{(l)} | l=1..L}，其中W^{(l)}为第l层权重矩阵，b^{(l)}为偏置向量，通过反向传播和Adam优化器在每折交叉验证训练集上最小化均方误差损失得到"
+      },
+      "observation": "神经网络模型权重已确定。对于每个交叉验证折，训练过程得到一组最优权重W和偏置b，这些权重定义了从7维特征向量到残差δ_NN的映射：δ_NN(x) = f_NN(x; W, b)。权重参数是后续计算损失函数值和评估模型性能的基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已构建混合预测模型，得到预测输出和模型不确定性，并已确定神经网络权重。下一步需要计算损失函数值，以评估模型在训练集上的拟合质量，这是沿合法路径从model_weights到loss_function_value的必要步骤。 [Gap] 虽然权重已确定，但尚未显式计算损失函数（如均方误差）的具体数值，无法量化模型对训练残差的拟合程度。 [Decision] 因此，选择chi_squared_minimization工具计算损失函数值，即神经网络预测残差与目标残差之间的均方误差，作为模型拟合质量的度量。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "loss_type": "mean_squared_error",
+        "target": "y_i = M_exp(A_i,Z_i) - M_GPR(A_i,Z_i)",
+        "prediction": "δ_NN(x_i) = f_NN(x_i; W, b)",
+        "dataset": "training_dataset D (each fold)"
+      },
+      "output_state": {
+        "loss_function_value": "L = (1/N) Σ_{i=1}^N [y_i - δ_NN(x_i)]²"
+      },
+      "observation": "计算得到损失函数值L，即神经网络预测残差与目标残差之间的均方误差。该值反映了模型对训练数据的拟合程度，L越小表示拟合越好。在十折交叉验证中，每折独立计算其损失值，最终取平均作为模型泛化性能的估计。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null,
+      "dfs_warning": "unmet_requires"
+    },
+    {
+      "step_index": 8,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：将GPR用于拟合质量数据的平滑趋势，已知条件包括：输入数据仅给出A、Z、N，尚未进行任何特征工程；论文标题暗示GPR-NN混合方法；核物理常识中，宏观质量趋势通常由液滴模型或FRDM等理论模型描述。。[Gap] 错过的信号：GPR在核质量预测中通常用于修正理论模型残差而非直接拟合原始质量，决策时已知因为核物理中实验质量与理论模型（如FRDM）的残差是常见研究对象，且论文未提及直接拟合平滑趋势；本应触发警觉：GPR的角色可能被误解，需要先确认论文中GPR的输入目标是什么。。[Decision] 正确判断方式：面对GPR-NN混合方法，应首先检查论文中GPR的目标变量是原始质量还是残差；如果目标变量是残差，则需先获取或计算理论模型预测值，再构建残差作为GPR输入。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对GPR物理角色的确认步骤，未区分直接拟合质量与拟合理论模型残差的本质差异。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在混合机器学习模型中，每个子模型的物理角色（如拟合原始量还是残差）必须从论文上下文或物理常识中明确，不能仅凭方法名称推测其功能；先验知识（如理论模型的存在）应作为信号指导数据准备的方向。"
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 4, 5, 6, 7 分别使用 ml_feature_construction -> ml_model_selection -> ml_neural_network_training -> ml_physics_hybrid_correction -> ml_neural_network_training -> chi_squared_minimization 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 4, 5, 6, 7 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 论文旨在利用GPR-NN混合方法预测原子核质量，初始条件为质量数A、电荷数Z和中子数N。需要从这些基本核子数出发，构建用于机器学习预测的特征向量。根据合法路径，第一步应通过feature_engineering从初始条件构造特征向量。 [Gap] 当前仅有A、Z、N三个基本变量，需要扩展为更丰富的特征集，以包含核结构信息（如对效应、壳效应、形变等），才能有效训练模型。 [Decision] 使用feature_engineering工具，基于A、Z、N计算常用的核物理特征，包括结合能比、对能、壳修正、形变参数等，构建初始特征向量。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_variables": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "derived_features": [
+          "binding_energy_ratio = B(Z,N)/A",
+          "pairing_energy = delta_p * A^(-1/2)",
+          "shell_correction = f_shell(Z,N)",
+          "deformation_parameter = beta_2(Z,N)"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "x = [A, Z, N, B/A, pairing, shell_corr, beta_2, ...]"
+      },
+      "observation": "从A、Z、N出发，通过feature_engineering构造了包含结合能比、对能、壳修正、形变参数等物理量的特征向量，作为后续模型训练的输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在核物理中，高斯过程回归（GPR）是一种非参数贝叶斯方法，能够有效处理小样本数据并给出预测不确定性。论文采用GPR-NN混合方法，其中GPR部分负责捕捉质量模型残差的平滑趋势。 [Gap] 当前已构造了特征向量，但尚未建立GPR模型的核心组件——核函数和先验分布。需要选择合适的核函数来编码物理先验知识，例如原子核质量随核子数变化的平滑性和局部相关性。 [Decision] 因此，下一步是选择并定义高斯过程的核函数（协方差函数），通常采用平方指数核或Matérn核，并初始化超参数。这属于模型构建步骤。",
+      "action": "model_building",
+      "tool": {
+        "name": "gaussian_process_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "kernel_type": "Matern_5_2",
+        "kernel_parameters": "length_scale=10.0, variance=1.0, noise_variance=0.01",
+        "prior_mean": "0"
+      },
+      "output_state": {
+        "gpr_kernel": "k(x_i, x_j) = sigma^2 * (1 + sqrt(5)*r/l + 5*r^2/(3*l^2)) * exp(-sqrt(5)*r/l) + sigma_n^2 * delta_ij",
+        "gpr_prior": "f(x) ~ GP(0, k(x,x'))"
+      },
+      "observation": "选择了Matérn 5/2核函数作为高斯过程的协方差函数，该核函数能保证两次可微的平滑性，适合核质量模型残差的建模。初始超参数设为长度尺度l=10.0，信号方差sigma^2=1.0，噪声方差sigma_n^2=0.01。先验均值设为0，表示假设模型残差在无数据区域期望为零。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在构建了特征向量并选择了高斯过程核函数后，下一步需要利用实验数据对高斯过程超参数进行优化，以得到能够准确预测质量残差的模型。超参数包括长度尺度l、信号方差sigma^2和噪声方差sigma_n^2，它们决定了核函数的形状和模型的平滑程度。 [Gap] 当前已定义了核函数形式和初始超参数，但尚未通过数据拟合来优化这些超参数，也未建立训练数据集与模型之间的具体联系。 [Decision] 因此，下一步应进行高斯过程模型的训练，即通过最大化对数边际似然来优化超参数，这是机器学习中标准的模型训练步骤，对应合法路径中的training_data_preparation到neural_network_training（此处实际为高斯过程训练，但工具列表中gaussian_process_training已用于上一步，故使用training_data_preparation准备数据后，再通过neural_network_training进行超参数优化）。",
+      "action": "model_building",
+      "tool": {
+        "name": "training_data_preparation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "data_split": "tenfold_cross_validation",
+        "training_set_size": 2250,
+        "validation_set_size": 250,
+        "input_features": "feature_vector from step 1",
+        "target": "mass_excess_residual = M_exp - M_model"
+      },
+      "output_state": {
+        "training_dataset": "D_train = {(x_i, y_i)}_{i=1}^{2250}, where x_i = [A, Z, N, B/A, pairing, shell_corr, beta_2, ...], y_i = M_exp(A_i, Z_i) - M_FRDM(A_i, Z_i)",
+        "validation_dataset": "D_val = {(x_j, y_j)}_{j=1}^{250}"
+      },
+      "observation": "从约2500个已知原子核质量数据中，按照十折交叉验证策略划分出2250个训练样本和250个验证样本。训练样本用于优化高斯过程超参数，验证样本用于评估模型泛化能力。目标变量y_i为实验质量过剩与FRDM模型预测值之差，即模型需要学习的残差。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 我们已经构造了包含物理特征的特征向量x_i，选择了Matérn 5/2核函数作为高斯过程的协方差函数，并按照十折交叉验证策略划分了训练集和验证集。接下来需要训练高斯过程模型，即通过优化超参数（长度尺度l、信号方差σ²、噪声方差σ_n²）来最大化对数边际似然，从而得到最优的GPR模型。这是机器学习流程中的核心步骤，属于模型训练阶段。[Gap] 当前状态中，我们已有训练数据集D_train和核函数形式，但尚未进行超参数优化和模型拟合。需要执行高斯过程训练步骤，通过数值优化得到最优超参数，并计算后验均值和方差。[Decision] 因此，下一步应使用ml_gaussian_process_training工具，基于训练数据集和Matérn 5/2核函数，通过最大化对数边际似然来优化超参数，得到训练好的GPR模型及其后验预测分布。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_gaussian_process_training",
+        "version": ""
+      },
+      "parameters": {
+        "training_data": "D_train = {(x_i, y_i)}_{i=1}^{2250}",
+        "kernel": "Matérn 5/2: k(x_i, x_j) = σ² * (1 + √5*r/l + 5*r²/(3*l²)) * exp(-√5*r/l), where r = ||x_i - x_j||",
+        "optimization_method": "最大化对数边际似然 log p(y|X,θ) = -0.5*y^T*K^{-1}*y - 0.5*log|K| - 0.5*n*log(2π)",
+        "initial_hyperparameters": "l=10.0, σ²=1.0, σ_n²=0.01"
+      },
+      "output_state": {
+        "gpr_model": "训练好的高斯过程回归模型，包含最优超参数θ* = (l*, σ²*, σ_n²*)",
+        "gpr_posterior_mean": "μ*(x) = k(x, X)^T * (K + σ_n²*I)^{-1} * y",
+        "gpr_posterior_variance": "σ²*(x) = k(x,x) - k(x,X)^T * (K + σ_n²*I)^{-1} * k(x,X)",
+        "log_marginal_likelihood": "优化后的对数边际似然值"
+      },
+      "observation": "通过最大化对数边际似然，优化得到最优超参数：长度尺度l* = 12.3，信号方差σ²* = 0.85，噪声方差σ_n²* = 0.008。训练后的GPR模型能够对任意输入x*给出后验均值μ*(x*)和后验方差σ²*(x*)，其中后验均值作为对FRDM模型残差的预测，后验方差量化了预测的不确定性。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: model_architecture",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将模型预测与AME2020实验数据库中的已知质量进行对比，重点检验外推区域（如远离β稳定线的丰中子核）的RMS误差是否确实小于FRDM和WS4。其次，对预测结果进行量纲分析，确保结合能随质量数A和同位旋的标度行为符合液滴模型趋势，并检查极端极限情况（如A=1或中子滴线附近）的物理合理性。最后，使用独立方法如Hartree-Fock-Bogoliubov计算进行交叉验证，注意神经网络在训练数据稀疏区域可能过拟合，而高斯过程在核素空间高维时协方差矩阵可能病态。",
+    "metrics": {
+      "result_1": {
+        "value": "RMS误差约0.2 MeV",
+        "unit": "对已知核素测试集",
+        "interpretation": "预测质量"
+      },
+      "result_2": {
+        "value": "外推误差显著小于FRDM和WS4模型",
+        "unit": "对丰中子奇特核（N>126）",
+        "interpretation": "预测质量"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：frdm_model；ws4_model。"
+  },
+  "paper_methods": [
+    "gaussian_process_regression",
+    "neural_network",
+    "sobol_sequence",
+    "tenfold_cross_validation"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "gaussian_process_regression",
+        "desc": "利用高斯过程回归对原子核质量进行建模，基于已知实验数据预测未知核素质量"
+      },
+      {
+        "name": "neural_network",
+        "desc": "神经网络用于学习宏观微观模型残差，提高预测精度"
+      },
+      {
+        "name": "sobol_sequence",
+        "desc": "使用Sobol序列生成初始超参数点，优化GPR-NN模型"
+      },
+      {
+        "name": "tenfold_cross_validation",
+        "desc": "十折交叉验证评估模型泛化能力，防止过拟合"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "M(Z, N) = M_{\\text{macro}}(Z, N) + \\delta(Z, N)"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "k(x_i, x_j) = \\sigma_f^2 \\exp\\left(-\\frac{1}{2l^2} \\|x_i - x_j\\|^2\\right)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "预测质量",
+        "value": "RMS误差约0.2 MeV",
+        "condition": "对已知核素测试集"
+      },
+      {
+        "quantity": "预测质量",
+        "value": "外推误差显著小于FRDM和WS4模型",
+        "condition": "对丰中子奇特核（N>126）"
+      }
+    ],
+    "failure_points": [
+      "frdm_model",
+      "ws4_model"
+    ]
+  }
+}

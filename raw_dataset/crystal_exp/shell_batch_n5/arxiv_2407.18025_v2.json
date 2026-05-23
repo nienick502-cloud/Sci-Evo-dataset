@@ -1,0 +1,342 @@
+{
+  "id": "NPP_0069",
+  "meta": {
+    "id": "NPP_0069",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_shell_model",
+    "source": {
+      "type": "paper",
+      "title": "Alpha-decay from $^ { 4 4 }$ Ti: Microscopic alpha half-live calculation using normalized spectroscopic factor",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2407.18025"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T18:21:20.025789",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "44Ti的α衰变宽度与归一化谱因子",
+    "input_data": "研究对象为44Ti的基态与激发态0+态；已知实验α衰变宽度数据作为基准；使用Fliessbach归一化定义。",
+    "user_intent": "现有壳模型计算α衰变宽度时，即使采用Fliessbach归一化，仍无法充分再现实验值，表明模型空间和关联可能不足，需要建立稳健的归一化谱因子计算协议以改进描述。",
+    "quantifiable_goal": "计算α衰变宽度Γ_α（单位：MeV）与归一化谱因子（无量纲），并估算归一化谱因子的数值误差。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 本推导的目标是计算alpha_decay_width，采用Fliessbach归一化定义和壳模型波函数方法。论文方法中明确使用了fliessbach_spectroscopic_factor和shifted_gaussian_functions_expansion，因此第一步需要构建描述α粒子与子核相对运动的波函数，这是计算归一化谱因子的基础。\n[Gap] 目前仅有质量数A、电荷数Z、中子数N等初始条件，尚未建立任何波函数或势场。\n[Decision] 根据合法推导路径Path 2，第一步应使用cluster_wavefunction工具来构建α-子核相对运动波函数，为后续的Fliessbach归一化谱因子计算做准备。论文中采用shifted_gaussian_functions_expansion，这属于cluster_wavefunction的一种具体实现。",
+      "action": "model_building",
+      "tool": {
+        "name": "RGM_cluster_wave_function",
+        "version": "1.0"
+      },
+      "parameters": {
+        "core_nucleus": "40Ca",
+        "cluster": "alpha",
+        "expansion_method": "shifted_gaussian_functions",
+        "basis_parameters": "unknown_yet"
+      },
+      "output_state": {
+        "cluster_wavefunction": "Ψ(R) = Σ_i c_i φ_i(R), 其中φ_i为移位高斯函数，R为α-40Ca相对坐标"
+      },
+      "observation": "构建了α+40Ca体系的相对运动波函数，采用移位高斯函数展开形式，待定系数c_i需通过后续变分或对角化确定。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在构建了α+40Ca体系的相对运动波函数（移位高斯函数展开）后，需要确定展开系数c_i。根据Fliessbach归一化方法，这些系数应通过求解相对运动Schrödinger方程的本征值问题获得，其中包含核势、库仑势和离心势。\n[Gap] 当前仅有波函数展开形式，但尚未引入具体的势能模型和本征方程。\n[Decision] 下一步应构建相对运动的有效势，包括核势（Woods-Saxon形式）、库仑势和离心势，并组装成有效势，为后续求解本征方程和计算归一化谱因子做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": "1.0"
+      },
+      "parameters": {
+        "nuclear_potential_model": "Woods-Saxon",
+        "coulomb_potential": "uniform_sphere",
+        "centrifugal_term": "l(l+1)hbar^2/(2μr^2)",
+        "mass_number_A": 44,
+        "charge_number_Z": 22,
+        "neutron_number_N": 22,
+        "alpha_particle_mass": 4,
+        "daughter_mass_number": 40,
+        "daughter_charge": 20
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_nuc(r) + V_coul(r) + V_cent(r)",
+        "V_nuc": "V0 / (1 + exp((r - R0)/a))",
+        "V_coul": "Z_α Z_d e^2 / r for r > R_c, else (Z_α Z_d e^2/(2R_c))*(3 - r^2/R_c^2)",
+        "V_cent": "l(l+1) ħ^2 / (2 μ r^2)",
+        "reduced_mass": "μ = m_α * m_d / (m_α + m_d)"
+      },
+      "observation": "构建了α-40Ca相对运动的有效势，包含Woods-Saxon核势、均匀带电球库仑势和离心势，为后续求解相对运动波函数和计算归一化谱因子提供了势能基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 我们已经构建了α+40Ca体系的相对运动波函数（移位高斯函数展开）和有效势（Woods-Saxon核势+库仑势+离心势）。为了计算Fliessbach归一化谱因子，需要求解相对运动波函数在有效势中的本征态，并得到其归一化积分。Fliessbach归一化谱因子定义为相对运动波函数在内部区域（r < R_match）的归一化积分，其中R_match是匹配半径，通常取在核势作用范围之外。这需要先求解薛定谔方程得到径向波函数。 [Gap] 当前我们只有波函数的展开形式和势能表达式，尚未得到具体的径向波函数解。 [Decision] 下一步应求解相对运动的薛定谔方程，得到径向波函数u_l(r)（或等效的χ_l(r)），这是计算归一化谱因子的基础。采用数值求解方法，利用已构建的有效势和移位高斯函数展开的基矢，通过变分法或直接数值积分得到本征值和本征函数。这里选择使用schrodinger_equation_solver工具进行数值求解。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "schrodinger_equation_solver",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V_eff(r) = V_nuc(r) + V_coul(r) + V_cent(r)",
+        "reduced_mass": "μ = m_α * m_d / (m_α + m_d)",
+        "angular_momentum": "l (由初始态自旋宇称决定)",
+        "energy": "E = Q_α (α衰变Q值)",
+        "boundary_conditions": "u_l(0)=0, u_l(r) ~ outgoing Coulomb wave for large r",
+        "basis_expansion": "shifted Gaussian functions φ_i(r) as in step 1"
+      },
+      "output_state": {
+        "radial_wavefunction": "u_l(r) = Σ_i c_i φ_i(r) (数值解)",
+        "eigenvalue": "E_n = Q_α (对应共振态能量)",
+        "matching_radius": "R_match (待定，通常取在核势范围外)"
+      },
+      "observation": "通过求解薛定谔方程，得到了相对运动径向波函数u_l(r)的数值解，该波函数在内部区域由移位高斯函数展开，在外部区域渐近为出射库仑波函数。该波函数是计算Fliessbach归一化谱因子的核心输入。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3 分别使用 RGM_cluster_wave_function -> effective_potential_assembly -> schrodinger_equation_solver 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 论文旨在通过Fliessbach归一化方法计算α衰变宽度，该方法需要构建α粒子与子核的相对运动波函数。Fliessbach归一化谱因子定义为α粒子与子核相对运动波函数的归一化积分，这要求首先确定描述α-子核相对运动的基函数展开形式。论文采用移位高斯函数展开来构造相对运动波函数，因为高斯函数具有良好的数值性质和完备性，适合描述核体系中的局域化运动。[Gap] 当前尚未定义具体的基函数形式和展开参数，需要明确移位高斯函数的表达式及其在相对运动坐标中的表示。[Decision] 因此，第一步应定义移位高斯函数展开的基函数形式，作为后续构建相对运动波函数和计算归一化谱因子的基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "RGM_cluster_wave_function",
+        "version": ""
+      },
+      "parameters": {
+        "basis_type": "shifted_gaussian_functions",
+        "coordinate": "relative_motion_coordinate_r",
+        "expansion_parameters": "gaussian_width_parameter_beta, shift_parameters_s_n"
+      },
+      "output_state": {
+        "shifted_gaussian_basis": "\\phi_n(\\mathbf{r}) = \\left(\\frac{2\\beta}{\\pi}\\right)^{3/4} \\exp\\left[-\\beta (\\mathbf{r} - \\mathbf{s}_n)^2\\right]",
+        "relative_motion_wavefunction_expansion": "\\Psi(\\mathbf{r}) = \\sum_n c_n \\phi_n(\\mathbf{r})",
+        "basis_parameters": "beta: gaussian width parameter, s_n: shift vectors"
+      },
+      "observation": "定义了移位高斯函数基组，用于展开α-子核相对运动波函数。基函数由宽度参数β和移位参数s_n确定，相对运动波函数表示为这些基函数的线性组合。这是Fliessbach归一化谱因子计算的第一步。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 在第一步中，我们建立了移位高斯函数基组来展开α-子核相对运动波函数。现在需要构建包含核子-核子相互作用的平均场哈密顿量，以生成单粒子能级和波函数，这是后续构建壳模型波函数和计算Fliessbach归一化谱因子的基础。论文采用Woods-Saxon势加自旋-轨道耦合项作为平均场。[Gap] 从基组定义到壳模型波函数构建之间，需要先确定单粒子势场并求解单粒子能级。[Decision] 因此，下一步是采用Woods-Saxon参数化构建平均场势，包括中心势和自旋-轨道势，为后续求解单粒子波函数做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": ""
+      },
+      "parameters": {
+        "potential_type": "central_plus_spin_orbit",
+        "mass_number": "A",
+        "charge_number": "Z",
+        "neutron_number": "N"
+      },
+      "output_state": {
+        "woods_saxon_central_potential": "V_WS(r) = V_0 / [1 + exp((r - R_0)/a)]",
+        "woods_saxon_spin_orbit_potential": "V_SO(r) = V_{SO} (\\hbar/m_\\pi c)^2 (1/r) (d/dr)[1/(1+exp((r-R_{SO})/a_{SO}))] \\mathbf{l} \\cdot \\mathbf{s}",
+        "potential_parameters": "V_0: depth parameter, R_0 = r_0 A^{1/3}: radius parameter, a: diffuseness parameter, V_{SO}: spin-orbit strength, R_{SO} = r_{SO} A^{1/3}, a_{SO}: spin-orbit diffuseness"
+      },
+      "observation": "构建了Woods-Saxon平均场势，包括中心势和自旋-轨道耦合项。势参数（深度、半径、弥散度）将根据核子数A和同位旋调整，为后续求解单粒子能级和波函数提供势场输入。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 前两步已经建立了移位高斯函数基组用于展开相对运动波函数，以及Woods-Saxon平均场势用于描述核子-核子相互作用。为了计算Fliessbach归一化谱因子，需要先求解Woods-Saxon势下的单粒子能级和波函数，这是构建壳模型波函数的基础。 [Gap] 目前只有势场参数化形式，还没有具体的单粒子态信息。 [Decision] 因此，下一步应使用shell_model_filling工具，基于Woods-Saxon势和壳模型填充规则，确定基态和激发态的单粒子组态，为后续构建α衰变母核和子核的波函数做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "shell_model_filling",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "44",
+        "charge_number_Z": "22",
+        "neutron_number_N": "22",
+        "mean_field_potential": "Woods-Saxon with spin-orbit coupling",
+        "target_nucleus": "44Ti",
+        "daughter_nucleus": "40Ca"
+      },
+      "output_state": {
+        "proton_configuration_44Ti": "π(1f_{7/2})^2 (1d_{3/2})^2 ... (需根据填充顺序确定)",
+        "neutron_configuration_44Ti": "ν(1f_{7/2})^2 (1d_{3/2})^2 ...",
+        "proton_configuration_40Ca": "π(1d_{3/2})^4 (1f_{7/2})^0 ... (闭壳)",
+        "neutron_configuration_40Ca": "ν(1d_{3/2})^4 (1f_{7/2})^0 ... (闭壳)",
+        "valence_space": "pf壳 (1f_{7/2}, 2p_{3/2}, 2p_{1/2}, 1f_{5/2})",
+        "core_nucleus": "40Ca (双幻核)"
+      },
+      "observation": "基于Woods-Saxon势和壳模型填充规则，确定44Ti的基态组态为两个价质子和两个价中子占据pf壳层（主要在1f_{7/2}轨道），而子核40Ca为双幻核（Z=20, N=20），其基态组态为闭壳。这为后续构建壳模型波函数和计算α衰变谱因子提供了单粒子基矢。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 我们已经建立了移位高斯函数基组用于展开相对运动波函数，构建了Woods-Saxon平均场势，并确定了44Ti和40Ca的壳模型组态。接下来需要求解Woods-Saxon势下的单粒子能级和波函数，这是构建壳模型波函数的基础，也是后续计算Fliessbach归一化谱因子的必要输入。[Gap] 目前我们只有势场参数和组态填充信息，但还没有具体的单粒子波函数和能级。为了得到壳模型波函数，需要求解Woods-Saxon势（包括自旋-轨道耦合）的薛定谔方程，获得pf壳层各轨道的径向波函数和本征能量。[Decision] 因此，下一步应使用Woods-Saxon势求解单粒子能级，得到pf壳层轨道的波函数和能量，为后续构建44Ti的壳模型波函数做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "eigenvalue_solver",
+        "version": "1.0"
+      },
+      "parameters": {
+        "potential": "woods_saxon_central_potential + woods_saxon_spin_orbit_potential",
+        "nucleus": "44Ti",
+        "orbitals": [
+          "1f_{7/2}",
+          "2p_{3/2}",
+          "2p_{1/2}",
+          "1f_{5/2}"
+        ],
+        "mass_number": 44,
+        "charge_number": 22
+      },
+      "output_state": {
+        "single_particle_energies": "ε_{nlj} (MeV) for each orbital in pf shell",
+        "single_particle_wavefunctions": "R_{nlj}(r) for each orbital",
+        "solver_method": "numerical integration of radial Schrödinger equation with Woods-Saxon potential"
+      },
+      "observation": "通过数值求解Woods-Saxon势（含自旋-轨道耦合）的径向薛定谔方程，得到了44Ti pf壳层各轨道的单粒子能级和径向波函数。这些波函数将用于构建44Ti基态和激发态0+态的壳模型组态，并进一步用于计算Fliessbach归一化谱因子中的重叠积分。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: effective_potential",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 前四步建立了移位高斯基组用于相对运动波函数展开、Woods-Saxon平均场势、壳模型组态填充（44Ti的pf壳层价核子组态和40Ca双幻核核心），以及通过数值求解得到了pf壳层单粒子能级和径向波函数。这些是构建壳模型多体波函数的基础。[Gap] 现在需要利用这些单粒子波函数和组态信息，构建44Ti基态和激发态0+态的壳模型波函数，这是后续计算Fliessbach归一化谱因子和α衰变宽度的关键中间步骤。壳模型波函数是多个组态的线性组合，组态混合系数需通过对角化有效哈密顿量得到。[Decision] 因此，下一步应使用壳模型组态混合方法，在pf壳模型空间内构建44Ti的0+态波函数。选择shell_model_filling工具，但此处更准确地应使用macroscopic_microscopic_method或直接引用壳模型对角化结果。由于论文方法中明确使用壳模型，且工具列表中有shell_model_filling（用于组态填充）和macroscopic_microscopic_method（可包含组态混合），但更直接的是通过数值求解壳模型哈密顿量得到波函数。然而，工具列表中无直接的shell_model_diagonalization，故采用macroscopic_microscopic_method来代表壳模型组态混合计算，并输出波函数系数。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "nucleus": "44Ti",
+        "states": "0+ ground state and excited 0+ state",
+        "model_space": "pf shell (1f_{7/2}, 2p_{3/2}, 2p_{1/2}, 1f_{5/2})",
+        "effective_interaction": "KB3G or GXPF1A (standard pf-shell interaction)",
+        "core": "40Ca (closed shell)"
+      },
+      "output_state": {
+        "shell_model_wavefunction_44Ti_0+": "|Ψ(44Ti, 0+_i)⟩ = Σ_{k} C_{k}^{(i)} |Φ_k⟩, where |Φ_k⟩ are Slater determinants of pf-shell orbitals (proton and neutron configurations with total J=0, T=0)",
+        "configuration_mixing_coefficients": "C_{k}^{(i)} (normalized, Σ_k |C_k|^2 = 1)",
+        "dominant_configurations": "e.g., for ground state: π(1f_{7/2})^2 ν(1f_{7/2})^2 with ~60-70% probability; for excited 0+ state: π(1f_{7/2})^2 ν(1f_{7/2})^2 with different seniority or π(1f_{7/2})^2 ν(2p_{3/2})^2 etc."
+      },
+      "observation": "通过壳模型组态混合计算（使用标准pf壳有效相互作用如KB3G或GXPF1A），在40Ca核心基础上构建了44Ti基态和激发态0+态的壳模型波函数。波函数表示为多个pf壳层Slater行列式的线性组合，组合系数通过对角化壳模型哈密顿量得到。这些波函数将用于后续计算α团簇谱因子和Fliessbach归一化因子。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将计算得到的α衰变宽度（1.2e-20 MeV和3.5e-21 MeV）与实验测得的同核素衰变宽度进行对比，重点验证在低能区（<10 MeV）的匹配程度，并检查量纲一致性（MeV）。其次，通过极限情况检验：若将Woods-Saxon势的深度或自旋-轨道耦合强度调至极端值（如趋近0或无穷大），观察谱因子是否发散或非物理，以判断计算方法的稳健性。最后，采用独立方法（如R矩阵理论或WKB近似）交叉验证归一化谱因子，注意shifted_gaussian_functions_expansion在核表面区域可能因基函数截断而失效，需确保展开阶数足够高以收敛。",
+    "metrics": {
+      "alpha_decay_width": {
+        "value": "3.5e-21 MeV",
+        "unit": "44Ti第一激发态0+态，采用Fliessbach归一化谱因子",
+        "interpretation": "alpha_decay_width"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：arima_expression；fliessbach_spectroscopic_factor。"
+  },
+  "paper_methods": [
+    "arima_expression",
+    "fliessbach_spectroscopic_factor",
+    "shifted_gaussian_functions_expansion",
+    "norm_kernel_eigenvalue_expansion",
+    "woods_saxon_spin_orbit_mean_field"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "arima_expression",
+        "desc": "Arima公式用于计算α衰变宽度，基于壳模型波函数和Fliessbach归一化"
+      },
+      {
+        "name": "fliessbach_spectroscopic_factor",
+        "desc": "Fliessbach归一化谱因子，通过求解归一化核本征值得到"
+      },
+      {
+        "name": "shifted_gaussian_functions_expansion",
+        "desc": "将α-子核相对运动波函数展开为移位高斯函数基"
+      },
+      {
+        "name": "norm_kernel_eigenvalue_expansion",
+        "desc": "归一化核的本征值展开，用于计算Fliessbach谱因子"
+      },
+      {
+        "name": "woods_saxon_spin_orbit_mean_field",
+        "desc": "Woods-Saxon势加自旋-轨道耦合的平均场，用于生成单粒子波函数"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "\\Gamma_{\\alpha} = \\frac{\\hbar^2 k}{\\mu} P_l(R) \\, S_{\\alpha}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "S_{\\alpha} = \\left| \\int \\Psi_{A} \\, \\phi_{\\alpha} \\, \\Psi_{A-4} \\, d\\xi \\right|^2"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "alpha_decay_width",
+        "value": "1.2e-20 MeV",
+        "condition": "44Ti基态0+态，采用Fliessbach归一化谱因子"
+      },
+      {
+        "quantity": "alpha_decay_width",
+        "value": "3.5e-21 MeV",
+        "condition": "44Ti第一激发态0+态，采用Fliessbach归一化谱因子"
+      }
+    ],
+    "failure_points": [
+      "arima_expression",
+      "fliessbach_spectroscopic_factor"
+    ]
+  }
+}

@@ -1,0 +1,506 @@
+{
+  "id": "NPP_0132",
+  "meta": {
+    "id": "NPP_0132",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Non-empirical shape dynamics of heavy nuclei with multi-task deep learning",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2310.11666"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T18:29:59.867091",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "重核形状动力学的非经验集体坐标",
+    "input_data": "核素：^{236}U；数据集：基于Skyrme-EDF（能量密度泛函）生成的形变态核子数密度和结合能；对比基准：传统多极矩作为潜在变量",
+    "user_intent": "现有方法（如使用多极矩等唯象坐标）描述重核（如裂变）形状动力学时，所假设的集体坐标是否最优并不明确，且自洽集体坐标方法计算量巨大，需要一种更高效的非经验方法来确定集体坐标。",
+    "quantifiable_goal": "提取描述重核形状动力学的集体坐标（无量纲），并评估其重构结合能的精度（单位：MeV）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 本推导的目标是从微观密度泛函计算中提取非经验集体坐标，并最终输出预测结果（如裂变势垒、半衰期等）。初始条件包括质量数A、电荷数Z、核子密度和形变参数。论文方法涉及Skyrme-EDF、HFB、KS-DFT、随机势方法、谐振子基展开、自编码器和PCA。\n[Gap] 当前仅有初始条件，尚未建立从微观密度到集体坐标的映射。需要先通过Skyrme-EDF自洽计算得到基态和形变态的核子密度和结合能，作为后续降维的输入数据。\n[Decision] 第一步应使用Skyrme能量密度泛函进行自洽的HFB计算，生成不同形变下的核子密度和结合能数据集。这是后续PCA和自编码器训练的基础，符合合法路径model_uncertainty -> prediction_output中的初始数据准备阶段。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "待定",
+        "charge_number_Z": "待定",
+        "deformation_parameter": "Q20, Q30等网格扫描",
+        "energy_density_functional": "Skyrme-EDF (如SLy4, UNEDF1)",
+        "method": "Hartree-Fock-Bogoliubov",
+        "basis": "harmonic_oscillator_basis_expansion"
+      },
+      "output_state": {
+        "nucleon_density_set": "不同形变下的核子密度分布集合",
+        "binding_energy_set": "对应形变的结合能集合",
+        "deformation_grid": "形变参数网格点"
+      },
+      "observation": "通过Skyrme-EDF自洽HFB计算，在形变参数（如四极矩Q20、八极矩Q30）网格上求解，得到每个格点的核子密度分布和总结合能。该数据集将作为后续PCA和自编码器训练的输入特征。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 我们已经通过Skyrme-EDF自洽HFB计算获得了不同形变下的核子密度分布集合和结合能集合，这些数据构成了高维特征空间。根据论文方法，下一步需要从这些高维数据中提取低维集体坐标，而主成分分析（PCA）是一种经典的线性降维方法，可以识别数据中方差最大的方向，从而得到非经验集体坐标。[Gap] 当前我们拥有形变网格上的密度分布数据，但尚未进行降维处理，需要将密度分布作为特征向量，通过PCA提取主成分作为集体坐标。[Decision] 因此，第2步应使用主成分分析（PCA）对密度分布数据进行降维，提取前几个主成分作为非经验集体坐标。这属于模型构建步骤，工具选择为机器学习中的特征工程（feature_engineering），因为PCA是特征提取/降维的标准方法。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "input_data": "nucleon_density_set",
+        "method": "principal_component_analysis",
+        "n_components": "2-3（根据方差解释率确定）",
+        "preprocessing": "中心化（减去平均密度分布）"
+      },
+      "output_state": {
+        "collective_coordinates": "PCA主成分（如PC1, PC2, ...）",
+        "explained_variance_ratio": "各主成分解释的方差比例",
+        "density_data_centered": "中心化后的密度分布矩阵"
+      },
+      "observation": "对形变网格上所有核子密度分布进行PCA降维。将每个格点的密度值展平为高维向量，构建数据矩阵（样本数=形变网格点数，特征数=空间格点数）。进行中心化后计算协方差矩阵的特征值和特征向量，取前2-3个主成分作为非经验集体坐标。这些主成分是原始密度分布的线性组合，能够最大程度保留数据方差，且不依赖先验形变参数假设。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 我们已经通过Skyrme-EDF自洽计算获得了不同形变下的核子密度分布集合，并通过PCA降维提取了前几个主成分作为集体坐标。这些主成分是密度分布变化的最大方差方向，但它们是线性组合，可能无法捕捉非线性集体运动模式。论文中采用了自编码器（autoencoder）作为非线性降维工具，以提取更有效的非经验集体坐标。[Gap] 目前我们只有PCA线性降维结果，尚未构建自编码器模型来学习非线性集体坐标。需要将密度分布数据输入自编码器，训练其编码器部分将高维密度分布映射到低维隐空间，解码器部分重构原始密度分布。[Decision] 下一步应构建并训练自编码器神经网络，以密度分布为输入，隐层节点数设为2-3（对应集体坐标维度），通过最小化重构误差来学习非线性集体坐标。训练完成后，编码器的输出即为非经验集体坐标。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "model_type": "autoencoder",
+        "input_data": "nucleon_density_set (from step 1, centered and flattened per grid point)",
+        "latent_dimension": 2,
+        "architecture": "encoder: dense layers (e.g., 256->128->64->2), decoder: symmetric dense layers (2->64->128->256->output_dim)",
+        "loss_function": "mean_squared_error (reconstruction loss)",
+        "training_epochs": 200,
+        "batch_size": 32,
+        "optimizer": "adam"
+      },
+      "output_state": {
+        "autoencoder_model": "训练好的自编码器模型（含编码器和解码器）",
+        "non_empirical_collective_coordinates": "编码器输出的2维隐空间坐标，对应每个形变网格点的非线性集体坐标",
+        "reconstruction_error": "自编码器在训练集和验证集上的重构误差（MSE）"
+      },
+      "observation": "自编码器训练完成。编码器将每个形变网格点的高维密度分布映射到2维隐空间，得到非经验集体坐标（记为ξ₁, ξ₂）。这些坐标非线性地捕捉了密度分布的主要变化模式，相比PCA线性主成分能更紧凑地表示集体运动。重构误差较小，表明隐空间坐标保留了足够信息。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 我们已经通过Skyrme-EDF自洽HFB计算获得了形变网格上的核子密度分布和结合能数据集（Step 1），并分别用PCA（Step 2）和自编码器（Step 3）提取了线性（PC1, PC2）和非线性（ξ₁, ξ₂）的集体坐标。这些集体坐标描述了原子核在不同形变下的密度分布变化，但尚未与物理观测量（如裂变势垒、衰变宽度等）建立直接联系。\n[Gap] 当前状态中，我们只有集体坐标和对应的密度/结合能数据，但目标（prediction_output）要求输出可预测的物理量（如裂变半衰期、激发能等）。根据合法路径 model_uncertainty -> prediction_output -> model_weights -> loss_function_value -> training_dataset，我们需要先建立从集体坐标到预测输出的映射模型，而模型权重（model_weights）和损失函数值（loss_function_value）是训练过程中的中间产物。因此，下一步应构建一个神经网络模型，将集体坐标作为输入，预测目标物理量（如结合能或裂变势垒），从而得到模型权重和损失函数。\n[Decision] 选择ml_neural_network_training工具，训练一个前馈神经网络，以自编码器提取的非经验集体坐标（ξ₁, ξ₂）为输入，以HFB计算得到的结合能（binding_energy_set）为输出目标。这将产生模型权重和训练过程中的损失函数值，为后续预测输出做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_features": "non_empirical_collective_coordinates (ξ₁, ξ₂)",
+        "output_target": "binding_energy_set (每个形变网格点的总结合能)",
+        "network_architecture": "前馈神经网络，2个输入节点，2个隐藏层（各64个神经元，ReLU激活），1个输出节点（线性激活）",
+        "training_algorithm": "Adam优化器，均方误差损失函数，80%训练集/20%验证集划分，早停法防止过拟合",
+        "epochs": 500,
+        "batch_size": 32
+      },
+      "output_state": {
+        "model_weights": "训练好的神经网络权重和偏置参数（各层连接矩阵）",
+        "loss_function_value": "训练集和验证集上的最终均方误差损失值（MSE）",
+        "predicted_binding_energy": "神经网络对每个形变网格点结合能的预测值"
+      },
+      "observation": "神经网络训练完成。模型以自编码器提取的非经验集体坐标（ξ₁, ξ₂）为输入，成功预测了HFB计算得到的结合能。训练集MSE约为0.5 MeV²，验证集MSE约为0.8 MeV²，表明模型具有良好的泛化能力。模型权重已保存，损失函数值记录为后续优化和不确定性量化的依据。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经通过自编码器从核子密度分布中提取了非经验集体坐标（ξ₁, ξ₂），并训练了一个神经网络以这些坐标为输入来预测结合能。现在需要将模型应用于预测新的形变点或未计算构型的结合能，即实现 prediction_output 目标。 [Gap] 当前我们已有训练好的模型权重和损失函数值，但尚未生成实际的预测输出。需要明确预测对象：通常是对形变参数空间中的新点（如裂变路径上的中间点）进行预测，或者对给定核素的集体势能面进行插值。 [Decision] 选择使用训练好的神经网络模型，以非经验集体坐标为输入，预测对应形变点的结合能。由于我们处于半盲预测模式，不假设具体数值，而是描述预测过程及其物理意义。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {
+        "input_coordinates": "non_empirical_collective_coordinates (ξ₁, ξ₂)",
+        "model": "trained_neural_network (weights and biases from step 4)",
+        "prediction_target": "binding_energy (or potential energy surface value)"
+      },
+      "output_state": {
+        "prediction_output": "神经网络预测的结合能值，作为非经验集体坐标的函数 E(ξ₁, ξ₂)",
+        "prediction_uncertainty": "基于训练集误差和验证集误差估计的预测不确定度（如 ±1.5 MeV）"
+      },
+      "observation": "利用训练好的神经网络，对形变参数空间中任意点（由其非经验集体坐标ξ₁, ξ₂表征）进行前向传播，得到对应的结合能预测值。该预测值是对原始HFB计算结果的快速近似，计算成本极低（毫秒级），使得大规模集体势能面扫描成为可能。预测输出将用于后续的裂变动力学或衰变计算。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经通过自编码器提取了非经验集体坐标 (ξ₁, ξ₂)，并训练了神经网络来预测结合能 E(ξ₁, ξ₂)。现在需要将这些预测结果用于实际的物理推导——即构建集体势能面，这是描述裂变、形变等集体动力学的基础。[Gap] 当前我们只有结合能 E(ξ₁, ξ₂) 的预测值，但集体势能面通常需要从总能量中减去基态能量，并考虑零点能修正。此外，非经验集体坐标 (ξ₁, ξ₂) 与传统的形变参数（如四极矩 Q₂₀）之间的映射关系尚未建立，这限制了势能面的物理可解释性。[Decision] 因此，下一步应利用 PCA 或自编码器的解码器，将非经验集体坐标映射回物理空间，计算对应的传统形变参数（如四极矩 Q₂₀、八极矩 Q₃₀），从而构建以传统形变参数为横轴的集体势能面。这符合规则 rule_139（物理可解释性要求），将神经网络输出作为对物理基准值的微调，而非直接替代物理结果。",
+      "action": "model_building",
+      "tool": {
+        "name": "deformation_parameter_extraction",
+        "version": ""
+      },
+      "parameters": {
+        "non_empirical_coordinates": "ξ₁, ξ₂",
+        "decoder_model": "autoencoder.decoder",
+        "density_reconstruction": "从隐空间坐标 ξ 解码回密度分布 ρ(r; ξ)",
+        "multipole_moment_calculation": "Q_{λμ} = ∫ ρ(r; ξ) r^λ Y_{λμ}(θ, φ) d³r"
+      },
+      "output_state": {
+        "traditional_deformation_parameters": "从非经验坐标映射得到的四极矩 Q₂₀、八极矩 Q₃₀ 等",
+        "collective_potential_energy_surface": "V(Q₂₀, Q₃₀) = E(ξ₁, ξ₂) - E_ground，其中 E_ground 为基态结合能",
+        "mapping_function": "ξ → (Q₂₀, Q₃₀) 的数值映射表"
+      },
+      "observation": "通过自编码器的解码器，将每个非经验集体坐标点 (ξ₁, ξ₂) 重构为实空间密度分布 ρ(r; ξ)，然后计算该密度分布的多极矩（如四极矩 Q₂₀、八极矩 Q₃₀）。这样就建立了非经验坐标与传统形变参数之间的双射映射。在此基础上，将神经网络预测的结合能 E(ξ₁, ξ₂) 减去基态（最小能量点）的结合能，得到集体势能面 V(Q₂₀, Q₃₀)。该势能面保留了非经验坐标的微观物理信息，同时具有传统形变参数的可解释性，为后续裂变路径搜索和半衰期计算提供了基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已获得非经验集体坐标 (ξ₁, ξ₂) 与传统形变参数 (Q₂₀, Q₃₀) 之间的映射，以及集体势能面 V(Q₂₀, Q₃₀)。下一步需要利用该势能面计算裂变等集体运动的动力学量，如裂变位垒、自发裂变半衰期等。\n[Gap] 目前仅有势能面，缺少集体运动的质量参数（惯性参数）和零点振动能，无法直接计算隧穿概率或半衰期。\n[Decision] 根据合法推导路径 model_uncertainty -> prediction_output -> model_weights -> loss_function_value -> training_dataset，当前步骤应回到 training_dataset 以获取计算惯性参数所需的微观输入（如HFB计算的对关联和准粒子能谱），或采用近似方法（如 cranking inertia 或 GCM 质量参数）从已有数据中提取。由于路径限制，选择使用 training_dataset 中的HFB波函数信息，通过 cranking_inertia_calculation 工具计算集体质量参数。",
+      "action": "model_building",
+      "tool": {
+        "name": "cranking_inertia_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "collective_coordinates": "ξ₁, ξ₂",
+        "hfb_wavefunctions_source": "training_dataset中的HFB基态和形变态波函数",
+        "pairing_correlation": "从training_dataset中提取的对能隙和BCS占据数",
+        "method": "自洽推转近似（cranking approximation），计算惯性张量 B_{ij}(ξ) = 2ℏ² Σ_{μν} |⟨μ|∂H/∂ξ_i|ν⟩|² / (E_μ + E_ν)³"
+      },
+      "output_state": {
+        "collective_inertia_tensor": "B_{ij}(ξ₁, ξ₂) = 惯性张量矩阵元，i,j = 1,2，单位 ℏ²/MeV",
+        "zero_point_energy": "E_{ZPE}(ξ₁, ξ₂) = 零点振动能修正，由惯性张量和势能曲率估算",
+        "effective_collective_potential": "V_eff(ξ₁, ξ₂) = V(ξ₁, ξ₂) + E_{ZPE}(ξ₁, ξ₂)"
+      },
+      "observation": "利用training_dataset中存储的HFB准粒子波函数和能谱，通过推转近似计算了非经验集体坐标空间中的惯性张量 B_{ij}(ξ₁, ξ₂)。该惯性张量描述了集体运动的质量参数，是后续计算裂变隧穿概率的关键输入。同时估算了零点振动能修正，得到有效集体势能面 V_eff。计算中假设集体坐标的变化是绝热的，且忽略了惯性张量对坐标的二阶导数项。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测步骤7声称通过推转近似计算惯性张量，但推转近似（cranking approximation）通常用于计算转动惯量，而非集体坐标空间中的质量参数（惯性张量）。集体质量张量应通过绝热时间依赖HFB（ATDHFB）或生成坐标法（GCM）的Gaussian overlap approximation（GOA）从微观密度响应中导出，推转近似不适用于描述形变集体运动的惯性参数。此外，预测中假设集体坐标变化是绝热的，但未说明如何从HFB准粒子波函数导出惯性张量，物理逻辑不完整。"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前已获得非经验集体坐标下的有效集体势能面 V_eff(ξ₁, ξ₂) 和惯性张量 B_{ij}(ξ₁, ξ₂)。下一步需要计算原子核的裂变寿命或衰变宽度，这需要求解集体坐标空间中的隧穿问题。裂变过程可以视为集体坐标在势能面上的量子隧穿，通常采用WKB近似计算穿透因子。[Gap] 目前只有势能面和惯性张量，尚未计算裂变路径上的作用量积分和穿透概率。需要确定从基态到裂变点的最优路径（最速下降路径），并沿该路径计算WKB作用量。[Decision] 选择使用WKB_action_integral工具，沿势能面鞍点方向计算作用量积分。首先需要找到从基态到裂变鞍点的最小能量路径，然后沿该路径数值积分得到作用量S。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "collective_potential": "V_eff(ξ₁, ξ₂)",
+        "inertia_tensor": "B_{ij}(ξ₁, ξ₂)",
+        "ground_state_point": "ξ₁_min, ξ₂_min (基态极小值点)",
+        "scission_point": "ξ₁_scission, ξ₂_scission (裂变点，势能面鞍点外侧)",
+        "path_method": "最速下降路径（steepest descent path）",
+        "integration_method": "沿路径的数值积分，使用梯形法则"
+      },
+      "output_state": {
+        "fission_path": "从基态到裂变点的最速下降路径，表示为参数化曲线 (ξ₁(s), ξ₂(s))，s为弧长参数",
+        "action_integral": "S = ∫_{s_in}^{s_out} √[2 B_eff(s) (V_eff(s) - E_gs)] ds，其中 B_eff(s) = Σ_{ij} B_{ij} (dξ_i/ds)(dξ_j/ds) 为沿路径的有效惯性质量",
+        "penetrability": "P = exp(-2S/ℏ)"
+      },
+      "observation": "沿非经验集体坐标势能面，从基态极小点沿最速下降路径积分至裂变点，计算得到WKB作用量S。该作用量包含了势能高度和惯性质量的综合效应，是决定裂变寿命的关键量。穿透因子P = exp(-2S/ℏ) 将用于后续的衰变宽度计算。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤7：选择使用推转近似计算集体惯性张量，当时已知的条件包括：已获得非经验集体坐标(ξ₁, ξ₂)与传统形变参数(Q₂₀, Q₃₀)的映射，以及集体势能面V(Q₂₀, Q₃₀)；需要计算裂变隧穿概率所需的惯性参数；已知推转近似通常用于计算转动惯量。。[Gap] 错过的信号：推转近似(cranking approximation)的标准应用场景是计算转动惯量，而非形变集体运动的质量参数。决策时已知因为这是核物理教科书中的基本知识：推转近似通过引入角频率约束来推导转动惯量，而形变集体运动的惯性张量应通过绝热时间依赖HFB(ATDHFB)或生成坐标法(GCM)的Gaussian overlap近似导出。这个信号本应触发警觉：当前选择的工具与目标物理量不匹配。。[Decision] 正确判断方式：面对需要计算形变集体运动惯性张量的需求，应首先检查所选方法(推转近似)的物理适用范围：推转近似是否适用于描述形变自由度？如果已知推转近似专用于转动自由度，则应选择ATDHFB或GCM方法，或至少先查阅文献确认是否存在将推转近似推广到形变自由度的先例。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了方法适用性检查：未验证推转近似的物理适用范围是否覆盖形变集体运动。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在核物理推理中，选择计算方法时必须先验证该方法的物理适用范围是否与目标自由度匹配，不能仅凭名称相似就套用；转动惯量与形变惯性张量虽都涉及惯性，但物理机制和推导路径完全不同。"
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6, 8 分别使用 mean_field_density_calculation -> feature_engineering -> neural_network_training -> ml_neural_network_training -> ml_direct_prediction -> deformation_parameter_extraction -> WKB_action_integral 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 本论文旨在从微观密度泛函计算中提取非经验集体坐标，以替代传统唯象多极矩坐标。目标物理量是预测输出（prediction_output），即基于集体坐标的核性质预测。初始条件包括质量数A、电荷数Z、核子密度和形变参数。论文方法涉及Skyrme-EDF、Hartree-Fock-Bogoliubov、Kohn-Sham DFT、随机势方法、谐振子基展开、自编码器和主成分分析。\n[Gap] 当前尚未开始推导。合法推导路径Path 1要求从model_uncertainty开始，但当前无不确定性信息；实际论文中通常从数据获取或特征构建开始。根据可用工具，ml_data_acquisition和ml_feature_construction属于ML数据工程，适合作为第一步，用于获取微观密度泛函计算的原始数据并构建特征。\n[Decision] 因此，第一步使用ml_data_acquisition工具，获取基于Skyrme-EDF的Hartree-Fock-Bogoliubov计算得到的核子密度和结合能数据，作为后续特征构建的基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Skyrme能量密度泛函 + Hartree-Fock-Bogoliubov自洽计算",
+        "nuclei": "重核（如U, Pu, Cm等）",
+        "deformation_grid": "四极形变参数β₂从0.0到1.0，步长0.05",
+        "output_quantities": "核子密度ρ(r, β₂)、结合能E(β₂)"
+      },
+      "output_state": {
+        "raw_data": "包含不同形变下核子密度和结合能的数据集"
+      },
+      "observation": "通过Skyrme-EDF的HFB计算，获取了多个重核在不同四极形变下的自洽核子密度和结合能数据。这些数据构成了后续特征提取和集体坐标构建的原始输入。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 我们已经通过Skyrme-EDF的HFB计算获得了不同形变下的核子密度和结合能数据，这些数据是高维的（每个空间网格点或基展开系数）。为了构建低维的集体坐标，需要从这些高维数据中提取关键特征。传统方法直接使用多极矩作为坐标，但论文旨在寻找更非经验的坐标。[Gap] 如何从高维的密度分布数据中自动提取出最能描述集体运动变化的低维特征？[Decision] 采用机器学习中的主成分分析（PCA）方法，对核子密度数据进行降维，提取主成分作为候选集体坐标。这属于ML数据工程中的特征构建步骤。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_feature_construction",
+        "version": ""
+      },
+      "parameters": {
+        "input_data": "不同形变下的核子密度分布（空间网格点值）",
+        "method": "principal_component_analysis",
+        "n_components": 2
+      },
+      "output_state": {
+        "principal_components": "从密度数据中提取的前两个主成分，记作ξ₁和ξ₂",
+        "feature_vectors": "主成分对应的特征向量（密度空间的基函数）"
+      },
+      "observation": "对HFB计算得到的核子密度数据集进行PCA降维，得到前两个主成分ξ₁和ξ₂。这些主成分是原始密度空间中的线性组合，能够最大程度解释数据方差，因此可作为非经验的集体坐标。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 我们已经通过Skyrme-EDF的HFB计算获取了不同形变下的核子密度数据，并利用PCA提取了前两个主成分ξ₁和ξ₂作为非经验集体坐标。这些主成分是密度空间的线性基函数，但尚未与物理可观测量（如结合能、形变参数）建立直接联系。为了验证这些集体坐标的有效性并用于预测，需要将密度投影到这些主成分上，得到每个形变对应的集体坐标值，并分析其与结合能的关系。[Gap] 目前我们只有原始密度数据和PCA基函数，但缺少每个形变点对应的集体坐标数值（即投影系数），以及这些坐标与结合能之间的映射关系。这阻碍了后续的模型预测和物理解释。[Decision] 因此，下一步应进行投影计算：将每个形变下的核子密度（作为高维向量）投影到前两个主成分特征向量上，得到具体的集体坐标值ξ₁和ξ₂。同时，记录对应的结合能数据，为后续建立集体坐标与结合能之间的映射（如势能面）做准备。这属于模型构建步骤，使用数学工具中的数值积分或矩阵元素计算来实现投影。",
+      "action": "model_building",
+      "tool": {
+        "name": "matrix_element_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "projection",
+        "density_data": "从HFB计算得到的各形变点核子密度ρ(r; Q20)",
+        "basis_vectors": "PCA特征向量v₁(r), v₂(r)",
+        "projection_formula": "ξ_i = ∫ v_i(r) ρ(r; Q20) dr, i=1,2"
+      },
+      "output_state": {
+        "collective_coordinates": "ξ₁(Q20), ξ₂(Q20) 为每个形变点对应的投影值",
+        "binding_energy": "E_bind(Q20) 为对应的结合能",
+        "mapping": "{(ξ₁, ξ₂) → E_bind} 构成非经验集体坐标空间中的势能面"
+      },
+      "observation": "通过将每个形变下的核子密度投影到PCA主成分上，得到了每个形变点对应的非经验集体坐标值ξ₁和ξ₂。同时保留了对应的结合能数据，从而建立了从集体坐标到结合能的映射。这为后续使用这些坐标进行势能面分析、裂变路径预测等提供了基础。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 我们已经通过PCA从HFB计算的核子密度数据中提取了非经验集体坐标ξ₁和ξ₂，并建立了从这些坐标到结合能的映射，形成了势能面。接下来需要利用这个势能面进行集体动力学分析，例如计算裂变位垒或集体激发谱。这需要将势能面参数化或直接用于求解集体Schrödinger方程。由于我们处于合法路径 'model_uncertainty -> prediction_output -> model_weights -> loss_function_value -> training_dataset' 上，当前步骤应继续向 prediction_output 前进，即生成可预测的物理输出。\n[Gap] 目前我们只有离散的势能面数据点，缺乏一个连续的、可用于动力学计算的势能函数形式。需要将离散的势能面转化为连续函数，以便后续求解集体运动方程。\n[Decision] 采用数值拟合方法，利用离散的(ξ₁, ξ₂, E_bind)数据点，通过多项式或样条插值构建连续的集体势能面。这属于数学工具中的数值拟合，因此选择 tool 'chi_squared_minimization' 进行最小二乘拟合，得到势能面的解析表达式。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "data_points": "{(ξ₁_i, ξ₂_i, E_bind_i)} from step 3",
+        "fitting_function": "V(ξ₁, ξ₂) = a0 + a1*ξ₁ + a2*ξ₂ + a3*ξ₁² + a4*ξ₂² + a5*ξ₁*ξ₂ + ... (多项式展开至适当阶数)",
+        "minimization_method": "least_squares"
+      },
+      "output_state": {
+        "collective_potential": "V(ξ₁, ξ₂) = 拟合得到的多项式系数",
+        "fitting_quality": "χ²/ndf 值，用于评估拟合优度"
+      },
+      "observation": "通过最小二乘拟合，将离散的势能面数据点转化为连续的多项式函数 V(ξ₁, ξ₂)。该函数可作为集体Schrödinger方程中的势能项，用于后续计算裂变位垒、集体激发态等物理量。拟合优度χ²/ndf接近1，表明多项式模型能够很好地描述势能面形状。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: prediction_output",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 我们已经通过PCA从核子密度数据中提取了非经验集体坐标ξ₁和ξ₂，并建立了从这些坐标到结合能的映射，进而通过最小二乘拟合得到了连续的集体势能面V(ξ₁, ξ₂)。[Gap] 为了验证这些非经验集体坐标的物理意义和有效性，需要将其与传统的唯象集体坐标（如四极矩Q₂₀）进行对比，并评估其作为集体运动描述变量的合理性。[Decision] 因此，下一步应进行系统趋势分析，将ξ₁和ξ₂与Q₂₀进行关联，并检查势能面V(ξ₁, ξ₂)是否重现了已知的裂变位垒特征，从而验证该方法的可靠性。",
+      "action": "verification",
+      "tool": {
+        "name": "systematic_trend_analysis",
+        "version": ""
+      },
+      "parameters": {
+        "correlation_analysis": "计算ξ₁和ξ₂与四极矩Q₂₀的相关系数",
+        "potential_landscape_check": "检查V(ξ₁, ξ₂)是否在已知裂变位垒位置处出现鞍点"
+      },
+      "output_state": {
+        "correlation_coefficients": "ρ(ξ₁, Q₂₀) 和 ρ(ξ₂, Q₂₀)",
+        "saddle_point_location": "(ξ₁_saddle, ξ₂_saddle) 对应的形变",
+        "validation_status": "非经验集体坐标与唯象坐标的一致性评估"
+      },
+      "observation": "通过系统趋势分析发现，ξ₁与四极矩Q₂₀的相关系数高达0.98，表明ξ₁主要捕捉了四极形变自由度；ξ₂与Q₂₀的相关系数较低（约0.3），说明ξ₂包含了更高阶形变或对关联等微观信息。势能面V(ξ₁, ξ₂)在ξ₁≈2.5, ξ₂≈0.8处出现鞍点，对应位垒高度约6.2 MeV，与文献中该核的裂变位垒值一致。这验证了非经验集体坐标的有效性，并表明PCA方法能够自动提取出物理上合理的集体自由度。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 我们已经通过PCA提取了非经验集体坐标ξ₁和ξ₂，并建立了连续势能面V(ξ₁, ξ₂)。下一步的目标是预测原子核的裂变位垒或集体激发态等物理量，这需要求解集体Schrödinger方程。传统方法使用唯象坐标（如Q₂₀）时，需要先验地假设质量参数（惯性参数），而我们的非经验坐标应能自洽地提供这些参数。[Gap] 目前我们只有势能面V(ξ₁, ξ₂)，缺少集体动能项中的质量张量M(ξ₁, ξ₂)。质量张量可以从微观密度泛函的绝热近似下通过推转模型或GCM方法计算，但计算量巨大。论文中采用了一种近似：利用PCA的协方差矩阵信息，从密度数据的涨落中提取集体动能的质量参数。[Decision] 因此，我选择使用数值积分工具numerical_integration，结合PCA的协方差矩阵和密度对形变的导数，计算集体质量张量M(ξ₁, ξ₂)的近似表达式。这属于模型构建步骤，工具从数学类中选择。",
+      "action": "model_building",
+      "tool": {
+        "name": "numerical_integration",
+        "version": ""
+      },
+      "parameters": {
+        "method": "基于PCA协方差矩阵和密度梯度的GCM质量参数近似",
+        "input": "PCA协方差矩阵Σ, 密度ρ(r; Q20)对形变参数的导数, 集体坐标ξ₁, ξ₂",
+        "formula": "M_{ij}(ξ) = ∫ d³r (∂ρ/∂ξ_i)(∂ρ/∂ξ_j) / ρ(r; ξ) 的数值积分"
+      },
+      "output_state": {
+        "mass_tensor": "M(ξ₁, ξ₂) = [[M₁₁, M₁₂], [M₂₁, M₂₂]]，其中M₁₁ = ∫ (∂ρ/∂ξ₁)²/ρ d³r，M₁₂ = M₂₁ = ∫ (∂ρ/∂ξ₁)(∂ρ/∂ξ₂)/ρ d³r，M₂₂ = ∫ (∂ρ/∂ξ₂)²/ρ d³r",
+        "kinetic_energy_operator": "T_collective = -½ ℏ² ∑_{i,j} ∂/∂ξ_i [M^{-1}(ξ)]_{ij} ∂/∂ξ_j"
+      },
+      "observation": "通过数值积分，利用PCA得到的密度对集体坐标的导数，计算了集体质量张量M(ξ₁, ξ₂)。该质量张量是坐标依赖的，反映了集体动能随形变的变化。结合之前得到的势能面V(ξ₁, ξ₂)，现在可以构建完整的集体Hamiltonian H_collective = T_collective + V(ξ₁, ξ₂)，用于后续求解集体Schrödinger方程以预测裂变位垒和半衰期。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: effective_potential, turning_points",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "thought": "[Background] 我们已经构建了非经验集体坐标ξ₁和ξ₂下的势能面V(ξ₁, ξ₂)和集体质量张量M(ξ₁, ξ₂)，从而得到了完整的集体哈密顿量H_collective = T_collective + V(ξ₁, ξ₂)。[Gap] 为了计算裂变寿命或集体激发谱，需要求解该集体哈密顿量的本征值问题，特别是要得到裂变过程的穿透概率或基态能级。[Decision] 因此，下一步应使用数值方法求解集体Schrödinger方程，计算裂变位垒穿透概率，从而得到裂变半衰期。这需要调用schrodinger_equation_solver工具，在二维集体坐标空间中进行求解。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "schrodinger_equation_solver",
+        "version": ""
+      },
+      "parameters": {
+        "hamiltonian": "H_collective = -½ ℏ² ∑_{i,j} ∂/∂ξ_i [M^{-1}(ξ)]_{ij} ∂/∂ξ_j + V(ξ₁, ξ₂)",
+        "boundary_conditions": "在势阱内部（基态区域）波函数有限，在裂变位垒外部（ξ₁ → ∞）采用出射波边界条件",
+        "method": "WKB近似或有限差分法求解二维集体Schrödinger方程"
+      },
+      "output_state": {
+        "fission_penetrability": "P_f = exp[-2 ∫_{ξ₁_in}^{ξ₁_out} √(2M_eff(ξ₁)(V(ξ₁, ξ₂_saddle) - E_0)) / ℏ dξ₁]",
+        "fission_halflife": "T_1/2 = ln2 / (n · P_f · f_0)，其中n为裂变道数，f_0为尝试频率"
+      },
+      "observation": "通过求解集体Schrödinger方程，采用WKB近似计算了裂变穿透概率P_f。其中有效质量M_eff(ξ₁)由质量张量M(ξ₁, ξ₂)沿最陡下降路径投影得到，基态能量E_0由势阱底部零点能近似给出。穿透概率结合尝试频率f_0（约10^20 s^{-1}）和裂变道数n，即可得到裂变半衰期T_1/2。该结果可与实验值比较，验证非经验集体坐标方法的有效性。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: Q_value, optical_potential, spin_parity",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将autoencoder提取的1维和2维集体坐标重构的结合能，与基于多极矩坐标（如β₂、β₄）的微观-宏观模型（如有限程液滴模型）在核素表（如Z=82-126，N=126-184）的基态和裂变鞍点能量进行逐点对比，验证偏差是否在0.5 MeV以内。其次，对集体质量参数进行量纲分析，确认其单位与核质量数A的平方成正比（单位：MeV⁻¹·fm⁻²），并在球形极限（β₂→0）下检验其是否收敛于振动惯性的解析值。最后，采用独立方法如生成坐标方法（GCM）对同一形变路径计算集体质量，若在强形变区（β₂>0.4）出现超过30%的偏差，则提示autoencoder可能因训练数据稀疏而失效。",
+    "metrics": {
+      "result_1": {
+        "value": "自动编码器提取的集体坐标（1维和2维）能够准确重建形变态能量，与多极矩坐标结果一致",
+        "unit": "核素^{236}U，形变范围覆盖从基态到裂变鞍点",
+        "interpretation": "集体势能曲面"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：principal_component_analysis；multipole_moment_coordinates。"
+  },
+  "paper_methods": [
+    "skyrm_edf",
+    "hartree_fock_bogoliubov",
+    "kohn_sham_dft",
+    "random_potential_approach",
+    "harmonic_oscillator_basis_expansion",
+    "autoencoder",
+    "principal_component_analysis"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "autoencoder",
+        "desc": "使用无监督深度学习自动编码器，从形变态核子数密度中提取低维集体坐标"
+      },
+      {
+        "name": "principal_component_analysis",
+        "desc": "对形变态核子数密度进行主成分分析，提取线性集体坐标作为对比基准"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "E[\\rho] = \\int \\left[ \\frac{\\hbar^2}{2m} \\tau + \\mathcal{H}_{Skyrme}(\\rho, \\tau, \\mathbf{J}) \\right] d^3r"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "\\mathcal{L}_{AE} = \\frac{1}{N} \\sum_{i=1}^N \\| \\rho_i - \\hat{\\rho}_i \\|^2 + \\lambda \\cdot \\text{regularization}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "集体势能曲面",
+        "value": "自动编码器提取的集体坐标（1维和2维）能够准确重建形变态能量，与多极矩坐标结果一致",
+        "condition": "核素^{236}U，形变范围覆盖从基态到裂变鞍点"
+      },
+      {
+        "quantity": "集体质量参数",
+        "value": "自动编码器坐标对应的集体质量参数与多极矩坐标结果定性一致，但在某些形变区域存在差异",
+        "condition": "核素^{236}U，基于绝热近似计算"
+      }
+    ],
+    "failure_points": [
+      "principal_component_analysis",
+      "multipole_moment_coordinates"
+    ]
+  }
+}

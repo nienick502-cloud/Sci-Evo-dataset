@@ -1,0 +1,656 @@
+{
+  "id": "NPP_0116",
+  "meta": {
+    "id": "NPP_0116",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Interpretable deep learning for nuclear deformation in heavy ion collisions",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_1906.06429"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T17:35:00.521694",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "重离子碰撞中的核形变参数",
+    "input_data": "已知条件：蒙特卡洛模型生成的逐事件动量各向异性（椭圆流 v_2）与带电强子多重数（dN_ch/dη）的关联数据；核形变作为理论描述的输入参数。",
+    "user_intent": "研究动机：高能重离子碰撞的末态极为复杂，使得从实验数据中定量提取核结构信息（如形变）非常困难。现有方法（如低能库仑激发）虽能测量形变，但需要独立实验。需要探索是否能够仅从重离子碰撞的输出（末态观测量）来约束核形变参数。",
+    "quantifiable_goal": "预测核形变的大小（无量纲的形变参数 β_2）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是通过机器学习模型从重离子碰撞末态观测量反推核形变参数。初始条件包括质量数A、电荷数Z和形变参数β2。论文方法中提到了deformed_woods_saxon_distribution，这是生成初始核密度分布的关键。\n[Gap] 需要将核形变参数转化为具体的核密度分布，作为蒙特卡洛模拟的输入。\n[Decision] 使用deformed_woods_saxon_distribution工具，基于给定的A、Z和β2生成形变核的密度分布。",
+      "action": "model_building",
+      "tool": {
+        "name": "deformed_woods_saxon_distribution",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "deformation_parameter": "deformation_parameter",
+        "deformation_type": "quadrupole (β2)"
+      },
+      "output_state": {
+        "nuclear_density_distribution": "ρ(r, θ, φ; β2) from deformed Woods-Saxon parameterization"
+      },
+      "observation": "基于A、Z和β2，使用形变Woods-Saxon分布生成了核密度分布，该分布将用于后续蒙特卡洛模拟中初始核几何的采样。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 我们已经基于形变Woods-Saxon分布构建了核密度分布ρ(r, θ, φ; β2)，这是描述初始核几何的关键输入。接下来需要利用该分布进行蒙特卡洛模拟，生成大量逐事件的重离子碰撞初始条件，从而获得末态观测量（如椭圆流v₂和带电强子多重数dN_ch/dη）的分布。[Gap] 从核密度分布到末态观测量的模拟需要完整的碰撞演化过程，但论文方法中明确使用了蒙特卡洛模拟（monte_carlo_simulation）来生成事件样本，因此这一步应调用该工具来生成初始几何采样并模拟碰撞。[Decision] 选择monte_carlo_simulation工具，以核密度分布作为输入，生成大量碰撞事件，并输出每个事件的初始几何参数（如偏心率和面积），为后续神经网络训练提供特征数据。",
+      "action": "model_building",
+      "tool": {
+        "name": "monte_carlo_simulation",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_density_distribution": "ρ(r, θ, φ; β2)",
+        "number_of_events": "10^6",
+        "collision_system": "Pb+Pb at sqrt(s_NN)=2.76 TeV",
+        "output_observables": [
+          "initial_eccentricity_epsilon_2",
+          "initial_overlap_area"
+        ]
+      },
+      "output_state": {
+        "initial_geometry_samples": "逐事件初始偏心率和重叠面积数据集",
+        "event_generator_output": "蒙特卡洛模拟生成的初始几何参数列表"
+      },
+      "observation": "使用蒙特卡洛模拟，基于形变Woods-Saxon核密度分布，生成了10^6个Pb+Pb碰撞事件，提取了每个事件的初始偏心率ε₂和重叠面积，这些将作为后续神经网络的特征输入。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "missing_physical_effect",
+      "error_reason": "预测中直接使用蒙特卡洛模拟从核密度分布生成初始几何参数（偏心率ε₂和重叠面积），但论文实际步骤中，在生成核子坐标后还需要通过特征工程计算初始偏心率，且后续需要流体动力学模拟才能得到末态观测量。预测跳过了从初始几何到末态观测量的完整物理演化过程，将初始几何参数直接作为神经网络特征，而论文中神经网络输入是初始几何特征，输出是末态观测量，两者物理意义不同。这种简化忽略了流体动力学演化对末态观测量的关键影响，导致物理链不完整。"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 我们已经通过形变Woods-Saxon分布和蒙特卡洛模拟生成了大量碰撞事件的初始几何参数（偏心率ε₂和重叠面积），这些参数是神经网络预测形变参数β₂的特征输入。下一步需要构建神经网络模型来学习从初始几何到形变参数的映射关系。论文中使用了深度卷积神经网络，但当前特征是一维的几何参数，而非图像数据，因此可能需要先进行特征工程或调整网络结构。\n[Gap] 当前状态是初始几何样本数据集，但尚未构建神经网络模型。需要选择合适的机器学习模型并准备训练数据。\n[Decision] 选择使用ml_feature_construction工具，将初始几何参数（ε₂和重叠面积）构造为适合神经网络输入的特征向量，同时考虑添加回归注意力掩码所需的辅助特征。这一步属于ML数据工程路径上的特征构造，为后续神经网络训练做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_feature_construction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_features": [
+          "initial_eccentricity_epsilon2",
+          "overlap_area"
+        ],
+        "output_features": [
+          "deformation_parameter_beta2"
+        ],
+        "feature_transformation": "标准化和归一化，构造交互特征",
+        "attention_mask_construction": "基于事件分类的二进制掩码"
+      },
+      "output_state": {
+        "training_features": "标准化后的ε₂和重叠面积，以及它们的乘积和平方项",
+        "attention_mask": "根据重叠面积大小分箱生成的二进制掩码向量",
+        "target_variable": "deformation_parameter_beta2"
+      },
+      "observation": "从蒙特卡洛模拟生成的初始几何数据中，构造了用于监督回归的特征矩阵。特征包括标准化后的ε₂、重叠面积，以及它们的交互项（乘积和平方）。同时，根据重叠面积的百分位数生成了回归注意力掩码，用于在训练中聚焦于高灵敏度事件。数据集已划分为训练集（80%）和验证集（20%），准备用于后续神经网络训练。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将初始几何参数（ε₂和重叠面积）作为神经网络的特征输入，并构造交互项和注意力掩码，但论文中神经网络的特征是初始几何特征（如ε₂和N_part），而目标变量是末态观测量（v₂和dN_ch/dη）。预测错误地将形变参数β₂作为目标变量，混淆了输入与输出的物理角色。在论文中，β₂是待反推的参数，而非神经网络的直接输出；神经网络建立的是从初始几何到末态观测量的映射，而非直接预测β₂。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 我们已经通过蒙特卡洛模拟生成了初始几何特征（ε₂和重叠面积）及其交互项，并构造了注意力掩码。下一步需要将这些特征和目标变量（形变参数β₂）组织成适合神经网络训练的数据集，并划分训练集和验证集。 [Gap] 当前状态是特征和掩码已构造，但尚未进行数据集的最终准备和划分，这是训练前的必要步骤。 [Decision] 使用ml_data_acquisition工具来整合特征、目标变量和注意力掩码，生成最终的训练数据集，并按照常见比例（如80/20）划分训练集和验证集。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": ""
+      },
+      "parameters": {
+        "features": "training_features",
+        "targets": "target_variable",
+        "masks": "attention_mask",
+        "split_ratio": 0.8,
+        "random_seed": 42
+      },
+      "output_state": {
+        "training_dataset": "包含特征矩阵、目标向量和注意力掩码的完整数据集，已按80/20比例划分为训练集和验证集",
+        "data_split_info": "训练集样本数: 800,000，验证集样本数: 200,000"
+      },
+      "observation": "使用ml_data_acquisition工具，将标准化后的特征（ε₂、重叠面积及其交互项）与目标变量β₂以及注意力掩码整合，生成了包含1,000,000个样本的完整数据集。按照80/20比例随机划分了训练集（800,000样本）和验证集（200,000样本），并固定随机种子以确保可重复性。数据集已准备好用于后续的神经网络训练。",
+      "valid": false,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将形变参数β₂作为目标变量构建数据集，这与论文的物理流程不符。论文中神经网络的目标变量是末态观测量（v₂和dN_ch/dη），而β₂是通过后续χ²最小化或贝叶斯推断从预测值与实验数据的比较中反推得到的。预测直接以β₂为回归目标，相当于假设神经网络能直接从初始几何特征预测形变参数，这忽略了从初始几何到末态观测量的复杂物理演化以及实验数据约束的必要步骤。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 当前已生成训练数据集，包含特征矩阵、目标变量β₂和注意力掩码，并已完成训练/验证集划分。下一步需要选择并构建合适的神经网络模型来学习从初始几何特征到形变参数的映射关系。论文方法中提到了deep_convolution_neural_network和supervised_regression，但当前特征是一维向量（ε₂、重叠面积及其交互项），并非图像或序列数据，因此直接使用卷积神经网络可能不合适，需要先进行模型选择或特征重塑。\n[Gap] 需要决定如何将一维特征输入到深度卷积神经网络中，或者是否改用更适合表格数据的全连接网络。论文明确使用了deep_convolution_neural_network，可能意味着特征被重塑为二维网格（例如将ε₂和重叠面积在某种参数空间上网格化），或者使用了注意力机制来处理特征。\n[Decision] 选择ml_model_selection工具，基于当前特征维度（4个特征：ε₂、重叠面积、ε₂×重叠面积、ε₂²）和注意力掩码，设计一个适合的神经网络架构。考虑到注意力掩码的存在，采用带有注意力机制的全连接网络或一维卷积网络可能更合理。但为了严格遵循论文方法中的deep_convolution_neural_network，我将特征重塑为二维网格（例如将ε₂和重叠面积离散化为10×10的网格，每个网格单元的值作为特征通道），从而允许使用二维卷积层。这一步是模型构建前的架构选择。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": "1.0"
+      },
+      "parameters": {
+        "feature_dimension": 4,
+        "attention_mask_available": true,
+        "model_type": "deep_convolution_neural_network",
+        "input_reshaping": "reshape features into 2D grid (10x10) with 1 channel",
+        "architecture_description": "Input: 10x10x1 grid; Conv2D layers with 32, 64, 128 filters; GlobalAveragePooling2D; Dense layers with 128, 64 neurons; Output: single neuron with linear activation for regression"
+      },
+      "output_state": {
+        "selected_model_architecture": "Deep convolutional neural network with input reshaping to 10x10 grid, attention mechanism integrated via masking in loss function",
+        "model_hyperparameters": "Conv2D filters: [32,64,128], kernel_size: 3x3, activation: ReLU, pooling: MaxPooling2D after each conv layer, dense units: [128,64], dropout: 0.2, optimizer: Adam, learning_rate: 0.001, loss: masked_mean_squared_error"
+      },
+      "observation": "选择了深度卷积神经网络架构，将一维特征（ε₂、重叠面积及其交互项）重塑为10×10的二维网格，每个网格单元代表特征空间的一个区域。注意力掩码将用于损失函数中，对重叠面积较大的事件赋予更高权重，从而让模型更关注对形变敏感的区域。模型包含3个卷积层和2个全连接层，输出层为单个神经元用于回归预测β₂。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将一维特征（ε₂、重叠面积及其交互项）重塑为10×10二维网格作为卷积神经网络输入，但论文中卷积神经网络的输入是核子位置分布或初始几何特征的网格化表示，而非从少量一维特征人工构造的网格。这种重塑缺乏物理依据，因为ε₂和重叠面积是标量，其交互项也是标量，强行映射到二维网格会引入虚假的空间结构，破坏物理量的原始含义。此外，预测中注意力掩码基于重叠面积百分位数，而论文中注意力掩码用于回归末态观测量时的权重分配，物理目的不同。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经完成了数据准备和模型选择，下一步需要训练神经网络模型，使其能够从初始几何特征（ε₂、重叠面积及其交互项）中回归出核形变参数 β₂。论文中使用了深度卷积神经网络和监督回归方法，并引入了注意力掩码来聚焦于高重叠面积事件。\n[Gap] 当前状态中，我们有了训练数据集和模型架构，但尚未执行实际的训练过程，也没有得到训练后的模型权重和损失函数值。\n[Decision] 因此，我选择使用 ml_neural_network_training 工具，基于准备好的训练数据集和注意力掩码，训练所选的深度卷积神经网络，并记录训练过程中的损失函数值，以便后续评估模型性能。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "training_dataset": "training_dataset (800,000 samples with features, target β₂, and attention mask)",
+        "model_architecture": "Deep convolutional neural network with input reshaped to 10x10 grid, Conv2D filters [32,64,128], kernel_size 3x3, ReLU activation, final dense layer with linear output",
+        "loss_function": "Mean squared error weighted by attention mask: L = (1/N) Σ mask_i * (pred_i - β₂_i)²",
+        "optimizer": "Adam with learning rate 0.001",
+        "batch_size": 64,
+        "epochs": 100,
+        "validation_split": 0.2
+      },
+      "output_state": {
+        "trained_model": "深度卷积神经网络模型，权重已通过训练优化",
+        "loss_function_value": "训练集和验证集上的加权均方误差值，随epoch变化"
+      },
+      "observation": "使用ml_neural_network_training工具，在800,000个训练样本上训练了所选的深度卷积神经网络。训练过程中，注意力掩码被应用于损失函数，使得模型更关注重叠面积较大的事件（这些事件对形变参数更敏感）。经过100个epoch的训练，模型收敛，训练集损失函数值降至约0.015，验证集损失函数值约为0.018，表明模型具有良好的泛化能力。训练后的模型权重已保存，可用于后续预测。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测中训练神经网络以β₂为目标变量，但论文中神经网络训练的目标是末态观测量（v₂和dN_ch/dη）。预测的损失函数基于β₂的预测误差，而论文的损失函数基于末态观测量的预测误差。两者物理目标完全不同：预测试图直接学习形变参数，而论文是学习从初始几何到末态观测量的映射。此外，预测中注意力掩码用于加权β₂的回归，但论文中注意力掩码用于加权末态观测量的回归，物理意义不同。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已成功训练了深度卷积神经网络模型，并获得了训练过程中的损失函数值。根据合法推导路径 Path 1: model_uncertainty -> prediction_output -> model_weights -> loss_function_value -> training_dataset，下一步需要从训练好的模型生成预测输出，即使用模型对验证集或新数据进行预测，得到 deformation_parameter_beta2 的估计值。[Gap] 目前已有训练好的模型和损失函数值，但尚未生成最终的预测输出（prediction_output）。[Decision] 因此，下一步应使用 ml_direct_prediction 工具，将训练好的模型应用于验证集（或测试集），输出预测的 β₂ 值，并与真实值比较，为后续的不确定性量化做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "model": "trained_deep_convolutional_neural_network",
+        "input_data": "validation_set_features",
+        "attention_mask": "validation_set_attention_mask",
+        "output_type": "regression"
+      },
+      "output_state": {
+        "prediction_output": "验证集上预测的 deformation_parameter_beta2 值数组，形状为 (200000, 1)",
+        "prediction_uncertainty": "暂未计算，后续通过贝叶斯不确定性量化获得"
+      },
+      "observation": "使用训练好的深度卷积神经网络对验证集（200,000个样本）进行直接预测，输出了每个事件对应的 β₂ 预测值。预测结果与真实 β₂ 值的初步比较显示，模型在重叠面积较大的事件上具有较高的预测精度，验证了注意力掩码的有效性。该预测输出将作为后续不确定性量化和模型评估的基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测使用训练好的模型直接预测β₂，但论文中模型预测的是末态观测量（v₂和dN_ch/dη），而非形变参数。预测的模型输出与论文的物理流程不符：论文中β₂是通过后续与实验数据比较（χ²最小化或贝叶斯推断）反推得到的，而非神经网络直接输出。预测将反推步骤前置到神经网络中，混淆了物理建模与参数推断的层次。"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前已通过深度卷积神经网络对验证集进行了直接预测，得到了 deformation_parameter_beta2 的预测值数组。为了全面评估模型性能并量化预测的不确定性，需要进一步进行贝叶斯不确定性量化，这属于机器学习评估与验证环节。 [Gap] 目前仅有预测值，缺乏对预测可靠性的量化指标，如置信区间或预测方差，这在实际物理应用中至关重要，因为核形变参数的测量需要知道其不确定度。 [Decision] 因此，下一步应使用贝叶斯不确定性量化工具，基于训练好的神经网络模型，通过变分推断或蒙特卡洛dropout等方法，计算验证集上每个预测值的不确定性，从而得到完整的 prediction_output 包含均值和方差。",
+      "action": "model_building",
+      "tool": {
+        "name": "bayesian_uncertainty_quantification",
+        "version": ""
+      },
+      "parameters": {
+        "model": "trained_model",
+        "dataset": "validation_set",
+        "method": "Monte Carlo dropout with 100 forward passes",
+        "attention_mask_application": "uncertainty weighted by attention mask"
+      },
+      "output_state": {
+        "prediction_output": "验证集上每个事件的 β₂ 预测均值 (shape: (200000, 1)) 和预测标准差 (shape: (200000, 1))，以及对应的 95% 置信区间",
+        "prediction_uncertainty": "通过贝叶斯不确定性量化获得，包含 aleatoric uncertainty 和 epistemic uncertainty 的分解"
+      },
+      "observation": "使用 bayesian_uncertainty_quantification 工具，对训练好的深度卷积神经网络应用 Monte Carlo dropout 方法（100次前向传播），在验证集上计算了每个样本的预测均值和标准差。注意力掩码被用于加权不确定性估计，使得重叠面积较大的事件的不确定性被更准确地评估。结果输出为包含均值和标准差的数组，为后续的 experimental_comparison 和 systematic_trend_analysis 提供了完整的预测分布信息。",
+      "step_mode": "error_analysis",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测对β₂的预测值进行贝叶斯不确定性量化，但论文中不确定性量化是针对末态观测量的预测（v₂和dN_ch/dη），而非直接针对β₂。论文中β₂的不确定性是通过贝叶斯推断从实验数据与模型预测的比较中得到的，涉及χ²拟合和先验分布。预测直接对β₂的预测值做不确定性估计，忽略了实验数据约束和反演过程的统计特性，物理逻辑不成立。"
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤2：使用蒙特卡洛模拟直接从核密度分布生成初始几何参数（ε₂和重叠面积），已知条件包括形变Woods-Saxon分布和需要生成大量碰撞事件。。[Gap] 错过的信号：初始几何参数（ε₂和重叠面积）是中间量，而非末态观测量；决策时已知因为特征工程步骤尚未执行，且末态观测量（v₂和dN_ch/dη）需要流体动力学演化才能得到，本应触发对物理链完整性的警觉。。[Decision] 正确判断方式：面对需要从核密度分布得到末态观测量的任务，应首先检查是否所有中间步骤（核子坐标采样、特征工程、流体演化）都已规划；如果缺少任何一步，则不能直接跳到蒙特卡洛模拟生成最终特征。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "跳过了核子坐标采样和特征工程步骤，直接将核密度分布与初始几何参数关联，忽略了从密度分布到几何量的中间计算。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：将初始几何参数（ε₂和重叠面积）构造为神经网络特征，并添加交互项和注意力掩码，已知条件包括这些参数是标量且已通过蒙特卡洛模拟生成。。[Gap] 错过的信号：神经网络的目标变量应为末态观测量（v₂和dN_ch/dη），而非形变参数β₂；决策时已知因为论文目标是反推β₂，但神经网络应建立从初始几何到末态观测量的映射，本应触发对输入输出物理角色混淆的警觉。。[Decision] 正确判断方式：面对构建监督学习任务，应首先明确输入和输出的物理意义：输入是初始几何特征，输出是实验可观测的末态量；如果输出设为β₂，则相当于假设神经网络能直接学习形变参数，这忽略了流体演化和实验数据约束。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "混淆了神经网络输入与输出的物理角色，将待反推的参数β₂错误地设为回归目标。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：将形变参数β₂作为目标变量构建数据集，已知条件包括特征已构造且需要划分训练集和验证集。。[Gap] 错过的信号：β₂是待反推的参数，而非神经网络可直接学习的量；决策时已知因为论文流程中β₂是通过χ²最小化从实验数据与模型预测的比较中得到的，本应触发对目标变量物理来源的警觉。。[Decision] 正确判断方式：面对构建训练数据集，应首先确认目标变量是否可直接从模拟中获得且物理意义正确；如果目标变量是β₂，则需检查是否有从初始几何到β₂的直接映射，而实际上β₂是输入参数而非输出。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "将输入参数β₂错误地当作输出目标，忽略了β₂是控制初始几何的输入而非从初始几何可预测的量。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：将一维特征（ε₂、重叠面积及其交互项）重塑为10×10二维网格作为卷积神经网络输入，已知条件包括这些特征是标量且无空间结构。。[Gap] 错过的信号：标量特征强行映射到二维网格会引入虚假的空间结构，破坏物理量的原始含义；决策时已知因为ε₂和重叠面积是全局标量，无内在空间分布，本应触发对特征维度变换物理合理性的警觉。。[Decision] 正确判断方式：面对使用卷积神经网络处理一维特征，应首先检查特征是否具有空间结构；如果特征是无序标量，则不应使用卷积网络，而应选择全连接网络或保持一维结构。。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "忽略了卷积神经网络对输入数据空间结构的要求，强行将标量特征重塑为网格，引入虚假相关性。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：训练神经网络以β₂为目标变量，并应用注意力掩码加权β₂的回归，已知条件包括训练数据集已构建且模型架构已选择。。[Gap] 错过的信号：注意力掩码在论文中用于加权末态观测量的回归，而非β₂；决策时已知因为注意力掩码基于重叠面积百分位数，其物理目的是聚焦对形变敏感的事件，但β₂本身是输入参数，本应触发对注意力机制物理目的错位的警觉。。[Decision] 正确判断方式：面对应用注意力掩码，应首先明确其物理目的：如果掩码用于加权β₂的回归，则需检查β₂是否对重叠面积敏感；实际上β₂是控制重叠面积的输入，而非输出，因此掩码的加权逻辑不成立。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "注意力掩码的物理目的被错误应用，将其从加权末态观测量回归错误地转移到加权输入参数回归。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 14,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤7：使用训练好的模型直接预测β₂，已知条件包括模型已训练且验证集已准备好。。[Gap] 错过的信号：模型输出应为末态观测量，而非β₂；决策时已知因为训练时目标变量设为β₂，但论文中模型预测的是v₂和dN_ch/dη，本应触发对模型输出物理意义与论文不一致的警觉。。[Decision] 正确判断方式：面对使用模型进行预测，应首先确认模型输出是否与论文物理流程一致；如果输出是β₂，则需检查是否有从初始几何直接预测β₂的物理基础，而实际上β₂是输入参数，模型无法从自身输入预测自身。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "模型输出与论文物理流程完全脱节，将输入参数β₂作为预测目标，导致循环逻辑。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 15,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤8：对β₂的预测值进行贝叶斯不确定性量化，已知条件包括模型预测了β₂且需要量化不确定性。。[Gap] 错过的信号：β₂的不确定性应通过贝叶斯推断从实验数据与模型预测的比较中得到，而非直接对预测值做不确定性估计；决策时已知因为论文中不确定性量化是针对末态观测量的预测，β₂的不确定性来自反演过程，本应触发对不确定性来源的警觉。。[Decision] 正确判断方式：面对量化参数不确定性，应首先明确不确定性来源：如果是对β₂的预测值做不确定性估计，则需检查是否有实验数据约束；实际上β₂的不确定性来自χ²拟合和先验分布，而非模型预测的统计波动。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "混淆了模型预测不确定性与参数反演不确定性，将本应通过贝叶斯推断得到的参数不确定性错误地归因于模型预测的统计误差。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在核物理与机器学习结合的问题中，必须严格区分物理建模的层次：输入参数（如形变β₂）、中间几何量（如ε₂）、末态观测量（如v₂）和反演参数各有不同的物理角色，不能混淆。任何将输入参数直接作为机器学习目标的做法都忽略了物理因果链，导致逻辑循环。"
+    },
+    {
+      "step_index": 16,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1 分别使用 deformed_woods_saxon_distribution 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 17,
+      "thought": "[Background] 论文旨在通过高能重离子碰撞的末态观测量（椭圆流 v₂ 和带电强子多重数 dN_ch/dη）反推原子核的形变参数 β₂。初始条件包括质量数 A、电荷数 Z 和形变参数 β₂。论文方法中使用了形变 Woods-Saxon 分布来生成初始核密度分布，这是连接核形变与碰撞几何的关键第一步。\n[Gap] 当前尚未建立从核形变参数到初始核密度分布的具体数学表达式。需要将形变参数 β₂ 嵌入到 Woods-Saxon 分布中，生成三维核密度函数。\n[Decision] 因此，第一步应使用形变 Woods-Saxon 参数化来构建核密度分布。该工具属于势能构建类别，可从可用工具列表中选择 woods_saxon_parameterization。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "deformation_parameter": "β₂",
+        "radius_parameter": "R₀ = 1.2 A^{1/3} fm",
+        "surface_diffuseness": "a = 0.53 fm"
+      },
+      "output_state": {
+        "nuclear_density_distribution": "ρ(r, θ, φ) = ρ₀ / [1 + exp((r - R(θ, φ))/a)]",
+        "deformed_radius": "R(θ, φ) = R₀ [1 + β₂ Y₂₀(θ, φ)]"
+      },
+      "observation": "建立了形变 Woods-Saxon 密度分布，其中半径随角度变化由四极形变参数 β₂ 控制。该分布将作为后续蒙特卡洛模拟中核子位置采样的基础。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 18,
+      "thought": "[Background] 我们已经建立了形变 Woods-Saxon 密度分布，该分布描述了核物质在空间中的概率密度，是蒙特卡洛模拟中核子位置采样的基础。为了生成逐事件的初始几何构型，需要从该密度分布中随机采样核子的三维坐标。\n[Gap] 当前仅有密度分布的解析形式，尚未实现具体的采样算法或模拟步骤，无法直接用于后续的神经网络训练。\n[Decision] 因此，下一步应使用蒙特卡洛方法，基于形变 Woods-Saxon 密度分布对核子位置进行随机采样，生成单个事件的核子坐标列表，作为初始几何的数值实现。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": ""
+      },
+      "parameters": {
+        "sampling_method": "rejection_sampling",
+        "density_function": "ρ(r, θ, φ) = ρ₀ / [1 + exp((r - R(θ, φ))/a)]",
+        "deformed_radius": "R(θ, φ) = R₀ [1 + β₂ Y₂₀(θ, φ)]",
+        "nucleon_number": "A",
+        "event_count": 1
+      },
+      "output_state": {
+        "nucleon_coordinates": "{(x_i, y_i, z_i) for i=1..A}",
+        "event_geometry": "single_event_nucleon_positions"
+      },
+      "observation": "通过拒绝采样法从形变 Woods-Saxon 密度分布中成功采样了 A 个核子的三维坐标，生成了一个事件的初始几何构型。该构型包含了形变 β₂ 对核子空间分布的影响，为后续计算初始偏心率和椭圆流等观测量提供了数值基础。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 19,
+      "thought": "[Background] 我们已经建立了形变 Woods-Saxon 密度分布（Step 1），并通过蒙特卡洛采样生成了单个事件的核子三维坐标（Step 2）。下一步需要从这些核子坐标中提取对椭圆流敏感的初始几何量，即初始偏心率和参与核子数。这些量将作为神经网络的输入特征，用于预测末态椭圆流 v₂。 [Gap] 当前仅有核子坐标，尚未计算任何几何观测量。 [Decision] 使用特征工程工具，从核子坐标计算初始偏心率 ε₂ 和参与核子数 N_part，这是连接初始几何与末态流的关键中间量。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "nucleon_coordinates": "{(x_i, y_i, z_i) for i=1..A}",
+        "impact_parameter": "b (从碰撞参数分布采样)",
+        "calculation_method": "从核子坐标计算初始偏心率 ε₂ 和参与核子数 N_part"
+      },
+      "output_state": {
+        "initial_eccentricity": "ε₂ = sqrt(⟨r² cos(2φ)⟩² + ⟨r² sin(2φ)⟩²) / ⟨r²⟩",
+        "participant_number": "N_part = 参与碰撞的核子数目（基于核子-核子碰撞判据）",
+        "event_features": "feature_vector = [ε₂, N_part, ...]"
+      },
+      "observation": "从核子坐标出发，通过计算初始能量密度分布的加权二阶矩，得到了初始偏心率 ε₂。同时，基于核子-核子碰撞几何判据（如 Glauber 模型），确定了参与碰撞的核子数 N_part。这两个特征对末态椭圆流 v₂ 有强关联，将作为后续神经网络回归的输入特征。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 20,
+      "thought": "[Background] 前序步骤已生成形变Woods-Saxon密度分布、采样得到核子坐标、并计算了初始偏心率ε₂和参与者数N_part等特征。论文方法中明确使用深度卷积神经网络进行监督回归，需要大量配对数据（输入特征→输出观测值）。[Gap] 目前仅有单事件的特征向量，尚未生成对应的末态观测值（如椭圆流v₂和带电强子多重数dN_ch/dη），无法构成训练样本。[Decision] 因此，下一步应通过蒙特卡洛模拟（如使用输运模型或流体动力学演化）将初始几何特征映射到末态可观测量，从而生成完整的训练数据对。这对应工具ml_data_acquisition，用于获取模拟数据。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "event_features = [ε₂, N_part, ...]",
+        "simulation_model": "蒙特卡洛流体动力学模拟（如iEBE-VISHNU或类似框架）",
+        "output_observables": "v₂, dN_ch/dη"
+      },
+      "output_state": {
+        "training_sample": "{(feature_vector_i, observable_vector_i) for i=1..N_events}",
+        "observable_vector": "[v₂, dN_ch/dη]"
+      },
+      "observation": "通过运行蒙特卡洛流体动力学模拟，对每个初始几何事件（由特征向量表示）演化至末态，提取椭圆流v₂和带电强子多重数dN_ch/dη。生成大量配对数据，构成监督学习所需的训练数据集。该步骤完成了从初始核形变到末态观测量的完整映射，为后续神经网络训练提供了数据基础。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 21,
+      "thought": "[Background] 我们已经通过蒙特卡洛模拟生成了大量配对数据，每个样本包含初始几何特征（如 ε₂, N_part）和对应的末态观测量（v₂, dN_ch/dη）。现在需要利用这些数据训练一个深度卷积神经网络，使其能够从初始几何特征（或直接从核子位置分布）预测末态观测量，从而建立从核形变参数到实验可观测量的端到端映射。 [Gap] 当前我们只有原始的特征-标签对，但尚未构建神经网络模型并进行训练。 [Decision] 因此，下一步是选择合适的神经网络架构并执行训练过程。根据论文方法，应使用深度卷积神经网络进行监督回归，并采用回归注意力掩码机制。这里我们选择工具 ml_neural_network_training 来执行训练步骤。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "model_architecture": "deep_convolutional_neural_network_with_regression_attention_mask",
+        "input_features": "event_features (ε₂, N_part, ...) or raw nucleon coordinate grid",
+        "output_targets": "observable_vector = [v₂, dN_ch/dη]",
+        "loss_function": "mean_squared_error",
+        "optimizer": "Adam",
+        "training_data": "training_sample from step 4",
+        "validation_split": 0.2,
+        "epochs": 100,
+        "batch_size": 32
+      },
+      "output_state": {
+        "trained_model": "deep_convolutional_neural_network_with_attention_mask",
+        "model_weights": "optimized_weights_after_training",
+        "loss_function_value": "final_training_loss_value"
+      },
+      "observation": "使用深度卷积神经网络（含回归注意力掩码）对训练数据集进行监督回归训练。网络输入为初始几何特征（或核子位置网格），输出为末态观测量 v₂ 和 dN_ch/dη。通过最小化均方误差损失函数，优化网络权重，得到训练好的模型。训练完成后，模型能够从初始核形变参数（通过特征间接体现）预测实验可观测的椭圆流和多重数。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 22,
+      "thought": "[Background] 我们已经通过蒙特卡洛流体动力学模拟生成了训练数据集，并训练了深度卷积神经网络，得到了优化后的模型权重和最终的损失函数值。现在需要利用这个训练好的模型进行预测，即输入核形变参数（如 β₂），输出对应的末态观测量 v₂ 和 dN_ch/dη，从而建立从形变到观测量的映射。[Gap] 当前状态是模型已训练完成，但尚未进行预测输出。我们需要将训练好的模型应用于新的输入数据，生成预测结果。[Decision] 因此，下一步应使用训练好的神经网络模型对一组新的核形变参数进行预测，得到对应的 v₂ 和 dN_ch/dη 值。这属于机器学习中的模型预测步骤，应使用 ml_direct_prediction 工具。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_features": "deformation_parameter_beta2",
+        "model_weights": "trained_model_weights",
+        "prediction_targets": [
+          "v2",
+          "dN_ch/dEta"
+        ]
+      },
+      "output_state": {
+        "predicted_v2": "v₂_pred = f_θ(β₂)",
+        "predicted_dNch_dEta": "(dN_ch/dη)_pred = g_θ(β₂)",
+        "prediction_output": "predicted_observables = [v₂_pred, (dN_ch/dη)_pred]"
+      },
+      "observation": "使用训练好的深度卷积神经网络，对给定的核形变参数 β₂ 进行前向传播计算，得到了对应的椭圆流 v₂ 和带电强子多重数 dN_ch/dη 的预测值。该预测建立了从核形变到末态观测量的直接映射，为后续通过实验数据反推形变参数提供了基础。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 23,
+      "thought": "[Background] 当前已通过训练好的深度卷积神经网络，从核形变参数 β₂ 预测得到末态观测量 v₂ 和 dN_ch/dη。为了验证该预测的可靠性，并评估模型对核形变参数的敏感性，需要将预测结果与实验测量值进行对比，并分析预测不确定性。 [Gap] 目前仅有模型预测值，缺少与实验数据的定量比较以及预测不确定性的量化，这会影响对核形变参数反推结果的置信度。 [Decision] 因此，下一步应使用交叉验证评估方法，通过比较预测值与实验值，并利用贝叶斯不确定性量化工具，给出预测的统计误差和模型误差，从而验证模型的有效性并量化预测的可靠性。",
+      "action": "verification",
+      "tool": {
+        "name": "cross_validation_evaluation",
+        "version": ""
+      },
+      "parameters": {
+        "predicted_observables": "[v₂_pred, (dN_ch/dη)_pred]",
+        "experimental_data": "来自RHIC/LHC实验的v₂和dN_ch/dη测量值",
+        "uncertainty_method": "贝叶斯不确定性量化"
+      },
+      "output_state": {
+        "prediction_uncertainty": "σ_pred = sqrt(σ_stat² + σ_model²)",
+        "validation_metric": "χ² = Σ_i (O_pred,i - O_exp,i)² / σ_i²",
+        "model_credibility": "贝叶斯后验概率分布 P(β₂ | v₂_exp, dN_ch/dη_exp)"
+      },
+      "observation": "通过交叉验证评估，将模型预测的v₂和dN_ch/dη与实验测量值进行χ²拟合优度检验，并利用贝叶斯不确定性量化方法，得到预测值的统计误差和模型误差。该步骤量化了预测的不确定性，并为后续通过贝叶斯推断反推核形变参数提供了后验概率分布的基础。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 24,
+      "thought": "[Background] 我们已经通过深度卷积神经网络建立了从核形变参数 β₂ 到末态观测量（v₂ 和 dN_ch/dη）的映射，并通过交叉验证评估得到了预测不确定性 σ_pred 和模型可信度（贝叶斯后验概率分布）。[Gap] 当前我们拥有预测输出（prediction_output）和模型权重（model_weights），但尚未将预测结果与实验数据结合，以反推核形变参数 β₂ 的最优值及其不确定性。合法路径要求从 prediction_output 和 model_weights 出发，经过 loss_function_value 和 training_dataset，最终到达目标。然而，直接反推形变参数需要利用贝叶斯推断或最小二乘拟合，这涉及 loss_function_value 的重新计算（即实验数据与预测的差异）。[Decision] 因此，下一步应使用贝叶斯推断或 χ² 最小化方法，将实验测量值（v₂_exp, dN_ch/dη_exp）与模型预测值（v₂_pred, dN_ch/dη_pred）进行比较，计算损失函数值（如 χ²），从而得到 β₂ 的后验分布。这属于模型评估和参数推断步骤，可选用 chi_squared_minimization 工具，并更新 loss_function_value 状态。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "experimental_data": "v₂_exp, dN_ch/dη_exp",
+        "predicted_data": "v₂_pred, (dN_ch/dη)_pred",
+        "uncertainties": "σ_pred (包含统计误差和模型误差)",
+        "prior_distribution": "P(β₂) (通常取均匀分布或基于低能实验的先验)"
+      },
+      "output_state": {
+        "loss_function_value": "χ²(β₂) = Σ_i [(O_pred,i(β₂) - O_exp,i)² / σ_i²]",
+        "posterior_distribution": "P(β₂ | data) ∝ P(data | β₂) P(β₂) = exp(-χ²/2) P(β₂)",
+        "inferred_deformation": "β₂_best = argmin χ²(β₂), 以及 68% 置信区间"
+      },
+      "observation": "通过 χ² 最小化（或贝叶斯推断），将模型预测的 v₂ 和 dN_ch/dη 与实验测量值进行比较，计算损失函数值 χ²(β₂)。结合先验分布，得到核形变参数 β₂ 的后验概率分布，从而反推出最可能的 β₂ 值及其不确定性。该步骤直接使用了 prediction_output 和 model_weights（通过前向传播得到预测值），并更新了 loss_function_value 状态，为后续可能的进一步训练或验证提供了基础。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的β₂值与已知的核形变数据库（如RIPL-3或ENSDF中通过库仑激发实验提取的形变参数）在质量数A=20-250范围内进行逐核对比，验证平均绝对误差<0.05的可靠性。其次，对预测结果进行量纲分析，确保β₂无量纲且数值在物理合理范围（0-0.6）内，并检验极限情况（如双幻数核附近β₂应趋近于0）是否符合预期。最后，采用独立方法（如基于Skyrme-HFB的微观形变计算或液滴模型）对随机选取的50个核素进行交叉验证，若两者偏差>0.1则提示深度卷积神经网络可能因训练数据稀疏或外推能力不足而失效。",
+    "metrics": {
+      "result_1": {
+        "value": "平均绝对误差 < 0.05",
+        "unit": "对于 β_2 在 0.0 到 0.3 范围内的模拟数据",
+        "interpretation": "形变参数预测误差"
+      },
+      "result_2": {
+        "value": "皮尔逊相关系数 > 0.95",
+        "unit": "在测试集上，预测 β_2 与真实 β_2 之间",
+        "interpretation": "预测相关性"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：low_energy_coulomb_excitation；traditional_geometric_fitting。"
+  },
+  "paper_methods": [
+    "deformed_woods_saxon_distribution",
+    "deep_convolution_neural_network",
+    "supervised_regression",
+    "regression_attention_mask",
+    "monte_carlo_simulation"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "deformed_woods_saxon_distribution",
+        "desc": "用于生成具有四极形变参数的核密度分布，作为蒙特卡洛模拟的初始条件"
+      },
+      {
+        "name": "deep_convolution_neural_network",
+        "desc": "以 v_2 和 dN_ch/dη 的二维关联图为输入，预测核形变参数 β_2"
+      },
+      {
+        "name": "supervised_regression",
+        "desc": "使用已知形变参数的模拟数据训练神经网络，实现从末态观测量到形变参数的回归"
+      },
+      {
+        "name": "regression_attention_mask",
+        "desc": "在神经网络中引入注意力机制，增强对关键特征区域的聚焦，提升预测精度"
+      },
+      {
+        "name": "monte_carlo_simulation",
+        "desc": "生成大量逐事件重离子碰撞数据，覆盖不同形变参数和碰撞条件"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "R(\\theta) = R_0 \\left[1 + \\beta_2 Y_{20}(\\theta)\\right]"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "v_2 = \\langle \\cos(2\\phi) \\rangle"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "形变参数预测误差",
+        "value": "平均绝对误差 < 0.05",
+        "condition": "对于 β_2 在 0.0 到 0.3 范围内的模拟数据"
+      },
+      {
+        "quantity": "预测相关性",
+        "value": "皮尔逊相关系数 > 0.95",
+        "condition": "在测试集上，预测 β_2 与真实 β_2 之间"
+      }
+    ],
+    "failure_points": [
+      "low_energy_coulomb_excitation",
+      "traditional_geometric_fitting"
+    ]
+  }
+}

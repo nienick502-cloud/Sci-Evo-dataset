@@ -1,0 +1,417 @@
+{
+  "id": "NPP_0022",
+  "meta": {
+    "id": "NPP_0022",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "Prediction of Alpha-Decay Half-Lives of Actinide Nuclei Using the DDM3Y Effective Interaction Potential",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2603.16199"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "锕系核素α衰变半衰期",
+    "input_data": "核素范围 89 ≤ Z ≤ 103 的154个锕系核素；实验Q值或半衰期数据；与Viola-Seaborg (VSS)、CPPM、GLDM、ELDM等半经验模型进行比较",
+    "user_intent": "现有半经验模型和宏观/微观方法在预测α衰变半衰期时存在精度和普适性方面的不足，需要发展一种能系统改进与实验数据一致性、可靠预测重核及新同位素稳定性的方法。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是预测锕系核素的α衰变半衰期。已知输入是核素（Z，A）和实验Q值（或需要计算）。[Gap] 需要计算α粒子与子核之间的相互作用势能，这是计算穿透概率的基础。α衰变半衰期主要由穿透库仑势垒的概率决定，而势垒形状由核势与库仑势共同决定。[Decision] 使用 double_folding_model 计算α粒子与子核之间的核相互作用势。该模型通过折叠α粒子和子核的核物质密度分布与有效核子-核子相互作用来得到核势。预期得到核势 $V_N(r)$ 作为两核中心距离 $r$ 的函数。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {
+        "alpha_density": "Parameterized density distribution (e.g., Gaussian)",
+        "daughter_density": "Parameterized density distribution (e.g., two-parameter Fermi)",
+        "interaction": "To be specified in next step"
+      },
+      "observation": "预期得到α粒子与子核之间的核相互作用势 $V_N(r)$ 的解析或数值表达式。该势在短程为吸引势，其深度和形状依赖于折叠所用的密度分布参数和核子-核子相互作用。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已决定使用折叠模型计算核势 $V_N(r)$。[Gap] 折叠模型需要输入一个有效的核子-核子相互作用势。[Decision] 使用 density_dependent_m3y_interaction 作为折叠模型中的有效相互作用。M3Y相互作用是常用的唯象相互作用，其密度依赖性能更好地描述核物质性质。预期将密度依赖的M3Y相互作用代入上一步的折叠积分公式中。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "density_dependent_m3y_interaction",
+        "version": ""
+      },
+      "parameters": {
+        "interaction_form": "v(s, \\rho) = g(\\rho) * [v_{D}(s) + v_{EX}(s)]",
+        "density_dependence": "g(\\rho) = C[1 - \\alpha \\rho^{\\beta}]"
+      },
+      "observation": "预期得到一个依赖于核子间距离 $s$ 和局部核物质密度 $\\rho$ 的有效相互作用势 $v(s, \\rho)$。将此势代入步骤1的折叠积分，最终确定核势 $V_N(r)$ 的具体形式，其中包含了密度依赖性的修正。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 通过步骤1和2，得到了总相互作用势 $V(r) = V_N(r) + V_C(r)$，其中 $V_C(r)$ 是点电荷库仑势（$r > R_C$）或均匀带电球库仑势（$r \\le R_C$）。[Gap] 需要计算α粒子穿透该势垒的穿透概率 $P$，这是计算半衰期的核心。[Decision] 使用 wkb_approximation 计算穿透概率。在WKB近似下，穿透概率 $P = \\exp[-2G]$，其中 $G$ 是Gamow因子，通过对势垒内部动能进行积分得到。这是处理一维势垒穿透问题的标准量子力学方法。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "penetrability_formula": "P = \\exp[-2 \\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r)-Q)} \\, dr]",
+        "turning_points": "$r_1$, $r_2$ where $V(r)=Q$"
+      },
+      "observation": "预期得到穿透概率 $P$ 的表达式，它是一个指数衰减函数，指数项（Gamow因子 $G$）依赖于势垒形状 $V(r)$、衰变能 $Q$ 和约化质量 $\\mu$。$P$ 对 $Q$ 值极其敏感。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已得到穿透概率 $P$。[Gap] 需要将穿透概率与半衰期 $T_{1/2}$ 联系起来。α衰变半衰期通常表示为 $T_{1/2} = (\\ln 2) / \\lambda$，而衰变常数 $\\lambda = \\nu P$，其中 $\\nu$ 是α粒子在势阱内撞击势垒的频率。[Decision] 引入近似：撞击频率 $\\nu$ 通常用 $\\nu_0 = v/(2R_0)$ 估算，其中 $v$ 是α粒子在核内的速度，$R_0$ 是核半径。结合WKB穿透概率，得到半衰期的理论表达式 $T_{1/2}^{\\text{theo}} = (\\ln 2) / (\\nu_0 P)$。",
+      "action": "approximation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "frequency_approximation": "$\\nu \\approx \\frac{v}{2R_0}$, $v = \\sqrt{2(Q + V_0)/\\mu}$",
+        "preformation_factor": "可能隐含在频率中或设为常数"
+      },
+      "observation": "预期得到一个基于微观势垒计算的半衰期理论公式：$T_{1/2}^{\\text{theo}} = \\frac{\\ln 2}{\\nu_0} \\exp[2G]$。其中 $\\nu_0$ 和 $G$ 都依赖于核素（通过 $Q$, $\\mu$, $V(r)$）。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "missing_physical_effect",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤忽略了α粒子预形成概率P_α这一关键物理效应。在α衰变理论中，α粒子在母核内并非始终存在，而是需要从核子组态中形成的概率，该概率直接影响衰变常数λ = ν P P_α。忽略P_α会导致半衰期计算出现数量级偏差，因为P_α通常远小于1且随核素变化。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 现在有了一个基于微观模型（折叠势+WKB）的半衰期理论预测方法。[Gap] 需要评估该方法的整体性能，并与广泛使用的经验公式进行基准比较，以证明其改进。[Decision] 使用 viola_seaborg_formula 作为基准。Viola-Seaborg公式是经典的α衰变半衰期经验公式，形式为 $\\log_{10} T_{1/2} = aZ/\\sqrt{Q} + bZ + c$。将本文模型对154个锕系核素的预测结果 $\\log_{10} T_{1/2}^{\\text{theo}}$ 与Viola-Seaborg公式的预测 $\\log_{10} T_{1/2}^{\\text{VSS}}$ 分别与实验值 $\\log_{10} T_{1/2}^{\\text{exp}}$ 进行比较。",
+      "action": "verification",
+      "tool": {
+        "name": "viola_seaborg_formula",
+        "version": ""
+      },
+      "parameters": {
+        "form": "$\\log_{10} T_{1/2} = aZ/\\sqrt{Q} + bZ + c$",
+        "coefficients": "采用文献中的标准系数或对数据集进行拟合得到"
+      },
+      "observation": "预期得到两个比较结果：1) 本文微观模型预测值与实验值的均方根偏差（RMSD）；2) Viola-Seaborg公式预测值与实验值的RMSD。通过比较这两个RMSD，可以定量说明本文模型是否以及在多大程度上改进了预测精度。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已完成模型预测并与经验公式比较。[Gap] 为了展示模型的可靠性和预测能力，特别是对于实验数据稀少或新核素，需要系统分析预测偏差的规律。[Decision] 进行数值计算，绘制理论预测的半衰期 $T_{1/2}^{\\text{theo}}$ 与实验值 $T_{1/2}^{\\text{exp}}$ 的比值（或对数值之差）随中子数 $N$、质子数 $Z$ 或 $Q$ 值变化的系统学图。同时，可以计算并比较不同模型（VSS， CPPM等）的偏差分布。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "comparison_metric": "$\\Delta \\log_{10} T = \\log_{10} T_{1/2}^{\\text{theo}} - \\log_{10} T_{1/2}^{\\text{exp}}$",
+        "nuclei_range": "154 actinide nuclei (89 ≤ Z ≤ 103)"
+      },
+      "observation": "预期得到一系列图表，显示本文模型的预测偏差 $\\Delta \\log_{10} T$ 在核素图上分布更均匀、更接近零，且没有明显的系统性偏离趋势（如壳效应区域偏差过大），从而证明模型具有更好的普适性和可靠性。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文的目标是计算α衰变半衰期，这需要知道α粒子与子核之间的相互作用势。[Gap] 需要构建一个包含核力、库仑力和离心势的完整有效势。[Decision] 论文采用双折叠模型（double folding model）来计算核相互作用势，并将其与库仑势和离心势相加，得到总势能V(R)。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "总有效势表示为：$V(R) = V_{N}(R) + V_{C}(R) + \\frac{\\hbar^{2} \\ell (\\ell + 1)}{2 \\mu R^{2}}$ (Eq.1)。其中核势$V_{N}(R)$由双折叠积分给出：$V_{N}(R) = \\int \\int \\rho_{1}(\\vec{r_{1}}) \\rho_{2}(\\vec{r_{2}}) v[|\\vec{r_{2}} - \\vec{r_{1}} + \\vec{R}|] d^{3} r_{1} d^{3} r_{2}$ (Eq.3)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 总势能V(R)已经定义，其中核势部分依赖于核子间的有效相互作用v(s)。[Gap] 需要指定有效相互作用的具体形式以计算双折叠积分。[Decision] 论文采用M3Y相互作用，并考虑了能量和密度依赖性，给出了其具体表达式。",
+      "action": "rule_application",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "有效相互作用采用M3Y形式：$t^{M3Y} = 9968 \\frac{e^{-3.97 r}}{4 r} - 6661 \\frac{e^{-2.79 r}}{4 r} + J_{00}(E) \\delta(r)$ (Eq.8)。在本工作中，零程赝势$J_{00}(E)$被考虑为零。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 已经获得了α粒子与子核之间的总势能V(R)。[Gap] 为了计算半衰期，需要计算α粒子穿透该势垒的概率。[Decision] 论文采用WKB近似来计算势垒穿透率P。",
+      "action": "approximation",
+      "tool": {
+        "name": "WKB_approximation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "势垒穿透率P由WKB近似给出：$P = \\exp\\left(-\\frac{2}{\\hbar} \\int_{a}^{b} \\sqrt{2 \\mu (V(R) - Q)} d r\\right)$ (Eq.13)，其中a和b是经典转折点。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 已经得到了势垒穿透率P。[Gap] α衰变半衰期T_{1/2}的计算还需要考虑α粒子在母核内的预形成概率P_α和碰撞频率ν。[Decision] 论文将半衰期与衰变常数λ（或穿透率P、预形成概率P_α、频率ν）联系起来。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "WKB_approximation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "α衰变半衰期由公式计算：$T_{1/2} = \\frac{\\ln 2}{\\lambda} = \\frac{\\ln 2}{\\nu P P_{\\alpha}}$ (Eq.11)。对于偶偶核、奇A核、奇奇核，预形成概率P_α分别取值为0.43、0.35、0.18。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 论文使用上述微观方法（双折叠模型+WKB）计算了154个锕系核素的α衰变半衰期。[Gap] 需要评估该方法的预测精度，并与广泛使用的半经验公式进行对比。[Decision] 论文计算了预测对数半衰期与实验值的均方根偏差，并与Viola-Seaborg半经验公式等模型进行比较。",
+      "action": "verification",
+      "tool": {
+        "name": "Viola-Seaborg_semi-empirical_formula",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "对于N=154个锕系同位素，本工作(PW)计算的对数半衰期与实验值的均方根偏差(σ)为1.76。作为比较，Viola-Seaborg半经验公式的形式为：$\\log_{10} T_{1/2}(s) = \\frac{a Z + b}{\\sqrt{Q}} + c Z + d + h$ (Eq.14)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：在将穿透概率P与半衰期T_{1/2}联系时，直接使用公式T_{1/2}^{\\text{theo}} = (\\ln 2) / (\\nu_0 P)，其中\\nu_0是撞击频率。。[Gap] 错过的信号：衰变常数λ = ν P的表达式过于简化，它隐含了一个关键假设：α粒子在母核内始终以完整粒子形式存在，随时可以撞击势垒。然而，α粒子是由四个核子（两个质子和两个中子）组成的团簇，它需要从母核的核子组态中“形成”。这个形成过程本身就是一个概率事件，其概率（预形成概率P_α）通常远小于1，并且是核素依赖的。忽略它意味着假设P_α=1，这与α衰变是一个弱过程（半衰期很长）的物理图像不符。。[Decision] 正确判断方式：一个经验丰富的核物理学家在构建α衰变半衰期理论模型时，会意识到衰变常数λ必须包含三个因子的乘积：1) 预形成概率P_α（α粒子在核内存在的概率），2) 撞击频率ν（已形成的α粒子撞击势垒的速率），3) 单次撞击的穿透概率P。他们会从衰变率的基本定义出发：λ = (形成概率) × (尝试频率) × (单次尝试成功概率) = P_α × ν × P。因此，正确的理论表达式应为T_{1/2} = (\\ln 2) / (ν P P_α)。在缺乏具体P_α模型时，至少应在公式中为其保留一个位置，并意识到忽略它是一个需要明确指出的近似，而非默认情况。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：将α衰变过程过度简化为一个简单的势垒穿透问题，忽略了α粒子作为复合粒子需要从核物质中“预形成”这一先决步骤及其相关的概率。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "这篇论文揭示的教训是：在构建复合粒子（如α粒子）发射过程的微观理论时，必须明确区分“粒子形成”和“粒子逃逸”两个阶段，并将相应的概率因子（预形成概率P_α和穿透概率P）都纳入衰变常数的表达式中，否则理论预测将出现系统性偏差。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "root_mean_square_deviation": {
+        "value": "1.76",
+        "unit": "对于N=154个锕系同位素，比较本工作(PW)计算的对数半衰期与实验值",
+        "interpretation": "root-mean-square deviation (σ)"
+      },
+      "pre_formation_probability_P": {
+        "value": "0.18",
+        "unit": "对于奇奇核",
+        "interpretation": "pre-formation probability P_α"
+      },
+      "zero_range_pseudopotential_J_00_E": {
+        "value": "0",
+        "unit": "在本工作中被考虑为零",
+        "interpretation": "zero-range pseudopotential J_00(E)"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "double_folding_model",
+    "density_dependent_m3y_interaction",
+    "wkb_approximation",
+    "viola_seaborg_formula"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是预测锕系核素的α衰变半衰期。已知输入是核素（Z，A）和实验Q值（或需要计算）。[Gap] 需要计算α粒子与子核之间的相互作用势能，这是计算穿透概率的基础。α衰变半衰期主要由穿透库仑势垒的概率决定，而势垒形状由核势与库仑势共同决定。[Decision] 使用 double_folding_model 计算α粒子与子核之间的核相互作用势。该模型通过折叠α粒子和子核的核物质密度分布与有效核子-核子相互作用来得到核势。预期得到核势 $V_N(r)$ 作为两核中心距离 $r$ 的函数。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {
+        "alpha_density": "Parameterized density distribution (e.g., Gaussian)",
+        "daughter_density": "Parameterized density distribution (e.g., two-parameter Fermi)",
+        "interaction": "To be specified in next step"
+      },
+      "observation": "预期得到α粒子与子核之间的核相互作用势 $V_N(r)$ 的解析或数值表达式。该势在短程为吸引势，其深度和形状依赖于折叠所用的密度分布参数和核子-核子相互作用。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已决定使用折叠模型计算核势 $V_N(r)$。[Gap] 折叠模型需要输入一个有效的核子-核子相互作用势。[Decision] 使用 density_dependent_m3y_interaction 作为折叠模型中的有效相互作用。M3Y相互作用是常用的唯象相互作用，其密度依赖性能更好地描述核物质性质。预期将密度依赖的M3Y相互作用代入上一步的折叠积分公式中。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "density_dependent_m3y_interaction",
+        "version": ""
+      },
+      "parameters": {
+        "interaction_form": "v(s, \\rho) = g(\\rho) * [v_{D}(s) + v_{EX}(s)]",
+        "density_dependence": "g(\\rho) = C[1 - \\alpha \\rho^{\\beta}]"
+      },
+      "observation": "预期得到一个依赖于核子间距离 $s$ 和局部核物质密度 $\\rho$ 的有效相互作用势 $v(s, \\rho)$。将此势代入步骤1的折叠积分，最终确定核势 $V_N(r)$ 的具体形式，其中包含了密度依赖性的修正。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 通过步骤1和2，得到了总相互作用势 $V(r) = V_N(r) + V_C(r)$，其中 $V_C(r)$ 是点电荷库仑势（$r > R_C$）或均匀带电球库仑势（$r \\le R_C$）。[Gap] 需要计算α粒子穿透该势垒的穿透概率 $P$，这是计算半衰期的核心。[Decision] 使用 wkb_approximation 计算穿透概率。在WKB近似下，穿透概率 $P = \\exp[-2G]$，其中 $G$ 是Gamow因子，通过对势垒内部动能进行积分得到。这是处理一维势垒穿透问题的标准量子力学方法。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "penetrability_formula": "P = \\exp[-2 \\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r)-Q)} \\, dr]",
+        "turning_points": "$r_1$, $r_2$ where $V(r)=Q$"
+      },
+      "observation": "预期得到穿透概率 $P$ 的表达式，它是一个指数衰减函数，指数项（Gamow因子 $G$）依赖于势垒形状 $V(r)$、衰变能 $Q$ 和约化质量 $\\mu$。$P$ 对 $Q$ 值极其敏感。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已得到穿透概率 $P$。[Gap] 需要将穿透概率与半衰期 $T_{1/2}$ 联系起来。α衰变半衰期通常表示为 $T_{1/2} = (\\ln 2) / \\lambda$，而衰变常数 $\\lambda = \\nu P$，其中 $\\nu$ 是α粒子在势阱内撞击势垒的频率。[Decision] 引入近似：撞击频率 $\\nu$ 通常用 $\\nu_0 = v/(2R_0)$ 估算，其中 $v$ 是α粒子在核内的速度，$R_0$ 是核半径。结合WKB穿透概率，得到半衰期的理论表达式 $T_{1/2}^{\\text{theo}} = (\\ln 2) / (\\nu_0 P)$。",
+      "action": "approximation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "frequency_approximation": "$\\nu \\approx \\frac{v}{2R_0}$, $v = \\sqrt{2(Q + V_0)/\\mu}$",
+        "preformation_factor": "可能隐含在频率中或设为常数"
+      },
+      "observation": "预期得到一个基于微观势垒计算的半衰期理论公式：$T_{1/2}^{\\text{theo}} = \\frac{\\ln 2}{\\nu_0} \\exp[2G]$。其中 $\\nu_0$ 和 $G$ 都依赖于核素（通过 $Q$, $\\mu$, $V(r)$）。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 现在有了一个基于微观模型（折叠势+WKB）的半衰期理论预测方法。[Gap] 需要评估该方法的整体性能，并与广泛使用的经验公式进行基准比较，以证明其改进。[Decision] 使用 viola_seaborg_formula 作为基准。Viola-Seaborg公式是经典的α衰变半衰期经验公式，形式为 $\\log_{10} T_{1/2} = aZ/\\sqrt{Q} + bZ + c$。将本文模型对154个锕系核素的预测结果 $\\log_{10} T_{1/2}^{\\text{theo}}$ 与Viola-Seaborg公式的预测 $\\log_{10} T_{1/2}^{\\text{VSS}}$ 分别与实验值 $\\log_{10} T_{1/2}^{\\text{exp}}$ 进行比较。",
+      "action": "verification",
+      "tool": {
+        "name": "viola_seaborg_formula",
+        "version": ""
+      },
+      "parameters": {
+        "form": "$\\log_{10} T_{1/2} = aZ/\\sqrt{Q} + bZ + c$",
+        "coefficients": "采用文献中的标准系数或对数据集进行拟合得到"
+      },
+      "observation": "预期得到两个比较结果：1) 本文微观模型预测值与实验值的均方根偏差（RMSD）；2) Viola-Seaborg公式预测值与实验值的RMSD。通过比较这两个RMSD，可以定量说明本文模型是否以及在多大程度上改进了预测精度。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已完成模型预测并与经验公式比较。[Gap] 为了展示模型的可靠性和预测能力，特别是对于实验数据稀少或新核素，需要系统分析预测偏差的规律。[Decision] 进行数值计算，绘制理论预测的半衰期 $T_{1/2}^{\\text{theo}}$ 与实验值 $T_{1/2}^{\\text{exp}}$ 的比值（或对数值之差）随中子数 $N$、质子数 $Z$ 或 $Q$ 值变化的系统学图。同时，可以计算并比较不同模型（VSS， CPPM等）的偏差分布。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "comparison_metric": "$\\Delta \\log_{10} T = \\log_{10} T_{1/2}^{\\text{theo}} - \\log_{10} T_{1/2}^{\\text{exp}}$",
+        "nuclei_range": "154 actinide nuclei (89 ≤ Z ≤ 103)"
+      },
+      "observation": "预期得到一系列图表，显示本文模型的预测偏差 $\\Delta \\log_{10} T$ 在核素图上分布更均匀、更接近零，且没有明显的系统性偏离趋势（如壳效应区域偏差过大），从而证明模型具有更好的普适性和可靠性。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "double_folding_model",
+        "desc": "用于计算α粒子与子核之间的核相互作用势，通过折叠α粒子和子核的密度分布与有效相互作用得到。"
+      },
+      {
+        "name": "WKB_approximation",
+        "desc": "用于计算势垒穿透率，从而得到α衰变半衰期。"
+      },
+      {
+        "name": "Viola-Seaborg_semi-empirical_formula",
+        "desc": "作为比较基准，用于计算α衰变半衰期，公式参数基于拟合。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "V(R) = V_{N}(R) + V_{C}(R) + \\frac{\\hbar^{2} \\ell (\\ell + 1)}{2 \\mu R^{2}}"
+      },
+      {
+        "label": "Eq.3",
+        "content": "V_{N}(R) = \\int \\int \\rho_{1}(\\vec{r_{1}}) \\rho_{2}(\\vec{r_{2}}) v[|\\vec{r_{2}} - \\vec{r_{1}} + \\vec{R}|] d^{3} r_{1} d^{3} r_{2}"
+      },
+      {
+        "label": "Eq.8",
+        "content": "t^{M3Y} = 9968 \\frac{e^{-3.97 r}}{4 r} - 6661 \\frac{e^{-2.79 r}}{4 r} + J_{00}(E) \\delta(r)"
+      },
+      {
+        "label": "Eq.11",
+        "content": "T_{1/2} = \\frac{\\ln 2}{\\lambda} = \\frac{\\ln 2}{\\nu P P_{\\alpha}}"
+      },
+      {
+        "label": "Eq.13",
+        "content": "P = \\exp\\left(-\\frac{2}{\\hbar} \\int_{a}^{b} \\sqrt{2 \\mu (V(R) - Q)} d r\\right)"
+      },
+      {
+        "label": "Eq.14",
+        "content": "\\log_{10} T_{1/2}(s) = \\frac{a Z + b}{\\sqrt{Q}} + c Z + d + h"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "root-mean-square deviation (σ)",
+        "value": "1.76",
+        "condition": "对于N=154个锕系同位素，比较本工作(PW)计算的对数半衰期与实验值"
+      },
+      {
+        "quantity": "pre-formation probability P_α",
+        "value": "0.43",
+        "condition": "对于偶偶核"
+      },
+      {
+        "quantity": "pre-formation probability P_α",
+        "value": "0.35",
+        "condition": "对于奇A核"
+      },
+      {
+        "quantity": "pre-formation probability P_α",
+        "value": "0.18",
+        "condition": "对于奇奇核"
+      },
+      {
+        "quantity": "zero-range pseudopotential J_00(E)",
+        "value": "0",
+        "condition": "在本工作中被考虑为零"
+      }
+    ],
+    "failure_points": []
+  }
+}

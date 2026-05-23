@@ -1,0 +1,366 @@
+{
+  "id": "NPP_0232",
+  "meta": {
+    "id": "NPP_0232",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "ml_alpha_halflife",
+    "source": {
+      "type": "paper",
+      "title": "Nonlocality Effect in the Alpha decay half-lives of superheavy nuclei with XGBRegressor",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2604.04187"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T20:31:54.831397",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变半衰期",
+    "input_data": "核素范围 Z=52-118 的599个核素α衰变半衰期实验数据；核素范围 Z=117-120 的142个超重核；DZR模型和MUDL模型的预测结果作为参考。",
+    "user_intent": "现有两势方法（TPA）在计算α衰变半衰期时存在偏差，需要改进以更准确地描述α-核子非定域性效应，特别是将其推广到奇A核和奇奇核，以提升对超重核区α衰变半衰期的预测能力。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是根据两势方法（TPA）计算α衰变半衰期，需要从核的基本参数（质量数A、电荷数Z、中子数N、Q值）出发，构建α-核子相互作用势。论文采用折叠势形式，并包含非定域性修正，因此第一步需要确定核半径参数，这是构建库仑势和核势的基础。[Gap] 当前仅有核素的基本参数，尚未计算任何势能相关的物理量。核半径是构建折叠势和库仑势的起点，必须首先计算。[Decision] 使用核半径估计工具，根据质量数A和电荷数Z计算核半径，为后续势能构建做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "nuclear_radius_estimation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z"
+      },
+      "output_state": {
+        "nuclear_radius_R": "R = r0 * A^(1/3)，其中r0为半径参数（通常取1.2 fm）",
+        "charge_radius_Rc": "Rc = rc * A^(1/3)，其中rc为电荷半径参数（通常取1.2 fm）"
+      },
+      "observation": "根据标准核半径公式 R = r0 * A^(1/3)，取 r0 = 1.2 fm，计算得到核半径 R。电荷半径通常取相同值，用于后续库仑势计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 根据两势方法（TPA），α衰变半衰期计算需要先构建α-核子相互作用势，论文采用折叠势形式并包含非定域性修正。折叠势需要核子密度分布和有效核力，而核半径已在第1步中确定。[Gap] 目前尚未构建α-核子相互作用势的具体形式，需要选择合适的核子密度分布模型和有效核力参数。[Decision] 采用双折叠积分方法，利用已估计的核半径和标准核子密度分布（如费米分布），结合有效的核子-核子相互作用（如M3Y力），构建α-核子折叠势。这是后续计算库仑势和核势的基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "density_model": "Fermi distribution with radius R and diffuseness a=0.55 fm",
+        "effective_interaction": "M3Y (Michigan-3-Yukawa) with zero-range pseudo-potential for exchange term",
+        "alpha_density": "Gaussian distribution with RMS radius 1.61 fm"
+      },
+      "output_state": {
+        "folding_potential_V_fold": "V_fold(r) = ∫∫ ρ_α(r1) ρ_N(r2) v_eff(|r + r2 - r1|) d^3r1 d^3r2",
+        "nonlocality_correction": "等效局域势 V_NL(r) = V_fold(r) * exp(-m*β^2*E/(2*ħ^2))，其中β为非定域长度参数"
+      },
+      "observation": "构建了α-核子双折叠势，包含M3Y有效相互作用和交换项的非定域性修正。该势将用于后续核势和总有效势的组装。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 根据两势方法（TPA），α衰变半衰期计算需要构建总有效势，包括核势、库仑势和离心势。当前已得到核半径R、电荷半径Rc以及包含非定域性修正的折叠势V_NL(r)。[Gap] 尚未构建库仑势和离心势，也未组装总有效势，无法进行后续的隧穿计算。[Decision] 下一步应计算库仑势，因为库仑势是α衰变势垒的主要组成部分，且依赖于电荷半径和电荷数。使用coulomb_potential_calculation工具，基于点电荷近似或均匀带电球模型构建库仑势。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "charge_number_Z": "Z",
+        "charge_radius_Rc": "Rc = rc * A^(1/3), rc=1.2 fm",
+        "alpha_charge": "2e",
+        "model": "uniform_sphere"
+      },
+      "output_state": {
+        "coulomb_potential_Vc": "Vc(r) = (Z_alpha * Z_daughter * e^2) / (4π ε0 r) for r >= Rc; Vc(r) = (Z_alpha * Z_daughter * e^2) / (4π ε0 * 2Rc) * (3 - r^2/Rc^2) for r < Rc",
+        "coulomb_potential_parameters": "Z_alpha=2, Z_daughter=Z-2, e^2/(4π ε0)=1.44 MeV·fm"
+      },
+      "observation": "基于均匀带电球模型构建了库仑势Vc(r)，其中α粒子电荷为2e，子核电荷为(Z-2)e。在核外(r≥Rc)为点电荷库仑势，在核内(r<Rc)为抛物线型修正。该势将用于后续与核势、离心势组装成总有效势。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 根据两势方法（TPA），α衰变半衰期计算需要构建总有效势，该势由核势、库仑势和离心势三部分组成。目前已完成核半径估计、双折叠核势（含非定域性修正）和库仑势的构建。离心势是角动量相关的势垒项，对于α衰变，α粒子的轨道角动量l由母核和子核的自旋宇称决定。\n[Gap] 当前尚未构建离心势，也未确定α粒子携带的轨道角动量l。离心势的形式为 V_l(r) = ħ^2 l(l+1)/(2μ r^2)，其中μ为约化质量，l为轨道角动量量子数。l的取值需根据母核和子核的自旋宇称通过角动量守恒和宇称守恒确定。\n[Decision] 先构建离心势的一般形式，并基于自旋宇称守恒确定l的取值规则。由于母核和子核的具体自旋宇称未在初始条件中给出，此处先给出离心势的表达式和l的确定原则，后续步骤中若需具体数值则需补充自旋宇称信息。",
+      "action": "model_building",
+      "tool": {
+        "name": "centrifugal_potential_construction",
+        "version": ""
+      },
+      "parameters": {
+        "angular_momentum_selection_rule": "l满足 |J_m - J_d| ≤ l ≤ J_m + J_d 且 π_m = π_d * (-1)^l，其中J_m, π_m为母核自旋宇称，J_d, π_d为子核自旋宇称",
+        "reduced_mass_formula": "μ = m_α * m_d / (m_α + m_d)，其中m_α ≈ 4 u，m_d ≈ (A-4) u"
+      },
+      "output_state": {
+        "centrifugal_potential_Vl": "V_l(r) = ħ^2 l(l+1) / (2μ r^2)",
+        "angular_momentum_l": "由母核和子核的自旋宇称通过角动量守恒和宇称守恒确定，具体值待定",
+        "reduced_mass_mu": "μ = 4*(A-4) / (A) u，其中u为原子质量单位"
+      },
+      "observation": "构建了离心势V_l(r)的表达式，并给出了轨道角动量l的确定规则。离心势与约化质量μ和角动量l相关，在α衰变中l通常取0（基态到基态跃迁）或由自旋宇称差决定的最小允许值。该势将用于后续与核势、库仑势组装成总有效势。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 根据两势方法（TPA），α衰变半衰期的计算需要先构建总有效势，该有效势由核势、库仑势和离心势三部分组成。前序步骤已分别构建了双折叠核势（含非定域性修正）、库仑势和离心势的表达式。[Gap] 目前这三个势能分量是独立的，尚未组合成统一的总有效势，而总有效势是后续求解隧穿概率和碰撞频率的基础。[Decision] 因此，下一步应将核势、库仑势和离心势组装成总有效势 V(r) = V_N(r) + V_C(r) + V_l(r)，并明确各分量的适用区域和参数依赖关系。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "V_NL(r) = V_fold(r) * exp(-m*β^2*E/(2*ħ^2))",
+        "coulomb_potential": "Vc(r) = (2*(Z-2)*e^2)/(4π ε0 r) for r >= Rc, 内部修正",
+        "centrifugal_potential": "V_l(r) = ħ^2 l(l+1)/(2μ r^2)",
+        "total_effective_potential": "V(r) = V_NL(r) + Vc(r) + V_l(r)"
+      },
+      "output_state": {
+        "effective_potential": "V(r) = V_NL(r) + Vc(r) + V_l(r)，其中V_NL(r)为含非定域性修正的双折叠核势，Vc(r)为库仑势，V_l(r)为离心势",
+        "potential_region": "核内部(r < R)以核势为主，势垒区域(R < r < R_out)由库仑势主导，离心势在所有区域均有贡献但随r增大衰减"
+      },
+      "observation": "成功组装了总有效势V(r)，该势能曲线将用于后续求解隧穿概率所需的转折点以及WKB作用量积分。总有效势的形状决定了α粒子隧穿势垒的高度和宽度，是计算半衰期的核心输入。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经构建了总有效势V(r)，它包含了核势（带非定域性修正）、库仑势和离心势。为了计算α粒子隧穿库仑势垒的概率，我们需要确定经典转折点，即α粒子动能E（即Q值）与有效势V(r)相等的点。根据两势方法（TPA），内转折点r_in位于核势内部，外转折点r_out位于库仑势垒外部。这些转折点是计算WKB作用量积分的基础。 [Gap] 当前我们拥有总有效势V(r)的表达式和Q值，但尚未求解转折点。需要利用数值方法求解方程V(r) = Q，以得到内转折点r_in和外转折点r_out。 [Decision] 我将使用turning_point_solver工具，基于已构建的有效势V(r)和给定的Q值，数值求解转折点。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V(r) = V_NL(r) + Vc(r) + V_l(r)",
+        "energy": "Q_value",
+        "solving_range": "内转折点r_in在核半径附近（约1.0-2.0倍核半径），外转折点r_out在库仑势垒外部（约10-30 fm）",
+        "method": "二分法或牛顿法求解V(r) = Q"
+      },
+      "output_state": {
+        "inner_turning_point_r_in": "由数值求解V(r_in) = Q得到，单位fm",
+        "outer_turning_point_r_out": "由数值求解V(r_out) = Q得到，单位fm",
+        "turning_points_status": "已求解，用于后续WKB作用量积分"
+      },
+      "observation": "通过数值求解方程V(r) = Q，成功确定了内转折点r_in和外转折点r_out。这两个转折点定义了α粒子隧穿势垒的经典禁戒区域[r_in, r_out]，是计算WKB作用量积分和穿透因子的关键输入。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已构建了总有效势V(r)并求解了内转折点r_in和外转折点r_out，下一步需要计算α粒子穿过势垒的隧穿概率。在WKB近似下，穿透因子P由作用量积分S = ∫_{r_in}^{r_out} k(r) dr决定，其中k(r) = sqrt(2μ|V(r)-Q|)/ħ。这是两势方法(TPA)中计算半衰期的关键中间量。[Gap] 目前已有转折点和有效势，但尚未计算WKB作用量积分和穿透因子。需要选择合适的数值积分方法计算该积分。[Decision] 选择WKB_action_integral工具，利用已得到的有效势V(r)、Q值、约化质量μ和转折点r_in、r_out，数值计算作用量积分S，为后续计算穿透因子做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V(r) = V_NL(r) + Vc(r) + V_l(r)",
+        "Q_value": "Q_value (MeV)",
+        "reduced_mass": "μ = 4*(A-4)/A u",
+        "inner_turning_point": "r_in (fm)",
+        "outer_turning_point": "r_out (fm)",
+        "integration_method": "numerical_integration (Simpson rule or adaptive quadrature)"
+      },
+      "output_state": {
+        "WKB_action_integral_S": "S = ∫_{r_in}^{r_out} √(2μ|V(r)-Q|)/ħ dr (无量纲或ħ单位)",
+        "action_integral_status": "已数值计算完成"
+      },
+      "observation": "利用数值积分方法，在区间[r_in, r_out]上计算了WKB作用量积分S = ∫ k(r) dr，其中k(r) = √(2μ|V(r)-Q|)/ħ。该积分值直接决定了α粒子的隧穿概率P = exp(-2S)，是后续计算穿透因子和半衰期的核心输入。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前推导路径为 Path 1: half_life -> alpha_decay_width -> penetrability -> action_integral -> effective_potential -> nuclear_potential -> nuclear_radius -> coulomb_potential -> centrifugal_potential -> spin_parity -> single_particle_levels -> turning_points -> preformation_factor -> binding_energy -> pairing_energy -> assault_frequency。目前已计算出WKB作用量积分S，下一步需要从作用量积分计算穿透因子P。根据WKB近似，穿透因子与作用量积分的关系为P = exp(-2S)。这是从作用量积分到穿透因子的标准推导步骤，也是合法路径上的必要环节。 [Gap] 当前已获得WKB作用量积分S的数值，但尚未将其转化为α粒子的隧穿穿透概率P。穿透因子是计算衰变宽度和半衰期的核心中间量。 [Decision] 使用penetrability_from_action工具，根据WKB近似公式P = exp(-2S)计算穿透因子。该步骤严格遵循合法路径，从action_integral到penetrability。",
+      "action": "rule_application",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {
+        "WKB_action_integral": "S",
+        "penetrability_formula": "P = exp(-2S)"
+      },
+      "output_state": {
+        "penetrability_P": "P = exp(-2S)，其中S为第7步计算的WKB作用量积分",
+        "penetrability_status": "已从WKB作用量积分导出穿透因子"
+      },
+      "observation": "根据WKB近似，α粒子穿越势垒的穿透概率P由作用量积分S决定：P = exp(-2S)。该公式适用于一维势垒隧穿问题，其中S = ∫ √(2μ|V(r)-Q|)/ħ dr 在转折点之间积分。穿透因子P是后续计算衰变宽度Γ = (ħω/2π) * P * P_α的关键输入，其中P_α为预形成因子，ħω/2π为碰撞频率。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6, 7, 8 分别使用 nuclear_radius_estimation -> double_folding_integral -> coulomb_potential_calculation -> centrifugal_potential_construction -> effective_potential_assembly -> turning_point_solver -> WKB_action_integral -> penetrability_from_action 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 论文采用两势方法（TPA）计算α衰变半衰期，该方法将核势与库仑势分开处理，通过计算穿透因子和碰撞频率得到衰变宽度。第一步需要构建α-核子相互作用势，论文采用折叠势形式，包含非定域性修正。\n[Gap] 当前已知核质量数A、电荷数Z、中子数N和Q值，但尚未构建α-核子相互作用势的具体形式。\n[Decision] 根据论文方法，首先采用双折叠积分构建α-核子相互作用势，使用有效的核子-核子相互作用，并考虑非定域性修正。选择工具 double_folding_integral 来计算折叠势。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "projectile": "alpha_particle",
+        "target": "daughter_nucleus",
+        "interaction": "M3Y_effective_interaction",
+        "nonlocality_correction": "true",
+        "density_distribution": "two_parameter_fermi"
+      },
+      "output_state": {
+        "alpha_nucleon_folding_potential": "V_fold(r) = ∫∫ ρ_α(r_1) ρ_d(r_2) v_eff(s) d^3r_1 d^3r_2, with s = |r + r_2 - r_1|",
+        "nonlocality_correction": "V_nonlocal = V_fold(r) * exp(-β^2 k^2 / 2), where β is nonlocality range and k is relative momentum"
+      },
+      "observation": "构建了α-核子折叠势，采用M3Y有效相互作用，并引入非定域性修正因子。该势将用于后续的势垒穿透计算。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 上一步构建了α-核子折叠势V_fold(r)并引入了非定域性修正，得到了等效局域势V_nonlocal。在TPA方法中，α衰变半衰期计算需要先构建α-核总势能，包括核势、库仑势和离心势，然后求解穿透因子。当前已得到核势部分（含非定域修正），但尚未包含库仑势和离心势。 [Gap] 需要将核势与库仑势、离心势组合成有效势，才能进行后续的隧穿计算。库仑势对于α衰变至关重要，它主导了势垒的形状；离心势则依赖于α粒子携带的轨道角动量。 [Decision] 根据合法路径Path 1，下一步应使用coulomb_potential_calculation工具计算α-核库仑势，采用均匀带电球模型，并考虑核电荷分布半径。同时，需要确定α衰变中α粒子携带的轨道角动量l，这由母核和子核的自旋宇称决定（但此处暂不深入，先假设l=0作为主导贡献，或根据奇A核阻塞效应可能引入l>0的分量）。为简化，先计算l=0情况下的库仑势，后续再根据自旋宇称修正离心势。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Z_daughter": "Z-2",
+        "Z_alpha": 2,
+        "R_coulomb": "1.2 * (A-4)^(1/3) fm",
+        "model": "uniform_sphere"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(r) = (2*(Z-2)*e^2)/(4πε_0 r) for r >= R_C, and V_C(r) = (2*(Z-2)*e^2)/(4πε_0 R_C) * (3/2 - r^2/(2R_C^2)) for r < R_C",
+        "R_C": "1.2*(A-4)^(1/3) fm"
+      },
+      "observation": "采用均匀带电球模型计算了α-核库仑势，其中α粒子电荷为2e，子核电荷为(Z-2)e，库仑半径取R_C=1.2*(A-4)^(1/3) fm。该势在r≥R_C时表现为标准点电荷库仑势，在r<R_C时考虑有限大小修正。此势将用于构建有效势，为后续求解穿透因子做准备。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将预测值与已知α衰变实验数据库（如NUBASE2020）中对应核素的半衰期进行对比，重点检验在Z≥84、中子数N≥126的重核区，平均偏差因子是否维持在1.5以内。同时进行量纲分析，确认半衰期单位（秒）与势垒穿透概率的指数关系一致；并检验极限情况：当Q值趋近于0时，半衰期是否发散至无穷大，以验证模型在低能端的物理合理性。",
+    "metrics": {
+      "half_life": {
+        "value": "平均偏差因子约1.5",
+        "unit": "Z=52-118 的599个核素，改进TPA与实验比较",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：original_two_potential_approach；local_potential_approximation。"
+  },
+  "paper_methods": [
+    "two_potential_approach",
+    "alpha_nucleon_folding_potential",
+    "nonlocality_correction",
+    "blocking_effect_correction"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "two_potential_approach",
+        "desc": "将α衰变过程分解为内部运动和外部隧穿，通过穿透因子和碰撞频率计算半衰期"
+      },
+      {
+        "name": "alpha_nucleon_folding_potential",
+        "desc": "基于核子密度分布和有效核力，通过折叠积分构建α-核子相互作用势"
+      },
+      {
+        "name": "nonlocality_correction",
+        "desc": "引入动量相关项修正α-核子相互作用的非定域性效应，提高势垒描述精度"
+      },
+      {
+        "name": "blocking_effect_correction",
+        "desc": "针对奇A核和奇奇核，考虑未配对核子对α预形成概率的阻塞效应"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\ln 2}{\\nu_0 P}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "V_{\\alpha N}(r) = \\int \\rho_N(\\mathbf{r}') v_{\\text{eff}}(|\\mathbf{r} - \\mathbf{r}'|) d\\mathbf{r}'"
+      },
+      {
+        "label": "Eq.(10)",
+        "content": "V_{\\text{nonlocal}}(r) = V_{\\text{local}}(r) + \\frac{\\hbar^2}{2\\mu} \\beta(r) \\nabla^2"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "0.001 s",
+        "condition": "Z=118, A=294 核素，改进TPA预测"
+      },
+      {
+        "quantity": "half_life",
+        "value": "0.01 s",
+        "condition": "Z=120, A=302 核素，改进TPA预测"
+      },
+      {
+        "quantity": "half_life",
+        "value": "平均偏差因子约1.5",
+        "condition": "Z=52-118 的599个核素，改进TPA与实验比较"
+      }
+    ],
+    "failure_points": [
+      "original_two_potential_approach",
+      "local_potential_approximation"
+    ]
+  }
+}

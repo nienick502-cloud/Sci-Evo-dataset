@@ -1,0 +1,497 @@
+{
+  "id": "NPP_0081",
+  "meta": {
+    "id": "NPP_0081",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_cluster_model",
+    "source": {
+      "type": "paper",
+      "title": "Quest for a Universal Cluster Preformation Formula: A new paradigm for estimating the cluster formation energy",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2305.05613"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.1",
+      "agent_git_commit": "266935a",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-03T10:30:45.097893",
+      "generated_by": "Lenovo"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "建立普适性团簇预形成概率公式",
+    "input_data": "已知条件：中质量、重质量及超重核的团簇放射性实验半衰期数据；微观R3Y与唯象M3Y核子-核子势；涉及团簇衰变过程的参数",
+    "user_intent": "解决现有团簇预形成概率公式的局限性，统一描述团簇形成与发射的能量贡献，并理解团簇放射性中的非线性关系（与α衰变不同）",
+    "quantifiable_goal": "提出新的P_0公式，使其预测的半衰期与实验数据吻合，并量化团簇形成能、发射能及子核反冲能对Q值的贡献"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 根据前提层，团簇衰变半衰期可通过衰变宽度 Γ 计算，而 Γ 又由预形成概率 P_c 和无预形成因子时的宽度 Γ_0 决定。Γ_0 通常通过 WKB 近似计算团簇穿透库仑势垒的几率得到。因此，第一步需要构建团簇与剩余核之间的相互作用势，这是计算穿透几率的基础。论文采用双折叠方法，利用微观 R3Y 或唯象 M3Y 有效核子-核子相互作用，结合密度分布来构建核势。\n[Gap] 当前尚未构建任何势能，无法进行后续的隧穿计算。\n[Decision] 第一步应使用双折叠积分工具，基于核子-核子有效相互作用和核密度分布，计算团簇与子核之间的核势。这对应于 Path 1 中的 nuclear_potential 步骤，但更具体地，双折叠是构建核势的微观方法。因此选择 tool: double_folding_integral。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "cluster": "alpha 或具体团簇（如 14C, 24Ne 等）",
+        "daughter_nucleus": "剩余核",
+        "effective_interaction": "M3Y 或 R3Y",
+        "density_distributions": "来自相对论平均场或唯象模型"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(R) = ∫∫ ρ_c(r1) ρ_d(r2) v_eff(|r1 - r2 + R|) d^3r1 d^3r2"
+      },
+      "observation": "双折叠积分给出了团簇与子核之间的核势 V_N(R) 作为相对距离 R 的函数。该势能依赖于所选的核子-核子有效相互作用（如 M3Y 或 R3Y）以及两核的密度分布。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在预形成团簇衰变模型中，核势 V_N(R) 已通过双折叠积分得到，接下来需要构建总有效势能 V_eff(R)，它包含核势、库仑势和离心势。库仑势是团簇与子核之间静电排斥的贡献，对于带电粒子衰变至关重要。离心势则与轨道角动量量子数 l 有关，反映了角动量守恒对势垒的影响。 [Gap] 当前步骤需要从核势出发，添加库仑势和离心势，以形成可用于计算穿透概率的有效势能。 [Decision] 因此，下一步应使用库仑势计算工具和离心势构建工具，分别计算 V_C(R) 和 V_l(R)，然后组合成 V_eff(R)。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Z_c": "Z_c (团簇电荷数)",
+        "Z_d": "Z_d (子核电荷数)",
+        "R": "相对距离",
+        "R_C": "库仑半径（通常取为两核半径之和）"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(R) = Z_c Z_d e^2 / R, 当 R >= R_C; 内部区域需考虑有限大小修正"
+      },
+      "observation": "库仑势 V_C(R) 在距离较大时简化为点电荷库仑势，在内部区域（R < R_C）需使用均匀带电球或更精确的电荷分布模型进行修正。此处先采用标准点电荷形式，后续在有效势能组装时再处理内部修正。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 我们已经通过双折叠积分得到了核势 V_N(R)，并确定了库仑势 V_C(R) 的基本形式。为了构建团簇衰变的总有效势能，还需要考虑离心势能项，因为团簇与子核的相对运动通常具有确定的轨道角动量。离心势能的形式为 ℏ² l(l+1)/(2μR²)，其中 μ 是约化质量，l 是轨道角动量量子数。[Gap] 目前尚未确定轨道角动量 l 的值，这需要根据母核和子核的自旋宇称以及衰变过程的角动量守恒来确定。[Decision] 因此，本步骤先构建离心势能的一般表达式，并引入角动量量子数 l 作为参数，后续再根据具体核素的自旋宇称确定 l 的值。",
+      "action": "model_building",
+      "tool": {
+        "name": "centrifugal_potential_construction",
+        "version": ""
+      },
+      "parameters": {
+        "reduced_mass": "μ = m_c m_d / (m_c + m_d)",
+        "angular_momentum": "l (待定)"
+      },
+      "output_state": {
+        "centrifugal_potential": "V_l(R) = ℏ² l(l+1) / (2μ R²)"
+      },
+      "observation": "离心势能 V_l(R) 已构建，形式为 ℏ² l(l+1)/(2μR²)，其中约化质量 μ 由团簇质量 m_c 和子核质量 m_d 计算，轨道角动量量子数 l 由角动量守恒定律决定：l = |J_p - J_d - J_c|, ..., J_p + J_d + J_c，且宇称满足 π_p = π_d π_c (-1)^l。该势能将在后续有效势能组装中与核势、库仑势相加。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 前三步已经构建了核势 V_N(R)、库仑势 V_C(R) 和离心势 V_l(R)，这些是构成有效势能 V_eff(R) 的必要组成部分。有效势能是后续求解隧穿概率和衰变宽度的基础。[Gap] 目前三个势能分量是独立的，需要将它们组合成总的有效势能，并考虑库仑势在内部区域的有限大小修正，以及核势的合理截断。[Decision] 使用 effective_potential_assembly 工具，将 V_N(R)、V_C(R) 和 V_l(R) 相加，并对库仑势在 R < R_C 区域采用均匀带电球模型修正，得到完整的有效势能 V_eff(R)。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(R) from double_folding_integral",
+        "coulomb_potential": "V_C(R) = Z_c Z_d e^2 / R for R >= R_C; for R < R_C, use uniform sphere: V_C(R) = (Z_c Z_d e^2 / (2 R_C)) * (3 - (R/R_C)^2)",
+        "centrifugal_potential": "V_l(R) = ℏ² l(l+1) / (2μ R²)",
+        "Coulomb_radius": "R_C = r_0 (A_c^{1/3} + A_d^{1/3}) with r_0 ≈ 1.2 fm"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)"
+      },
+      "observation": "有效势能 V_eff(R) 已组装完成。在外部区域 (R ≥ R_C)，库仑势采用点电荷形式；在内部区域 (R < R_C)，采用均匀带电球模型修正。核势 V_N(R) 由双折叠积分给出，离心势 V_l(R) 由轨道角动量决定。该有效势能是后续求解隧穿概率的关键输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 有效势能 V_eff(R) 已经组装完成，包含核势、库仑势和离心势。接下来需要求解隧穿过程中的转折点，这是应用 WKB 近似计算作用量积分的前提。转折点定义为 V_eff(R) = Q_value 的根，其中 Q_value 是衰变能。通常存在三个转折点：内转折点 R_in（核势阱内部）、外转折点 R_out（库仑势垒外部）和中间转折点（势垒峰附近），但 WKB 隧穿积分通常从内转折点积分到外转折点。 [Gap] 当前状态中尚未计算转折点，需要调用 turning_point_solver 工具来数值求解 V_eff(R) = Q 的根。 [Decision] 使用 turning_point_solver 工具，基于已构建的有效势能和 Q 值，求解内转折点 R_in 和外转折点 R_out。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)",
+        "Q_value": "Q_value",
+        "search_interval": "内转折点: [0.5, 2.0] fm, 外转折点: [10.0, 30.0] fm"
+      },
+      "output_state": {
+        "inner_turning_point": "R_in",
+        "outer_turning_point": "R_out"
+      },
+      "observation": "通过数值求解 V_eff(R) = Q_value，得到内转折点 R_in（约 1.2-1.5 fm，位于核势阱内部）和外转折点 R_out（约 15-25 fm，位于库仑势垒外部）。这两个转折点定义了 WKB 隧穿积分的区间 [R_in, R_out]。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 根据有效势能 V_eff(R) 和转折点 R_in、R_out，可以计算团簇穿透库仑势垒的几率。在预形成团簇衰变模型中，穿透几率 P 是决定衰变宽度 Γ_0 的关键因素之一。 [Gap] 当前已得到有效势能和转折点，但尚未计算穿透几率。穿透几率通常通过 WKB 近似计算，需要从内转折点 R_in 到外转折点 R_out 对势垒区域进行积分。 [Decision] 下一步应使用 WKB 近似计算作用量积分，进而得到穿透几率。选择工具 WKB_action_integral 来计算势垒区域的经典作用量 S(R)。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V_eff(R)",
+        "inner_turning_point": "R_in",
+        "outer_turning_point": "R_out",
+        "Q_value": "Q_value",
+        "reduced_mass": "μ"
+      },
+      "output_state": {
+        "action_integral": "S = ∫_{R_in}^{R_out} √(2μ|V_eff(R) - Q_value|) dR"
+      },
+      "observation": "WKB 作用量积分 S 定义为从内转折点 R_in 到外转折点 R_out 对势垒区域动量模的积分：S = ∫_{R_in}^{R_out} √(2μ|V_eff(R) - Q_value|) dR。该积分需数值计算，其结果用于计算穿透几率 P = exp(-2S/ℏ)。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已通过 WKB 作用量积分 S 描述了势垒穿透的量子效应。根据隧穿理论，势垒穿透概率 P 与作用量积分 S 的关系为 P = exp(-2S/ℏ)，这是 WKB 近似下的标准结果。\n[Gap] 需要从作用量积分 S 计算出穿透概率 P，这是连接微观势垒特性与宏观衰变宽度的关键中间量。\n[Decision] 直接应用 WKB 近似公式，将 S 代入指数衰减关系得到穿透概率。",
+      "action": "rule_application",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "penetrability": "P = exp(-2S/ℏ)"
+      },
+      "observation": "根据 WKB 近似，势垒穿透概率 P 由作用量积分 S 决定：P = exp(-2S/ℏ)。其中 S 为第 6 步计算的作用量积分，ℏ 为约化普朗克常数。该公式适用于一维势垒隧穿问题，在团簇衰变中势垒可近似为一维有效势。",
+      "step_mode": "citation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 根据论文方法，团簇衰变半衰期需要预形成概率 P_c 和穿透概率 P 的乘积。目前已经通过 WKB 近似得到了穿透概率 P = exp(-2S/ℏ)，下一步需要计算预形成概率 P_c。在预形成团簇衰变模型中，P_c 通常通过微观方法计算，例如基于相对论平均场（RMF）理论的双折叠模型或壳模型方法。[Gap] 当前状态中尚未计算预形成概率 P_c，这是连接穿透概率到衰变宽度的关键中间量。[Decision] 选择使用 preformation_factor_model 工具，基于 RMF 理论或经验公式计算预形成概率 P_c。由于论文采用 preformed_cluster_decay_model，预形成概率通常通过微观计算或系统学公式得到，这里采用经验系统学公式作为合理近似。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "preformation_factor": "P_c = exp(-α_c * (A_c - 1)) 或 P_c = 10^{a*Z_c + b}，其中 A_c 和 Z_c 分别为团簇的质量数和电荷数，α_c、a、b 为拟合参数"
+      },
+      "observation": "预形成概率 P_c 描述了母核中团簇预先形成的概率。在预形成团簇衰变模型中，P_c 通常远小于 1，且随团簇质量增大而指数减小。常用的经验公式包括指数衰减形式或对数线性形式，参数由实验数据拟合得到。对于 α 衰变，P_c ≈ 1；对于重团簇（如 ¹⁴C、²⁴Ne 等），P_c 在 10⁻¹⁰ 到 10⁻²⁰ 量级。这里采用系统学公式 P_c = 10^{-0.5*(A_c-4)} 作为初步估计，后续可通过实验数据校准。",
+      "valid": false,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": "missing_physical_effect",
+      "error_reason": "预测步骤8中，预形成概率P_c的计算采用了经验系统学公式P_c = 10^{-0.5*(A_c-4)}，但论文实际推导中，P_c是通过微观方法（如RMF理论或双折叠模型）计算的，而非简单的经验公式。在预形成团簇衰变模型中，P_c是关键的微观物理量，其值依赖于母核和团簇的具体结构，使用经验公式会丢失核结构效应，导致物理上不准确。此外，预测步骤8在计算P_c后直接结束，未进行后续的衰变宽度和半衰期计算，而论文实际推导中在得到P_c和穿透概率P后，还需要计算assault frequency ν，然后得到Γ_0 = ℏ ν P，最终得到半衰期。预测步骤8缺少了assault frequency的计算这一关键物理步骤，导致物理链不完整。"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 本论文采用预形成团簇衰变模型（PCM），将团簇衰变过程分为团簇在母核内预形成和随后穿透库仑势垒两个独立阶段。半衰期由衰变宽度 Γ = P_c × Γ_0 给出，其中 P_c 是团簇预形成概率，Γ_0 是无预形成因子时的宽度。为了计算 Γ_0，需要先构建母核-团簇相互作用势，包括核势、库仑势和离心势。核势部分采用双折叠方法，基于有效的核子-核子相互作用（如M3Y或R3Y）和密度分布。因此，第一步需要计算母核和团簇的核密度分布，这可以通过平均场方法（如相对论平均场RMF）获得。 [Gap] 当前尚未计算任何物理量，需要从初始条件出发，获取核密度分布作为后续双折叠核势的输入。 [Decision] 使用mean_field_density_calculation工具，基于相对论平均场（RMF）理论，计算母核和团簇的核子密度分布。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "nucleus": "母核 (Z, N, A)",
+        "cluster": "团簇 (Z_c, N_c, A_c)",
+        "method": "relativistic_mean_field (RMF)",
+        "parameter_set": "NL3 or DD-ME2",
+        "output": "point_proton_density, point_neutron_density"
+      },
+      "output_state": {
+        "rho_p_parent": "母核质子密度分布 ρ_p^P(r)",
+        "rho_n_parent": "母核中子密度分布 ρ_n^P(r)",
+        "rho_p_cluster": "团簇质子密度分布 ρ_p^C(r)",
+        "rho_n_cluster": "团簇中子密度分布 ρ_n^C(r)"
+      },
+      "observation": "通过求解RMF方程，得到母核和团簇的基态核子密度分布。这些分布将用于后续双折叠核势的计算。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 上一步通过RMF计算得到了母核和团簇的核子密度分布。根据论文方法，核势需要通过双折叠积分从这些密度分布和有效核子-核子相互作用构建。这是计算团簇-母核相互作用势的关键步骤。 [Gap] 目前仅有密度分布，尚未构建核势。 [Decision] 使用双折叠积分方法，结合M3Y或R3Y有效相互作用，计算核势。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "density_parent": "rho_p_P, rho_n_P",
+        "density_cluster": "rho_p_C, rho_n_C",
+        "interaction": "M3Y or R3Y effective NN interaction",
+        "exchange_term": "included via zero-range pseudopotential approximation"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(R) = ∫∫ dr1 dr2 [ρ_p^P(r1) ρ_p^C(r2) v_{pp}(|r1 - r2 + R|) + ρ_n^P(r1) ρ_n^C(r2) v_{nn}(|r1 - r2 + R|) + (cross terms)]"
+      },
+      "observation": "通过双折叠积分，得到核势 V_N(R) 作为团簇-母核相对距离 R 的函数。通常采用M3Y有效相互作用并加入零程交换项来近似核子交换效应。该势将与其他势能项（库仑、离心）相加构成总有效势。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在团簇放射性模型中，总有效势 V_eff(R) 由核势 V_N(R)、库仑势 V_C(R) 和离心势 V_l(R) 组成。库仑势描述两个带电核之间的静电排斥，离心势来源于相对运动角动量。 [Gap] 目前已完成核势 V_N(R) 的计算，需要构建库仑势和离心势，然后组装成总有效势，用于后续的WKB隧穿计算。 [Decision] 使用库仑势计算工具和离心势构建工具，分别计算 V_C(R) 和 V_l(R)，然后通过有效势组装工具得到 V_eff(R)。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "Z_parent": "Z",
+        "Z_cluster": "Z_c",
+        "R": "relative distance",
+        "R_coulomb": "R_C = 1.2 * (A_parent^{1/3} + A_cluster^{1/3}) fm"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(R) = Z_c * (Z - Z_c) * e^2 / R, for R >= R_C; V_C(R) = (Z_c * (Z - Z_c) * e^2 / (2 * R_C)) * (3 - R^2 / R_C^2), for R < R_C"
+      },
+      "observation": "库仑势 V_C(R) 已构建，采用均匀带电球近似，其中 Z_c 为团簇电荷数，e^2 ≈ 1.44 MeV·fm。对于 R ≥ R_C 使用点电荷库仑势，对于 R < R_C 使用球体内势能公式以避免发散。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: nuclear_radius",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在团簇放射性模型中，总有效势由核势、库仑势和离心势三部分组成。目前已经通过双折叠积分得到了核势 V_N(R)，并构建了库仑势 V_C(R)。为了完整描述团簇在母核中的运动，还需要加入离心势，它来源于团簇与母核相对运动的轨道角动量。 [Gap] 当前缺少离心势的表达式，需要根据角动量量子数 l 和约化质量 μ 来构建。 [Decision] 采用标准离心势公式 V_l(R) = ℏ² l(l+1) / (2μ R²)，其中约化质量 μ = m_c m_d / (m_c + m_d)，m_c 和 m_d 分别为团簇和子核的质量。角动量 l 由母核、子核和团簇的自旋宇称通过角动量守恒确定。",
+      "action": "rule_application",
+      "tool": {
+        "name": "centrifugal_potential_construction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "angular_momentum": "l",
+        "reduced_mass": "μ = m_c m_d / (m_c + m_d)"
+      },
+      "output_state": {
+        "centrifugal_potential": "V_l(R) = ℏ² l(l+1) / (2μ R²)"
+      },
+      "observation": "离心势 V_l(R) 已构建，其中 l 由角动量守恒确定，通常取最小允许值以简化计算。该势将与其他势能项相加得到总有效势 V_eff(R) = V_N(R) + V_C(R) + V_l(R)。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 根据团簇衰变模型，在构建了核势、库仑势和离心势之后，需要将它们相加得到总有效势 V_eff(R)，这是后续求解隧穿问题的基础。有效势决定了团簇在母核内部和外部运动的势能曲线，其形状直接影响穿透概率的计算。[Gap] 当前已分别得到 V_N(R)、V_C(R) 和 V_l(R)，但尚未将它们组合成完整的有效势。需要明确有效势的表达式，并考虑内部区域的势能行为（通常假设为谐振子势或平缓势）。[Decision] 因此，下一步应执行 effective_potential_assembly 工具，将三个势能分量相加，并定义内部区域势能，得到完整的有效势 V_eff(R)。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R), 对于 R ≥ R_in; 内部区域 (R < R_in) 采用谐振子势近似 V_eff(R) = V_0 + (1/2) μ ω² (R - R_0)²"
+      },
+      "observation": "总有效势 V_eff(R) 已构建。外部区域 (R ≥ R_in) 由核势、库仑势和离心势之和给出；内部区域 (R < R_in) 采用谐振子势近似，其中 R_in 为内部与外部区域的连接点，通常取在核势最小值附近。该有效势将用于后续求解转折点和 WKB 作用量积分。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 当前已构建了总有效势 V_eff(R)，包括核势、库仑势和离心势。为了计算团簇的隧穿概率，需要确定经典转折点，即总有效势等于衰变能 Q 的位置。转折点是 WKB 作用量积分的关键边界。 [Gap] 需要求解方程 V_eff(R) = Q 以得到内转折点 R_in 和外转折点 R_out。 [Decision] 使用数值求解器计算转折点，这是严格推导路径上 'turning_point_solver' 工具的标准应用。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": "1.0"
+      },
+      "parameters": {
+        "potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)",
+        "Q_value": "Q (from initial condition)",
+        "method": "numerical root-finding for V_eff(R) = Q",
+        "region": "R > 0"
+      },
+      "output_state": {
+        "inner_turning_point": "R_in (fm)",
+        "outer_turning_point": "R_out (fm)"
+      },
+      "observation": "通过求解 V_eff(R) = Q，得到两个转折点：内转折点 R_in（位于核势内部区域，通常接近核表面）和外转折点 R_out（位于库仑势垒外部）。这些转折点将用于后续的 WKB 作用量积分计算隧穿概率。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 根据已构建的有效势 V_eff(R) 和通过求解 V_eff(R)=Q 得到的内外转折点 R_in 和 R_out，下一步需要计算团簇穿透库仑势垒的隧穿概率。在 WKB 近似下，穿透概率 P 由作用量积分 S = ∫_{R_in}^{R_out} sqrt(2μ|V_eff(R)-Q|) dR 决定，即 P = exp(-2S/ℏ)。[Gap] 当前已获得转折点，但尚未计算作用量积分和穿透概率。[Decision] 因此，下一步应使用 WKB 作用量积分工具，计算从 R_in 到 R_out 的积分，得到作用量 S，进而得到穿透概率 P。该步骤属于严格推导路径上的必要环节。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)",
+        "Q_value": "Q (MeV)",
+        "inner_turning_point": "R_in (fm)",
+        "outer_turning_point": "R_out (fm)",
+        "reduced_mass": "μ = m_c * m_d / (m_c + m_d) (MeV/c^2)"
+      },
+      "output_state": {
+        "action_integral": "S = ∫_{R_in}^{R_out} √(2μ|V_eff(R)-Q|) dR (MeV·fm)",
+        "penetrability": "P = exp(-2S/ℏ)"
+      },
+      "observation": "WKB 作用量积分 S 已通过数值积分计算得到，穿透概率 P 由指数衰减公式给出。该结果将用于后续衰变宽度和半衰期的计算。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 根据论文的 preformed_cluster_decay_model，衰变宽度 Γ 由预形成概率 P_c 和无预形成因子时的宽度 Γ_0 相乘得到：Γ = P_c × Γ_0。其中 Γ_0 可以通过 WKB 近似中的穿透概率和碰撞频率（assault frequency）计算：Γ_0 = (ℏ²/μ) × (P / (∫_{R_in}^{R_out} dR / k(R)))，或者更常见地，Γ_0 = (ℏ² k(R_in) / μ) × P，其中 k(R) = √(2μ|V_eff(R)-Q|)/ℏ。在团簇放射性模型中，通常将 assault frequency ν 定义为团簇在核内来回运动的频率，然后 Γ_0 = ℏ ν P。ν 可以通过内部区域（R < R_in）的振荡频率或经典运动周期估算。\n[Gap] 当前已得到穿透概率 P，但尚未计算 assault frequency ν 和衰变宽度 Γ。需要根据有效势和 Q 值计算 ν，进而得到 Γ_0 和 Γ。\n[Decision] 选择 assault_frequency_calculation 工具，基于内部区域的谐振子势近似或经典运动模型计算 assault frequency ν，然后结合穿透概率 P 得到衰变宽度 Γ = P_c × ℏ ν P。由于 P_c 尚未计算，先输出 Γ_0 = ℏ ν P 的表达式，并说明 Γ 与 P_c 的关系。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "inner_turning_point_R_in": "R_in (fm)",
+        "reduced_mass_mu": "μ (MeV/c²)",
+        "Q_value": "Q (MeV)",
+        "effective_potential_V_eff": "V_eff(R) (MeV)",
+        "penetrability_P": "P"
+      },
+      "output_state": {
+        "assault_frequency": "ν = (1/2) × (ℏ/(μ)) × (k(R_in) / (R_in - R_0)) 或 ν = (1/2) × (√(2μ(Q - V_eff(R_0)))/μ) / (R_in - R_0) (s⁻¹)",
+        "decay_width_without_preformation": "Γ_0 = ℏ ν P (MeV)",
+        "decay_width": "Γ = P_c × Γ_0 (MeV)"
+      },
+      "observation": "根据内部区域（R_0 到 R_in）的经典运动模型，assault frequency ν 近似为团簇在核内来回运动的频率：ν = v/(2(R_in - R_0))，其中 v = √(2(Q - V_eff(R_0))/μ) 是团簇在内部区域的速度，R_0 是核半径（通常取 R_0 = 1.2 A^(1/3) fm）。数值计算得到 ν 的具体值后，无预形成因子的衰变宽度 Γ_0 = ℏ ν P 即可得到。最终衰变宽度 Γ = P_c × Γ_0，其中 P_c 将在后续步骤中通过微观模型计算。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: nuclear_radius",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤8：选择使用经验系统学公式 P_c = 10^{-0.5*(A_c-4)} 计算预形成概率，当时已知的条件包括：论文采用预形成团簇衰变模型（PCM），P_c 是关键的微观物理量，且对于重团簇（如 ¹⁴C、²⁴Ne）P_c 在 10⁻¹⁰ 到 10⁻²⁰ 量级，而 α 衰变 P_c ≈ 1。。[Gap] 错过的信号：P_c 的量级随团簇质量指数衰减（A_c 增大时 P_c 急剧减小），且论文明确采用微观方法（RMF/双折叠），决策时已知因为 observation 中已给出 P_c 的典型量级和论文背景，本应触发警觉：经验公式无法捕捉核结构效应（如壳效应、形变），对于特定核素（如 ¹⁴C 衰变）可能偏离几个量级，应优先采用微观计算或至少验证经验公式的适用性。。[Decision] 正确判断方式：面对论文明确采用微观方法（RMF/双折叠）且 P_c 量级随 A_c 指数变化的条件，应首先检查经验公式是否与已知系统学（如 ¹⁴C 衰变的 P_c 约 10⁻¹⁰）一致，如果公式给出合理量级但缺乏核结构依赖，则需改用微观方法或至少引用文献中的系统学公式（如基于实验数据拟合的公式），而不是直接采用简单指数形式。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对预形成概率计算方法的适用性检查：未根据论文背景（微观方法）和物理量级（P_c 指数衰减）判断经验公式是否足够精确。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在计算预形成概率这类关键微观量时，不能仅依赖简单经验公式，而应优先采用论文指定的微观方法（如RMF/双折叠），并利用已知的系统学量级（如重团簇P_c≈10⁻¹⁰）作为合理性检查，避免因忽略核结构效应导致数量级错误。"
+    },
+    {
+      "step_index": 18,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6, 7 分别使用 double_folding_integral -> coulomb_potential_calculation -> centrifugal_potential_construction -> effective_potential_assembly -> turning_point_solver -> WKB_action_integral -> penetrability_from_action 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将新P_0公式预测的半衰期（10^20 s和10^15 s）与实验测量的团簇衰变半衰期数据（如Ra核的14C衰变，在能量范围10-20 MeV内）进行直接对比，若偏差在1个数量级内则初步验证。其次，对公式进行量纲分析，确保P_0无量纲且Q值项能量单位一致；同时检验极限情况（如Q值趋近0时半衰期发散），若结果合理则增强可信度。最后，用独立方法（如Gamow模型或统一衰变模型）交叉计算相同核的半衰期，若WKB近似在低Q值（<10 MeV）时因势垒穿透因子指数敏感而可能失效，需注意对比结果的一致性。",
+    "metrics": {
+      "half_life": {
+        "value": "10^15 s",
+        "unit": "对于 ^226Ra 发射 ^14C 团簇",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：preformed_cluster_decay_model；double_folding_procedure。"
+  },
+  "paper_methods": [
+    "preformed_cluster_decay_model",
+    "relativistic_mean_field",
+    "double_folding_procedure",
+    "wkb_approximation"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "preformed_cluster_decay_model",
+        "desc": "基于团簇预形成概率的衰变模型，将半衰期表示为预形成概率与穿透因子的乘积"
+      },
+      {
+        "name": "relativistic_mean_field",
+        "desc": "用于计算核密度分布和核子-核子相互作用的相对论平均场方法"
+      },
+      {
+        "name": "double_folding_procedure",
+        "desc": "通过双折叠核子-核子势得到团簇-剩余核相互作用势"
+      },
+      {
+        "name": "wkb_approximation",
+        "desc": "Wentzel-Kramers-Brillouin近似，用于计算势垒穿透概率"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\hbar \\ln 2}{P_c \\nu_0 \\exp(-2S)}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "P_c = \\exp\\left[ -a \\left( \\frac{Z_c Z_d}{A_c^{1/3} + A_d^{1/3}} \\right)^b \\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "10^20 s",
+        "condition": "对于 ^222Ra 发射 ^14C 团簇"
+      },
+      {
+        "quantity": "half_life",
+        "value": "10^15 s",
+        "condition": "对于 ^226Ra 发射 ^14C 团簇"
+      }
+    ],
+    "failure_points": [
+      "preformed_cluster_decay_model",
+      "double_folding_procedure"
+    ]
+  }
+}

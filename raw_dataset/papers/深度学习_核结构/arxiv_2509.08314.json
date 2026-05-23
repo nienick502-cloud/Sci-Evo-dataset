@@ -1,0 +1,495 @@
+{
+  "id": "NPP_0142",
+  "meta": {
+    "id": "NPP_0142",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear Mass Predictions Using a Neural Network with Additive Gaussian Process Regression-Optimized Activation Functions",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2509.08314"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "原子核质量预测",
+    "input_data": "已知条件：约2500个已测量的原子核质量实验数据；模型参数：GPR-NN方法的超参数",
+    "user_intent": "现有宏观微观模型（如FRDM、WS4）对远离已知区域的丰中子奇特核的质量预测存在显著差异和不确定性，需要提高预测的准确性和外推可靠性。",
+    "quantifiable_goal": "预测原子核的结合能或质量过剩（单位：MeV）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知约2500个已测量的原子核质量实验数据，以及宏观微观模型（如FRDM、WS4）在丰中子区域预测存在差异。[Gap] 需要建立一个能够学习已知数据与核子数（Z, N）之间复杂非线性关系，并能可靠外推的预测模型。[Decision] 采用高斯过程回归（GPR）作为基础框架，因为它能提供预测的不确定性估计。将原子核的质子数Z和中子数N（或质量数A）作为输入特征，将质量过剩（或结合能）作为输出目标。使用提供的实验数据作为训练集。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "gaussian_process_regression",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "(Z, N) or derived quantities",
+        "output_target": "mass_excess_or_binding_energy",
+        "kernel_function": "to_be_optimized",
+        "training_data": "~2500 experimental masses"
+      },
+      "observation": "预期得到一个高斯过程模型，其核心是定义了均值函数和协方差（核）函数。模型能够对任意给定的核素（Z, N）输出其质量过剩的预测值（均值）以及预测的不确定性（方差）。核函数的形式（如径向基函数RBF）和超参数（如长度尺度、信号方差）需要后续确定。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已建立GPR模型框架，但其性能（特别是外推能力）高度依赖于核函数超参数的选择。[Gap] 需要一种高效且全面的方法来在超参数空间中进行采样和优化，以找到使模型在已知数据上表现最佳且泛化能力强的超参数。[Decision] 使用Sobol序列在预定义的超参数空间（如长度尺度范围、噪声水平范围）内生成一组低差异性的初始采样点。这比随机采样能更均匀地覆盖参数空间，有助于后续的优化过程。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "sobol_sequence",
+        "version": ""
+      },
+      "parameters": {
+        "dimension": "number_of_hyperparameters",
+        "num_samples": "e.g., 100-500",
+        "parameter_bounds": "predefined ranges for each hyperparameter"
+      },
+      "observation": "预期得到一组在超参数多维空间内均匀分布的点。每个点代表一组特定的超参数组合（如核长度尺度、信号方差等）。这些点将作为后续超参数优化（例如通过最大化边缘似然）的初始点或用于构建代理模型。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已通过Sobol序列获得了一批候选的超参数组合。[Gap] 需要评估每组超参数下GPR模型的性能，并选择最优的一组。直接在整个数据集上训练并评估容易过拟合，无法可靠评估泛化能力。[Decision] 采用十倍交叉验证（10-fold cross-validation）来评估每组超参数。将2500个数据点随机（或按核素区域）分成10个子集。对于每组超参数，进行10轮训练和验证：每次用9个子集训练GPR模型，在剩下的1个子集上计算预测误差（如均方根误差RMSE）。最终性能指标是10轮验证误差的平均值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "tenfold_cross_validation",
+        "version": ""
+      },
+      "parameters": {
+        "model": "GPR_with_specific_hyperparameters",
+        "dataset": "2500 experimental masses",
+        "metric": "e.g., RMSE",
+        "num_folds": 10
+      },
+      "observation": "预期对于每一组由Sobol序列生成的超参数，得到一个平均交叉验证误差（如平均RMSE）。这个误差指标量化了该组超参数下模型的泛化预测能力。通过比较所有采样点的误差，可以筛选出表现最佳的超参数组合。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 通过Sobol序列采样和十倍交叉验证，已经可以筛选出使GPR在已知数据上泛化误差较小的超参数。[Gap] 然而，纯GPR模型可能难以捕捉原子核质量中极其复杂的、可能包含多个物理尺度（如壳效应、对效应、形变）的全局和局部模式。需要增强模型的表示能力。[Decision] 引入神经网络（NN）作为均值函数或与GPR结合（例如，用NN学习残差，或构建深度核学习）。一种直接的方式是：先训练一个NN来预测质量过剩，然后用GPR对NN的预测残差（实验值 - NN预测值）进行建模。NN负责捕捉主要趋势，GPR负责捕捉剩余的相关性并提供不确定性。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "architecture": "e.g., feedforward network with multiple hidden layers",
+        "input": "(Z, N) and/or physical descriptors",
+        "output": "predicted_mass_excess",
+        "loss_function": "mean_squared_error"
+      },
+      "observation": "预期训练得到一个神经网络模型，该模型能够将核子数（Z, N）映射到质量过剩的初步预测值。网络权重通过最小化预测值与实验值之间的均方误差得到。训练后，计算所有训练数据上NN的预测残差。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤将神经网络作为独立模型来捕捉原子核质量的复杂模式，但论文实际的GPR-NN方法中，神经网络的作用是生成冗余坐标（redundant coordinates）作为特征变换，而不是直接预测质量值。预测步骤误解了神经网络在整体架构中的物理角色和功能。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已训练好一个NN模型，并得到了其在训练集上的预测残差。[Gap] 这些残差并非完全随机，可能包含NN未能捕捉的、具有空间相关性的系统偏差（例如在特定壳层附近的系统偏离）。需要对这些残差进行建模以进一步提高预测精度并量化不确定性。[Decision] 将NN的预测作为GPR的确定性均值函数的一部分，或者更简单地将残差作为新的输出目标，构建一个GPR模型。输入仍是（Z, N），输出是残差。对这个“残差GPR”模型，重复步骤1-3（可能使用简化流程）来优化其超参数。最终的预测是NN预测值加上GPR对残差的预测值。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "gaussian_process_regression",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "(Z, N)",
+        "output_target": "residuals (exp - NN_prediction)",
+        "training_data": "residuals from NN on training set"
+      },
+      "observation": "预期得到一个针对残差的GPR模型。该模型能够预测任意核素处NN预测的系统偏差，并给出该偏差的不确定性。最终组合模型（GPR-NN）的预测值为：最终质量过剩 = NN预测(Z,N) + GPR残差预测(Z,N)。总预测不确定性主要来自GPR残差模型给出的方差。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤将GPR建模为对神经网络预测残差的修正，这构成了一个两阶段模型（NN预测 + GPR修正残差）。但论文实际的GPR-NN方法是一个单阶段加性模型，其中GPR直接在由神经网络变换得到的冗余坐标上操作，预测的是质量本身（或质量残差），而不是另一个模型的残差。预测步骤的模型结构与论文的物理建模框架不符。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已构建了GPR-NN组合模型，并优化了其超参数。[Gap] 需要最终评估该组合模型在整个已知数据集上的整体性能，并与传统宏观微观模型（如FRDM, WS4）在已知区域进行对比，以确认其改进。同时，需要检查模型在训练数据边缘（即已知区域的边界）的行为，作为外推可靠性的初步指示。[Decision] 使用十倍交叉验证（但这次是在整个GPR-NN流程上）来获得一个无偏的、对模型泛化误差的最终估计。在每一折，用训练折数据完整地训练NN和GPR残差模型，然后在测试折上评估最终预测误差。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "tenfold_cross_validation",
+        "version": ""
+      },
+      "parameters": {
+        "full_pipeline": "NN_training -> residual_calculation -> GPR_on_residuals_training",
+        "dataset": "2500 experimental masses",
+        "metric": "RMSE, MAE",
+        "num_folds": 10
+      },
+      "observation": "预期得到GPR-NN模型在已知核素质量预测上的平均交叉验证误差（如RMSE）。这个数值可以与文献中FRDM、WS4等模型在相同或类似数据集上的误差进行比较，以量化性能提升。同时，可以分析误差在核素图上的分布，看是否在丰中子边界区域误差增大。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已通过交叉验证确认了GPR-NN模型在已知数据区域具有优于或可比于传统模型的预测精度。[Gap] 研究的最终目标是预测未知区域（特别是丰中子奇特核）的质量。需要生成这些预测并给出其不确定性估计。[Decision] 使用全部2500个实验数据点，以最终选定的最优超参数，训练完整的GPR-NN模型。然后，对目标预测区域（例如，在质子滴线和中子滴线内的核素）的（Z, N）点，调用训练好的模型进行预测。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "gaussian_process_regression",
+        "version": ""
+      },
+      "parameters": {
+        "trained_model": "final_GPR-NN_model",
+        "prediction_points": "grid of (Z, N) for unknown nuclei"
+      },
+      "observation": "预期得到目标丰中子奇特核素的质量过剩（或结合能）预测值，以及每个预测值对应的标准差（不确定性）。这些预测可以以表格或核素图等高线形式呈现。关键物理假设是：在已知区域学习到的核质量随（Z,N）变化的统计规律（包括趋势和残差相关性）可以外推到未知但物理上相连的区域。预测的不方差在远离训练数据时会增大，这反映了外推的不确定性。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤描述使用全部数据训练最终模型并预测丰中子核素，这本身是合理的操作。但基于步骤4和5对模型架构的根本性误解（两阶段NN+GPR残差修正 vs 单阶段GPR-NN加性模型），此步骤所依据的'最终选定的最优超参数'和训练过程所对应的模型物理内涵与论文不同。预测的模型生成过程在物理实现路径上是错误的。"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 论文旨在使用GPR-NN方法预测原子核质量，该方法将目标函数表示为冗余坐标中一维分量函数的和。[Gap] 需要为该方法建立一个具体的数学模型，以连接输入特征与预测输出。[Decision] 论文采用一阶加性模型，将目标函数 f(x) 表示为多个一维分量函数 f_n(y_n) 的和，每个分量函数由高斯过程回归（GPR）构建。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "GPR-NN",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "f(\\boldsymbol{x}) = \\sum_{n=1}^{D} f_{n}\\left(y_{n}\\right) = \\sum_{n=1}^{D} \\left[ \\sum_{m=1}^{M} k\\left(y_{n}, y_{n}^{(m)}\\right) c_{m} \\right]",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 目标函数已表示为基于训练数据点（索引 m）的核函数 k 的线性组合。[Gap] 需要确定组合系数 c_m，以最佳拟合训练数据。[Decision] 应用标准的高斯过程回归方法，通过求解一个正则化的线性方程组来获得系数向量 c。",
+      "action": "rule_application",
+      "tool": {
+        "name": "GPR-NN",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "\\boldsymbol{c} = \\left(\\boldsymbol{K} + \\delta \\boldsymbol{I}\\right)^{-1} \\boldsymbol{f}",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 系数 c 的计算依赖于核矩阵 K，其元素由核函数 k 在训练数据点对之间计算得到。[Gap] 需要为加性模型指定一个具体的核函数形式。[Decision] 论文采用加性平方指数核，其中每个维度贡献一个高斯项，长度参数为 L。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "GPR-NN",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "k(\\boldsymbol{y}^{(m)}, \\boldsymbol{y}^{(m^{\\prime})}) = \\sum_{n=1}^{D} \\exp \\left[ - \\frac{1}{2 L^{2}} \\left(y_{n}^{(m)} - y_{n}^{(m^{\\prime})}\\right)^{2} \\right]",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] GPR-NN模型框架已建立，包含超参数如冗余坐标数 R、核长度 L 和正则化参数 δ。[Gap] 需要确定这些超参数的最优值，以最小化预测误差。[Decision] 论文使用十折交叉验证过程来优化超参数，针对插值和外推两种场景分别进行。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "tenfold_cross_validation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "优化得到两组超参数：插值场景 (R=3, L=0.031, δ=0.001) 和外推场景 (L=0.080, δ=0.200)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 超参数已通过交叉验证优化确定。[Gap] 需要评估模型在预测原子核质量方面的最终性能，并与理论模型结合。[Decision] 论文将GPR-NN预测的质量残差 M_res 与理论模型预测的质量 M_th 相加，得到最终的原子核质量预测。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "GPR-NN",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "M_{\\mathrm{GPR-NN}}(Z, N) = M_{\\mathrm{th}}(Z, N) + M_{\\mathrm{res}}(Z, N)",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：引入神经网络作为独立模型来预测质量过剩，然后用GPR建模其残差。[Gap] 错过的信号：在物理建模中，当目标是捕捉复杂模式时，直接使用NN作为黑盒预测器会丢失物理坐标（如Z, N）与目标量之间可能存在的、可通过坐标变换揭示的简化结构（如加性）。预测步骤将NN视为一个独立的“趋势捕捉器”，这暗示了模型复杂度会集中在NN内部，而GPR仅处理剩余噪声。但已知的物理事实是，核质量面虽然复杂，但可能由少数主导物理效应（如壳层、对效应）以相对独立的方式贡献，这提示了加性结构的可能性，而非一个黑盒NN后接另一个黑盒GPR的级联。。[Decision] 正确判断方式：面对“需要增强模型表示能力以捕捉复杂模式”这一需求，经验丰富的物理学家会首先考虑是否存在更结构化的、物理启发的特征表示方法，而不是直接堆叠黑盒模型。他们会思考：复杂性能否通过输入空间的智能变换（特征工程）来简化？例如，将原始坐标（Z, N）映射到一组“冗余坐标”中，使得目标函数在这些新坐标上可能表现出可分离的、更简单的结构（如多个一维函数的和）。神经网络在这里更自然的角色是学习这种特征变换（即生成冗余坐标），而不是直接预测目标值。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：误将神经网络视为端到端的预测器，而非特征提取器；忽略了在物理建模中，通过坐标变换寻找简化表示（如加性模型）是比直接拟合复杂函数更优先的策略。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 14,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：将GPR建模为对神经网络预测残差的修正，构成两阶段模型（NN预测 + GPR修正）。[Gap] 错过的信号：构建两阶段模型（NN预测值 + GPR残差）在数学上等价于一个复杂的复合模型，其最终预测的不确定性难以清晰分解（GPR的方差只覆盖残差的不确定性，而非总预测的不确定性）。更重要的是，如果NN已经是一个强大的预测器，GPR修正的物理意义变得模糊——它是在修正NN的系统误差，还是在建模数据中固有的、与NN无关的空间相关性？已知的建模原则是，应尽可能构建一个统一、连贯的模型框架，其中每个组件的角色（如捕捉趋势、建模相关性）有清晰的定义和协同作用，而不是简单的后处理拼接。。[Decision] 正确判断方式：面对“需要对残差进行建模”这一想法，经验丰富的物理学家会质疑：为什么残差需要单独用一个以原始坐标（Z, N）为输入的GPR来建模？如果残差中确实存在空间相关性，那么这种相关性很可能与产生主要趋势的物理机制同源。因此，更合理的做法是将“趋势捕捉”和“相关性建模”整合到同一个基于变换后特征的统计框架中。他们会考虑一个单阶段模型，其中神经网络负责将原始物理坐标变换为更具表现力的特征（冗余坐标），然后GPR直接在这些特征上对目标值（或相对于某个简单基准的残差）进行建模。这样，GPR的核函数直接作用于由NN学习到的、蕴含物理信息的特征空间。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：采用了模型拼接的工程思维，而非设计一个内聚的、基于物理启发的统计模型架构；未能认识到GPR应直接作用于由NN生成的特征空间，以实现趋势与相关性的统一学习。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 15,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤7：基于前两步误解的模型架构，描述使用全部数据训练“最终GPR-NN模型”并进行预测。[Gap] 错过的信号：此步骤是前两个错误决策的自然延伸，其核心问题在于所设想的“最终模型”的物理内涵和训练过程与加性建模思想不符。在错误的架构下，即使操作流程（训练、预测）看似合理，其背后的模型也无法实现论文中“通过冗余坐标实现加性分解”的关键物理简化。信号在于：如果模型真的是两阶段独立训练（先NN后GPR），那么超参数优化（如GPR的核长度尺度）将仅在残差数据上进行，完全忽略了NN特征变换对最终GPR性能的根本性影响。这违背了端到端学习特征表示以优化最终目标的原则。。[Decision] 正确判断方式：在确定最终模型训练和预测流程时，经验丰富的物理学家会确保模型架构与预设的物理建模思想（如加性）一致。他们会意识到，真正的“GPR-NN”模型其超参数（如冗余坐标维度R、核长度L）必须通过针对最终预测目标的交叉验证来联合优化。NN的参数（定义冗余坐标）和GPR的超参数是作为一个整体模型的一部分被确定的，目的是最小化预测误差，而不是先独立训练NN再为它的残差另找一个GPR。预测时，模型应作为一个整体，将（Z, N）通过NN变换，再用GPR在变换后的空间进行预测。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：基于错误的架构蓝图执行训练预测流程；未能理解在整合NN与GPR时，必须将NN的特征学习作为GPR建模的前置变换步骤，并在统一的框架下优化所有参数。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "本论文揭示的教训是：在物理信息机器学习中，神经网络的首要作用往往不是直接预测，而是学习对原始物理变量进行非线性变换，以揭示数据中隐藏的简化结构（如加性），从而让后续的统计模型（如GPR）能在更易处理的特征空间上高效运作。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "rms_deviation___rms": {
+        "value": "约 440 keV",
+        "unit": "当冗余坐标数 R ≥ 3 时",
+        "interpretation": "rms deviation Δ_rms"
+      },
+      "Optimized_hyperparameter_L": {
+        "value": "0.080",
+        "unit": "外推优化得到的新超参数集",
+        "interpretation": "Optimized hyperparameter L"
+      },
+      "Optimized_hyperparameter": {
+        "value": "0.200",
+        "unit": "外推优化得到的新超参数集",
+        "interpretation": "Optimized hyperparameter δ"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：在插值中优化的超参数集（L=0.031，δ=0.001）在外推中表现不佳，其均方根偏差甚至大于RCHB质量模型。。推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "gaussian_process_regression",
+    "neural_network",
+    "sobol_sequence",
+    "tenfold_cross_validation"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知约2500个已测量的原子核质量实验数据，以及宏观微观模型（如FRDM、WS4）在丰中子区域预测存在差异。[Gap] 需要建立一个能够学习已知数据与核子数（Z, N）之间复杂非线性关系，并能可靠外推的预测模型。[Decision] 采用高斯过程回归（GPR）作为基础框架，因为它能提供预测的不确定性估计。将原子核的质子数Z和中子数N（或质量数A）作为输入特征，将质量过剩（或结合能）作为输出目标。使用提供的实验数据作为训练集。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "gaussian_process_regression",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "(Z, N) or derived quantities",
+        "output_target": "mass_excess_or_binding_energy",
+        "kernel_function": "to_be_optimized",
+        "training_data": "~2500 experimental masses"
+      },
+      "observation": "预期得到一个高斯过程模型，其核心是定义了均值函数和协方差（核）函数。模型能够对任意给定的核素（Z, N）输出其质量过剩的预测值（均值）以及预测的不确定性（方差）。核函数的形式（如径向基函数RBF）和超参数（如长度尺度、信号方差）需要后续确定。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已建立GPR模型框架，但其性能（特别是外推能力）高度依赖于核函数超参数的选择。[Gap] 需要一种高效且全面的方法来在超参数空间中进行采样和优化，以找到使模型在已知数据上表现最佳且泛化能力强的超参数。[Decision] 使用Sobol序列在预定义的超参数空间（如长度尺度范围、噪声水平范围）内生成一组低差异性的初始采样点。这比随机采样能更均匀地覆盖参数空间，有助于后续的优化过程。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "sobol_sequence",
+        "version": ""
+      },
+      "parameters": {
+        "dimension": "number_of_hyperparameters",
+        "num_samples": "e.g., 100-500",
+        "parameter_bounds": "predefined ranges for each hyperparameter"
+      },
+      "observation": "预期得到一组在超参数多维空间内均匀分布的点。每个点代表一组特定的超参数组合（如核长度尺度、信号方差等）。这些点将作为后续超参数优化（例如通过最大化边缘似然）的初始点或用于构建代理模型。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已通过Sobol序列获得了一批候选的超参数组合。[Gap] 需要评估每组超参数下GPR模型的性能，并选择最优的一组。直接在整个数据集上训练并评估容易过拟合，无法可靠评估泛化能力。[Decision] 采用十倍交叉验证（10-fold cross-validation）来评估每组超参数。将2500个数据点随机（或按核素区域）分成10个子集。对于每组超参数，进行10轮训练和验证：每次用9个子集训练GPR模型，在剩下的1个子集上计算预测误差（如均方根误差RMSE）。最终性能指标是10轮验证误差的平均值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "tenfold_cross_validation",
+        "version": ""
+      },
+      "parameters": {
+        "model": "GPR_with_specific_hyperparameters",
+        "dataset": "2500 experimental masses",
+        "metric": "e.g., RMSE",
+        "num_folds": 10
+      },
+      "observation": "预期对于每一组由Sobol序列生成的超参数，得到一个平均交叉验证误差（如平均RMSE）。这个误差指标量化了该组超参数下模型的泛化预测能力。通过比较所有采样点的误差，可以筛选出表现最佳的超参数组合。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 通过Sobol序列采样和十倍交叉验证，已经可以筛选出使GPR在已知数据上泛化误差较小的超参数。[Gap] 然而，纯GPR模型可能难以捕捉原子核质量中极其复杂的、可能包含多个物理尺度（如壳效应、对效应、形变）的全局和局部模式。需要增强模型的表示能力。[Decision] 引入神经网络（NN）作为均值函数或与GPR结合（例如，用NN学习残差，或构建深度核学习）。一种直接的方式是：先训练一个NN来预测质量过剩，然后用GPR对NN的预测残差（实验值 - NN预测值）进行建模。NN负责捕捉主要趋势，GPR负责捕捉剩余的相关性并提供不确定性。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "architecture": "e.g., feedforward network with multiple hidden layers",
+        "input": "(Z, N) and/or physical descriptors",
+        "output": "predicted_mass_excess",
+        "loss_function": "mean_squared_error"
+      },
+      "observation": "预期训练得到一个神经网络模型，该模型能够将核子数（Z, N）映射到质量过剩的初步预测值。网络权重通过最小化预测值与实验值之间的均方误差得到。训练后，计算所有训练数据上NN的预测残差。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已训练好一个NN模型，并得到了其在训练集上的预测残差。[Gap] 这些残差并非完全随机，可能包含NN未能捕捉的、具有空间相关性的系统偏差（例如在特定壳层附近的系统偏离）。需要对这些残差进行建模以进一步提高预测精度并量化不确定性。[Decision] 将NN的预测作为GPR的确定性均值函数的一部分，或者更简单地将残差作为新的输出目标，构建一个GPR模型。输入仍是（Z, N），输出是残差。对这个“残差GPR”模型，重复步骤1-3（可能使用简化流程）来优化其超参数。最终的预测是NN预测值加上GPR对残差的预测值。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "gaussian_process_regression",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "(Z, N)",
+        "output_target": "residuals (exp - NN_prediction)",
+        "training_data": "residuals from NN on training set"
+      },
+      "observation": "预期得到一个针对残差的GPR模型。该模型能够预测任意核素处NN预测的系统偏差，并给出该偏差的不确定性。最终组合模型（GPR-NN）的预测值为：最终质量过剩 = NN预测(Z,N) + GPR残差预测(Z,N)。总预测不确定性主要来自GPR残差模型给出的方差。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已构建了GPR-NN组合模型，并优化了其超参数。[Gap] 需要最终评估该组合模型在整个已知数据集上的整体性能，并与传统宏观微观模型（如FRDM, WS4）在已知区域进行对比，以确认其改进。同时，需要检查模型在训练数据边缘（即已知区域的边界）的行为，作为外推可靠性的初步指示。[Decision] 使用十倍交叉验证（但这次是在整个GPR-NN流程上）来获得一个无偏的、对模型泛化误差的最终估计。在每一折，用训练折数据完整地训练NN和GPR残差模型，然后在测试折上评估最终预测误差。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "tenfold_cross_validation",
+        "version": ""
+      },
+      "parameters": {
+        "full_pipeline": "NN_training -> residual_calculation -> GPR_on_residuals_training",
+        "dataset": "2500 experimental masses",
+        "metric": "RMSE, MAE",
+        "num_folds": 10
+      },
+      "observation": "预期得到GPR-NN模型在已知核素质量预测上的平均交叉验证误差（如RMSE）。这个数值可以与文献中FRDM、WS4等模型在相同或类似数据集上的误差进行比较，以量化性能提升。同时，可以分析误差在核素图上的分布，看是否在丰中子边界区域误差增大。",
+      "valid": true
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已通过交叉验证确认了GPR-NN模型在已知数据区域具有优于或可比于传统模型的预测精度。[Gap] 研究的最终目标是预测未知区域（特别是丰中子奇特核）的质量。需要生成这些预测并给出其不确定性估计。[Decision] 使用全部2500个实验数据点，以最终选定的最优超参数，训练完整的GPR-NN模型。然后，对目标预测区域（例如，在质子滴线和中子滴线内的核素）的（Z, N）点，调用训练好的模型进行预测。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "gaussian_process_regression",
+        "version": ""
+      },
+      "parameters": {
+        "trained_model": "final_GPR-NN_model",
+        "prediction_points": "grid of (Z, N) for unknown nuclei"
+      },
+      "observation": "预期得到目标丰中子奇特核素的质量过剩（或结合能）预测值，以及每个预测值对应的标准差（不确定性）。这些预测可以以表格或核素图等高线形式呈现。关键物理假设是：在已知区域学习到的核质量随（Z,N）变化的统计规律（包括趋势和残差相关性）可以外推到未知但物理上相连的区域。预测的不方差在远离训练数据时会增大，这反映了外推的不确定性。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "GPR-NN",
+        "desc": "一种结合单隐藏层神经网络和高斯过程回归的混合方法，用于预测核质量残差。"
+      },
+      {
+        "name": "tenfold_cross_validation",
+        "desc": "用于确定GPR-NN方法中超参数（R, L, δ）的十折交叉验证过程。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "f(\\boldsymbol{x}) = \\sum_{n=1}^{D} f_{n}\\left(y_{n}\\right) = \\sum_{n=1}^{D} \\left[ \\sum_{m=1}^{M} k\\left(y_{n}, y_{n}^{(m)}\\right) c_{m} \\right]"
+      },
+      {
+        "label": "Eq.2",
+        "content": "\\boldsymbol{c} = \\left(\\boldsymbol{K} + \\delta \\boldsymbol{I}\\right)^{-1} \\boldsymbol{f}"
+      },
+      {
+        "label": "Eq.4",
+        "content": "k(\\boldsymbol{y}^{(m)}, \\boldsymbol{y}^{(m^{\\prime})}) = \\sum_{n=1}^{D} \\exp \\left[ - \\frac{1}{2 L^{2}} \\left(y_{n}^{(m)} - y_{n}^{(m^{\\prime})}\\right)^{2} \\right]"
+      },
+      {
+        "label": "Predicted mass formula",
+        "content": "M_{\\mathrm{GPR-NN}}(Z, N) = M_{\\mathrm{th}}(Z, N) + M_{\\mathrm{res}}(Z, N)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "rms deviation Δ_rms",
+        "value": "~1000 keV",
+        "condition": "当冗余坐标数 R = 0 时"
+      },
+      {
+        "quantity": "rms deviation Δ_rms",
+        "value": "约 440 keV",
+        "condition": "当冗余坐标数 R ≥ 3 时"
+      },
+      {
+        "quantity": "Optimized hyperparameter L",
+        "value": "0.031",
+        "condition": "插值优化得到的超参数，R=3时"
+      },
+      {
+        "quantity": "Optimized hyperparameter δ",
+        "value": "0.001",
+        "condition": "插值优化得到的超参数，R=3时"
+      },
+      {
+        "quantity": "Optimized hyperparameter L",
+        "value": "0.080",
+        "condition": "外推优化得到的新超参数集"
+      },
+      {
+        "quantity": "Optimized hyperparameter δ",
+        "value": "0.200",
+        "condition": "外推优化得到的新超参数集"
+      }
+    ],
+    "failure_points": [
+      "在插值中优化的超参数集（L=0.031，δ=0.001）在外推中表现不佳，其均方根偏差甚至大于RCHB质量模型。"
+    ]
+  }
+}

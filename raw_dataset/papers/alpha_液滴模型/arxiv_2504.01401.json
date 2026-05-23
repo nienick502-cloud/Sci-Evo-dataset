@@ -1,0 +1,490 @@
+{
+  "id": "NPP_0040",
+  "meta": {
+    "id": "NPP_0040",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_liquid_drop",
+    "source": {
+      "type": "paper",
+      "title": "Systematic study of ?-decay half-lives of superheavy nuclei based on Coulomb and proximity potential models with temperature effects",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2504.01401"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变半衰期的温度依赖性",
+    "input_data": "已知条件：超重核范围 Z=106-118；实验α衰变半衰期数据；22种不同的邻近势模型（如Prox.77-3, Bass77, AW95, Ngô80, Guo2013等）及其参数；Coulomb and Proximity Potential Model (CPPM) 框架。",
+    "user_intent": "现有多种邻近势模型被用于计算超重核α衰变半衰期，但不同模型的计算结果存在显著差异，且多数模型未考虑温度效应。需要系统评估这些模型的性能，并研究温度依赖性对模型预测精度的影响，以确定更可靠的模型用于超重核研究。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s），评估不同邻近势模型的均方根偏差σ（无量纲），分析温度对模型预测精度的影响。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是评估超重核α衰变半衰期的温度依赖性，并比较不同邻近势模型的性能。已知有22种邻近势模型和CPPM框架。[Gap] 需要为每个模型和每个核素构建一个用于α衰变的总相互作用势能 $V(r)$，作为后续计算半衰期的基础。[Decision] 使用 proximity_potential_formalism 来定义核势部分 $V_N(r)$，使用 coulomb_potential_uniform_sphere 来定义库仑势部分 $V_C(r)$。总势能 $V(r) = V_C(r) + V_N(r)$。预期得到包含模型参数的势能表达式。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "proximity_potential_formalism",
+        "version": ""
+      },
+      "parameters": {
+        "framework": "CPPM",
+        "potential_components": "Nuclear potential V_N(r) and Coulomb potential V_C(r)"
+      },
+      "observation": "预期得到总相互作用势能 $V(r) = V_C(r) + V_N(r)$ 的解析表达式。其中 $V_C(r)$ 由 coulomb_potential_uniform_sphere 给出，形式为 $V_C(r) = \\frac{Z_d Z_\\alpha e^2}{r}$（对于 $r \\ge R_C$），$R_C$ 为库仑半径。$V_N(r)$ 由 proximity_potential_formalism 给出，形式为 $V_N(r) = 4 \\pi \\gamma b \\frac{C_1 C_2}{C_1 + C_2} \\Phi(s)$，其中 $\\gamma$ 为表面能系数，$b$ 为表面宽度，$C_i$ 为核半密度半径，$s = r - C_1 - C_2$，$\\Phi(s)$ 为普适函数，其具体形式（如 Prox.77-3, Bass77 等）取决于所选的邻近势模型。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已为每个模型和核素构建了总势能 $V(r)$。[Gap] 需要计算α粒子穿透该势垒的穿透概率 $P$，这是计算半衰期的核心。[Decision] 应用 wkb_approximation 来计算穿透概率。这需要确定经典转折点 $r_1$（内转折点）和 $r_2$（外转折点），其中 $V(r) = Q_\\alpha$，$Q_\\alpha$ 为衰变能。然后计算积分。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "penetrability_integral": "P = \\exp[-2 \\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r)-Q_\\alpha)} dr]"
+      },
+      "observation": "预期得到穿透概率 $P$ 的表达式，形式为 $P = \\exp[-G]$，其中 $G = 2 \\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r)-Q_\\alpha)} dr$，$\\mu$ 为α粒子与子核的约化质量，$Q_\\alpha$ 为衰变能（从实验数据获得）。积分限 $r_1$ 和 $r_2$ 由方程 $V(r) = Q_\\alpha$ 数值求解得到。$V(r)$ 来自步骤1。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已得到穿透概率 $P$。[Gap] 需要计算α衰变半衰期 $T_{1/2}$。这还需要α粒子在母核内的预形成概率 $S_\\alpha$ 和碰撞频率 $\\nu$。[Decision] 使用 preformation_factor_empirical_formula 来估算预形成因子 $S_\\alpha$。碰撞频率 $\\nu$ 通常取为 $\\nu = 10^{20} - 10^{22} \\, \\mathrm{s}^{-1}$ 量级，或通过 $\\nu = v/(2R_0)$ 估算，其中 $v$ 为α粒子在核内的速度，$R_0$ 为母核半径。然后应用半衰期公式 $T_{1/2} = (\\ln 2) / (\\nu S_\\alpha P)$。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "preformation_factor_empirical_formula",
+        "version": ""
+      },
+      "parameters": {
+        "half_life_formula": "T_{1/2} = \\frac{\\ln 2}{\\nu S_\\alpha P}"
+      },
+      "observation": "预期得到半衰期 $T_{1/2}$ 的最终表达式。$S_\\alpha$ 由 preformation_factor_empirical_formula 给出，可能具有 $S_\\alpha = \\exp(a + bA_d + cZ_d + ...)$ 等形式，其中 $A_d$ 和 $Z_d$ 为子核的质量数和电荷数，a, b, c 为经验参数。$P$ 来自步骤2。$\\nu$ 可能取为常数或简单估算。因此 $T_{1/2}$ 是 $Q_\\alpha$、核质量数、电荷数以及所选邻近势模型参数的函数。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "incorrect_derivation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤将半衰期计算分解为穿透概率P、预形成因子S_α和碰撞频率ν的乘积，这是α衰变半衰期计算中常见的简化形式（如Gamow模型）。但论文实际推导（步骤8和11）使用的是CPPM框架下的特定公式：T_{1/2} = (πħ ln2)/(P_0 E_v) [1 + exp(B)]，其中P_0是预形成概率，E_v是零点振动能，B是作用积分。预测的公式结构（T_{1/2} ∝ 1/(S_α ν P)）与论文公式在物理上不等价，忽略了零点振动能E_v的特定作用，并错误地假设了碰撞频率ν的显式引入，而论文公式中[1+exp(B)]项直接来自WKB近似的穿透概率（P=1/(1+exp(B))），并非预测中的P=exp(-G)形式。这种公式结构差异是推导错误，不仅仅是参数或近似不同。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已建立计算 $T_{1/2}$ 的完整理论框架，包含不同邻近势模型的选择。[Gap] 需要针对超重核范围（Z=106-118）的多个核素，使用不同模型计算其 $T_{1/2}$ 的理论值，并与实验数据进行比较，以评估模型性能。[Decision] 进行数值计算。对于每个核素和每个邻近势模型，输入其 $Q_\\alpha$、$A$、$Z$ 等参数，执行步骤1-3的数值积分和计算，得到 $\\log_{10} T_{1/2}^{\\text{calc}}$。然后与实验值 $\\log_{10} T_{1/2}^{\\text{exp}}$ 比较。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "calculation_loop": "For each nucleus and each proximity potential model, compute T_{1/2}",
+        "comparison": "log10(T_calc) vs log10(T_exp)"
+      },
+      "observation": "预期得到一系列数值结果：对于每个核素和每个邻近势模型，计算得到一个 $\\log_{10} T_{1/2}^{\\text{calc}}$ 值。这些值将与实验值 $\\log_{10} T_{1/2}^{\\text{exp}}$ 形成对比。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已得到所有模型对所有核素的计算半衰期。[Gap] 需要定量评估每个模型的整体预测精度，以比较模型优劣。[Decision] 计算每个模型的均方根偏差 $\\sigma$，定义为 $\\sigma = \\sqrt{\\frac{1}{N} \\sum_{i=1}^{N} [\\log_{10} T_{1/2}^{\\text{calc}}(i) - \\log_{10} T_{1/2}^{\\text{exp}}(i)]^2}$，其中 $N$ 为核素数量。$\\sigma$ 越小，模型精度越高。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "evaluation_metric": "Root-mean-square deviation sigma"
+      },
+      "observation": "预期得到每个邻近势模型对应的一个均方根偏差值 $\\sigma$。这将提供一个模型性能的排序，$\\sigma$ 值最小的模型被认为在零温（或默认）条件下预测最准确。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已评估了不同邻近势模型在零温（或默认）条件下的性能。[Gap] 研究目标包括分析温度依赖性。需要研究温度 $T$ 如何影响模型预测。温度可能通过影响核势参数（如表面能系数 $\\gamma$、核半径等）或预形成因子 $S_\\alpha$ 来引入。[Decision] 引入温度 $T$ 作为变量。假设温度主要影响 proximity_potential_formalism 中的参数，例如使表面能系数 $\\gamma$ 随温度变化：$\\gamma(T) = \\gamma_0 (1 - \\alpha T^2)$ 或类似形式。也可能影响预形成因子。重新进行步骤1-5的计算，但使用温度修正后的参数。",
+      "action": "approximation",
+      "tool": {
+        "name": "proximity_potential_formalism",
+        "version": ""
+      },
+      "parameters": {
+        "temperature_dependence": "Introduce T-dependence into potential parameters, e.g., surface energy coefficient gamma(T)"
+      },
+      "observation": "预期得到温度修正后的总势能 $V(r, T)$ 和/或温度修正后的预形成因子 $S_\\alpha(T)$。关键假设是温度如何具体修改这些参数（例如，$\\gamma(T) = \\gamma_0 [1 - (T/T_c)^2]$，其中 $T_c$ 为临界温度）。这将使所有后续量（$P$, $T_{1/2}$）成为温度 $T$ 的函数。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "over_simplification",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤假设温度T会通过修改势能参数（如表面能系数γ）或预形成因子S_α来引入温度依赖性，并计划计算σ(T)。但论文实际的推导步骤（8-11）完全没有涉及温度效应。在α衰变理论中，温度依赖性通常与核激发态、能级密度或形状涨落相关，而不是简单地通过修改势参数（如γ）来引入。预测的这种处理方式过度简化了温度影响的物理机制，忽略了α衰变半衰期温度依赖性的复杂物理起源（如热激发导致的势垒高度变化或预形成概率的变化机制），在未建立正确物理模型的情况下直接参数化，丢失了关键物理结构。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已建立了包含温度 $T$ 的理论框架。[Gap] 需要量化温度对模型预测精度的影响。即在有限温度下，重新计算模型的 $\\sigma(T)$，观察其相对于零温 $\\sigma(0)$ 的变化。[Decision] 选择几个有代表性的温度值（例如 $T = 0, 0.5, 1.0 \\, \\mathrm{MeV}$ 等，在核物理温度量级）。对于每个温度 $T$，使用修正后的参数重复步骤4和5的数值计算，得到每个模型在温度 $T$ 下的均方根偏差 $\\sigma(T)$。分析 $\\sigma(T)$ 随 $T$ 的变化趋势。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "temperature_scan": "Compute sigma(T) for selected T values for each model"
+      },
+      "observation": "预期得到每个邻近势模型的 $\\sigma$ 值随温度 $T$ 变化的曲线或数据表。可以观察：1) 在哪个温度下某个模型的 $\\sigma(T)$ 最小（即最佳预测温度）；2) 温度敏感性：哪些模型的 $\\sigma$ 对 $T$ 变化更敏感；3) 可能识别出在较宽温度范围内都保持较低 $\\sigma$ 的稳健模型。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "over_simplification",
+      "observation_source": "inferred",
+      "error_reason": "此步骤基于步骤6的错误温度依赖性模型，计划计算σ(T)并寻找最佳预测温度。由于步骤6的物理模型是过度简化的，此步骤的数值计算前提不成立。论文实际推导未涉及温度变化下的模型精度评估，因此该步骤的整个推理链建立在错误的物理假设上，属于过度简化导致的后续错误延伸。"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 论文建立了计算α衰变半衰期的CPPM框架，给出了半衰期T_{1/2}与预形成因子P_0、零点振动能E_v和作用积分B的关系式。[Gap] 为了计算半衰期，需要首先确定预形成因子P_0的数值。[Decision] 论文采用一个基于幻数和核子数的经验公式来计算log_{10} P_0。",
+      "action": "rule_application",
+      "tool": {
+        "name": "CPPM",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "\\log_{10} P_o = a + b (Z - Z_1)(Z_2 - Z_1) + c (N - N_1)(N_2 - N) + d A + e (Z - Z_1)(N - N_1)，其中参数a=34.90593, b=0.003011, c=0.003717, d=0.151216, e=0.006681，幻数Z1=82, Z2=126, N1=152, N2=184。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 预形成因子P_0已确定。半衰期公式中的另一个关键量是作用积分B，它依赖于总相互作用势V(r)和衰变能Q_α。[Gap] 需要构建总相互作用势V(r)的具体形式以计算作用积分。[Decision] 论文将总势分解为核势、库仑势和离心势之和，并采用邻近势形式替代核势，同时忽略离心势。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "proximity_potential_formalism",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "V(r) = V_N(r) + V_C(r) + V_l(r)，其中V_N(r)由邻近势形式给出，V_C(r)由均匀带电球势给出（Eq.7），并考虑V_l(r)=0。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 总相互作用势V(r)的形式已确定。作用积分B的计算还需要衰变能Q_α和转折点R_in, R_out。[Gap] 需要将衰变能Q_α与α粒子的动能E_α联系起来，并确定转折点。[Decision] 论文使用一个关系式将Q_α表达为E_α和子核质子数的函数，转折点由方程V(r) = Q_α的解定义。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "CPPM",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "Q_{\\alpha} = \\frac{A_d}{A_p} E_{\\alpha} + \\left[6.53 Z_d^{7/5} - 8.0 Z_d^{2/5}\\right] \\times 10^{-5} \\mathrm{MeV}。转折点R_in和R_out由V(r) = Q_α确定。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 所有计算半衰期所需的量（P_0, V(r), Q_α, 转折点）的表达式均已获得。[Gap] 需要最终计算α衰变半衰期T_{1/2}。[Decision] 论文在CPPM框架下，使用WKB近似计算势垒穿透概率对应的作用积分B，并结合P_0和E_v代入半衰期公式。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_approximation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "T_{1/2} = \\frac{\\pi \\hbar \\ln 2}{P_0 E_v} [1 + \\exp(B)]，其中B = \\frac{2}{\\hbar} \\int_{R_{\\mathrm{in}}}^{R_{\\mathrm{out}}} \\sqrt{2 \\mu (V(r) - Q_{\\alpha})} dr，E_v = \\frac{\\hbar \\pi}{2 R_p} \\sqrt{\\frac{2 E_{\\alpha}}{m_{\\alpha}}}。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：使用半衰期公式 T_{1/2} = (ln 2) / (ν S_α P)，并计划用经验公式估算S_α，用ν=v/(2R_0)估算碰撞频率。。[Gap] 错过的信号：在α衰变理论中，当使用WKB近似计算穿透概率时，得到的穿透系数P_WKB通常直接与半衰期公式中的指数项[1+exp(B)]相关，而不是一个独立的、需要与碰撞频率ν相乘的因子P=exp(-G)。这表明预测中使用的公式结构（乘积形式）与基于WKB近似的标准推导路径不一致。。[Decision] 正确判断方式：经验丰富的物理学家会意识到，从WKB近似出发，穿透概率P_WKB = 1/(1+exp(B))。将其代入半衰期公式时，会自然得到 T_{1/2} ∝ 1/(P_0 E_v) * [1+exp(B)] 的形式，其中E_v是零点振动能，它取代了“碰撞频率ν”的角色。因此，在看到需要计算半衰期时，会优先检查是否与WKB近似的标准结果自洽，而不是直接套用包含ν的简化模型。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：混淆了不同理论框架下的半衰期公式。预测使用了基于Gamow模型（或类似简化模型）的公式结构，而论文实际采用了基于WKB近似和CPPM框架的特定公式，两者在物理量定义和依赖关系上存在本质差异。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：假设温度T主要通过修改势能参数（如表面能系数γ(T)）或预形成因子S_α来引入，并计划计算修正后的势能V(r, T)。。[Gap] 错过的信号：在α衰变理论中，温度效应通常与核的激发态、能级密度或集体运动（如形状涨落）相关，这些效应会改变衰变宽度或预形成概率。直接参数化势能参数（如γ(T)）是一种高度模型化的做法，并非标准处理方式。在没有明确物理机制（如热激发如何修改核势形状）的情况下，这种参数化缺乏依据。。[Decision] 正确判断方式：面对“分析温度依赖性”的任务，经验丰富的物理学家会首先质疑：温度影响α衰变的主要物理机制是什么？是改变了α粒子预形成的概率？还是改变了势垒穿透的概率（通过改变有效衰变能或势垒形状）？他们会优先查阅相关文献，了解温度依赖性的主流理论模型（如通过激发能修正Q值，或考虑热涨落导致的势垒高度变化），而不是直接对势参数进行唯象的温度修正。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：对α衰变温度依赖性的物理机制理解不足，采用了过度简化且缺乏物理依据的参数化模型，而不是基于激发态或热涨落等更本质的物理图像。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 14,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤7：基于步骤6的温度修正模型，计划计算不同温度T下的模型精度σ(T)，并分析其变化趋势。。[Gap] 错过的信号：步骤6建立的温度依赖模型本身是过度简化的，因此基于此模型进行数值计算并评估“精度变化”的前提已经失效。在物理研究中，如果底层模型存在根本性问题，后续的数值分析通常没有意义。。[Decision] 正确判断方式：在步骤6已经做出了一个缺乏坚实物理基础的假设后，经验丰富的物理学家在进行数值计算前会进行“合理性检查”：这个温度修正模型是否与已知的有限温度核物理现象（如能级密度增加、巨共振激发等）相符？如果模型本身可疑，他们会暂停数值计算，转而重新审视温度依赖的物理基础，或者明确说明当前计算是基于一个高度简化的假设模型，其结论的物理意义有限。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：在错误的物理模型基础上进行了延伸计算，没有意识到模型本身的缺陷会使后续的数值分析失去物理意义，属于逻辑链的连续错误。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "这篇论文揭示的教训是：在应用物理模型时，必须严格区分不同理论框架（如Gamow模型 vs. WKB/CPPM框架）的公式和物理量定义；对于引入新效应（如温度），必须基于明确的物理机制构建模型，而非随意参数化。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "a": {
+        "value": "34.90593",
+        "unit": "预形成因子公式中的参数",
+        "interpretation": "a"
+      },
+      "b": {
+        "value": "0.003011",
+        "unit": "预形成因子公式中的参数",
+        "interpretation": "b"
+      },
+      "c": {
+        "value": "0.003717",
+        "unit": "预形成因子公式中的参数",
+        "interpretation": "c"
+      },
+      "d": {
+        "value": "0.151216",
+        "unit": "预形成因子公式中的参数",
+        "interpretation": "d"
+      },
+      "e": {
+        "value": "0.006681",
+        "unit": "预形成因子公式中的参数",
+        "interpretation": "e"
+      },
+      "Z1": {
+        "value": "82",
+        "unit": "幻数",
+        "interpretation": "Z1"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "wkb_approximation",
+    "proximity_potential_formalism",
+    "coulomb_potential_uniform_sphere",
+    "preformation_factor_empirical_formula"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是评估超重核α衰变半衰期的温度依赖性，并比较不同邻近势模型的性能。已知有22种邻近势模型和CPPM框架。[Gap] 需要为每个模型和每个核素构建一个用于α衰变的总相互作用势能 $V(r)$，作为后续计算半衰期的基础。[Decision] 使用 proximity_potential_formalism 来定义核势部分 $V_N(r)$，使用 coulomb_potential_uniform_sphere 来定义库仑势部分 $V_C(r)$。总势能 $V(r) = V_C(r) + V_N(r)$。预期得到包含模型参数的势能表达式。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "proximity_potential_formalism",
+        "version": ""
+      },
+      "parameters": {
+        "framework": "CPPM",
+        "potential_components": "Nuclear potential V_N(r) and Coulomb potential V_C(r)"
+      },
+      "observation": "预期得到总相互作用势能 $V(r) = V_C(r) + V_N(r)$ 的解析表达式。其中 $V_C(r)$ 由 coulomb_potential_uniform_sphere 给出，形式为 $V_C(r) = \\frac{Z_d Z_\\alpha e^2}{r}$（对于 $r \\ge R_C$），$R_C$ 为库仑半径。$V_N(r)$ 由 proximity_potential_formalism 给出，形式为 $V_N(r) = 4 \\pi \\gamma b \\frac{C_1 C_2}{C_1 + C_2} \\Phi(s)$，其中 $\\gamma$ 为表面能系数，$b$ 为表面宽度，$C_i$ 为核半密度半径，$s = r - C_1 - C_2$，$\\Phi(s)$ 为普适函数，其具体形式（如 Prox.77-3, Bass77 等）取决于所选的邻近势模型。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已为每个模型和核素构建了总势能 $V(r)$。[Gap] 需要计算α粒子穿透该势垒的穿透概率 $P$，这是计算半衰期的核心。[Decision] 应用 wkb_approximation 来计算穿透概率。这需要确定经典转折点 $r_1$（内转折点）和 $r_2$（外转折点），其中 $V(r) = Q_\\alpha$，$Q_\\alpha$ 为衰变能。然后计算积分。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "penetrability_integral": "P = \\exp[-2 \\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r)-Q_\\alpha)} dr]"
+      },
+      "observation": "预期得到穿透概率 $P$ 的表达式，形式为 $P = \\exp[-G]$，其中 $G = 2 \\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r)-Q_\\alpha)} dr$，$\\mu$ 为α粒子与子核的约化质量，$Q_\\alpha$ 为衰变能（从实验数据获得）。积分限 $r_1$ 和 $r_2$ 由方程 $V(r) = Q_\\alpha$ 数值求解得到。$V(r)$ 来自步骤1。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已得到穿透概率 $P$。[Gap] 需要计算α衰变半衰期 $T_{1/2}$。这还需要α粒子在母核内的预形成概率 $S_\\alpha$ 和碰撞频率 $\\nu$。[Decision] 使用 preformation_factor_empirical_formula 来估算预形成因子 $S_\\alpha$。碰撞频率 $\\nu$ 通常取为 $\\nu = 10^{20} - 10^{22} \\, \\mathrm{s}^{-1}$ 量级，或通过 $\\nu = v/(2R_0)$ 估算，其中 $v$ 为α粒子在核内的速度，$R_0$ 为母核半径。然后应用半衰期公式 $T_{1/2} = (\\ln 2) / (\\nu S_\\alpha P)$。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "preformation_factor_empirical_formula",
+        "version": ""
+      },
+      "parameters": {
+        "half_life_formula": "T_{1/2} = \\frac{\\ln 2}{\\nu S_\\alpha P}"
+      },
+      "observation": "预期得到半衰期 $T_{1/2}$ 的最终表达式。$S_\\alpha$ 由 preformation_factor_empirical_formula 给出，可能具有 $S_\\alpha = \\exp(a + bA_d + cZ_d + ...)$ 等形式，其中 $A_d$ 和 $Z_d$ 为子核的质量数和电荷数，a, b, c 为经验参数。$P$ 来自步骤2。$\\nu$ 可能取为常数或简单估算。因此 $T_{1/2}$ 是 $Q_\\alpha$、核质量数、电荷数以及所选邻近势模型参数的函数。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已建立计算 $T_{1/2}$ 的完整理论框架，包含不同邻近势模型的选择。[Gap] 需要针对超重核范围（Z=106-118）的多个核素，使用不同模型计算其 $T_{1/2}$ 的理论值，并与实验数据进行比较，以评估模型性能。[Decision] 进行数值计算。对于每个核素和每个邻近势模型，输入其 $Q_\\alpha$、$A$、$Z$ 等参数，执行步骤1-3的数值积分和计算，得到 $\\log_{10} T_{1/2}^{\\text{calc}}$。然后与实验值 $\\log_{10} T_{1/2}^{\\text{exp}}$ 比较。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "calculation_loop": "For each nucleus and each proximity potential model, compute T_{1/2}",
+        "comparison": "log10(T_calc) vs log10(T_exp)"
+      },
+      "observation": "预期得到一系列数值结果：对于每个核素和每个邻近势模型，计算得到一个 $\\log_{10} T_{1/2}^{\\text{calc}}$ 值。这些值将与实验值 $\\log_{10} T_{1/2}^{\\text{exp}}$ 形成对比。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已得到所有模型对所有核素的计算半衰期。[Gap] 需要定量评估每个模型的整体预测精度，以比较模型优劣。[Decision] 计算每个模型的均方根偏差 $\\sigma$，定义为 $\\sigma = \\sqrt{\\frac{1}{N} \\sum_{i=1}^{N} [\\log_{10} T_{1/2}^{\\text{calc}}(i) - \\log_{10} T_{1/2}^{\\text{exp}}(i)]^2}$，其中 $N$ 为核素数量。$\\sigma$ 越小，模型精度越高。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "evaluation_metric": "Root-mean-square deviation sigma"
+      },
+      "observation": "预期得到每个邻近势模型对应的一个均方根偏差值 $\\sigma$。这将提供一个模型性能的排序，$\\sigma$ 值最小的模型被认为在零温（或默认）条件下预测最准确。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已评估了不同邻近势模型在零温（或默认）条件下的性能。[Gap] 研究目标包括分析温度依赖性。需要研究温度 $T$ 如何影响模型预测。温度可能通过影响核势参数（如表面能系数 $\\gamma$、核半径等）或预形成因子 $S_\\alpha$ 来引入。[Decision] 引入温度 $T$ 作为变量。假设温度主要影响 proximity_potential_formalism 中的参数，例如使表面能系数 $\\gamma$ 随温度变化：$\\gamma(T) = \\gamma_0 (1 - \\alpha T^2)$ 或类似形式。也可能影响预形成因子。重新进行步骤1-5的计算，但使用温度修正后的参数。",
+      "action": "approximation",
+      "tool": {
+        "name": "proximity_potential_formalism",
+        "version": ""
+      },
+      "parameters": {
+        "temperature_dependence": "Introduce T-dependence into potential parameters, e.g., surface energy coefficient gamma(T)"
+      },
+      "observation": "预期得到温度修正后的总势能 $V(r, T)$ 和/或温度修正后的预形成因子 $S_\\alpha(T)$。关键假设是温度如何具体修改这些参数（例如，$\\gamma(T) = \\gamma_0 [1 - (T/T_c)^2]$，其中 $T_c$ 为临界温度）。这将使所有后续量（$P$, $T_{1/2}$）成为温度 $T$ 的函数。",
+      "valid": true
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 已建立了包含温度 $T$ 的理论框架。[Gap] 需要量化温度对模型预测精度的影响。即在有限温度下，重新计算模型的 $\\sigma(T)$，观察其相对于零温 $\\sigma(0)$ 的变化。[Decision] 选择几个有代表性的温度值（例如 $T = 0, 0.5, 1.0 \\, \\mathrm{MeV}$ 等，在核物理温度量级）。对于每个温度 $T$，使用修正后的参数重复步骤4和5的数值计算，得到每个模型在温度 $T$ 下的均方根偏差 $\\sigma(T)$。分析 $\\sigma(T)$ 随 $T$ 的变化趋势。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "temperature_scan": "Compute sigma(T) for selected T values for each model"
+      },
+      "observation": "预期得到每个邻近势模型的 $\\sigma$ 值随温度 $T$ 变化的曲线或数据表。可以观察：1) 在哪个温度下某个模型的 $\\sigma(T)$ 最小（即最佳预测温度）；2) 温度敏感性：哪些模型的 $\\sigma$ 对 $T$ 变化更敏感；3) 可能识别出在较宽温度范围内都保持较低 $\\sigma$ 的稳健模型。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "CPPM",
+        "desc": "用于研究α衰变半衰期的统一理论框架，结合了预形成因子、零点振动能和势垒穿透概率。"
+      },
+      {
+        "name": "proximity_potential_formalism",
+        "desc": "采用邻近势形式替代核势，用于计算α粒子与子核之间的总相互作用势。"
+      },
+      {
+        "name": "WKB_approximation",
+        "desc": "通过作用积分计算势垒穿透概率，用于确定α衰变半衰期。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "T_{1/2} = \\frac{\\pi \\hbar \\ln 2}{P_0 E_v} [1 + \\exp(B)]"
+      },
+      {
+        "label": "Eq.2",
+        "content": "B = \\frac{2}{\\hbar} \\int_{R_{\\mathrm{in}}}^{R_{\\mathrm{out}}} \\sqrt{2 \\mu (V(r) - Q_{\\alpha})} dr"
+      },
+      {
+        "label": "Eq.3",
+        "content": "E_v = \\frac{\\hbar \\omega}{2} = \\frac{\\hbar \\pi}{2 R_p} \\sqrt{\\frac{2 E_{\\alpha}}{m_{\\alpha}}}"
+      },
+      {
+        "label": "Eq.4",
+        "content": "Q_{\\alpha} = \\frac{A_d}{A_p} E_{\\alpha} + \\left[6.53 Z_d^{7/5} - 8.0 Z_d^{2/5}\\right] \\times 10^{-5} \\mathrm{MeV}"
+      },
+      {
+        "label": "Eq.5",
+        "content": "\\log_{10} P_o = a + b (Z - Z_1)(Z_2 - Z_1) + c (N - N_1)(N_2 - N) + d A + e (Z - Z_1)(N - N_1)"
+      },
+      {
+        "label": "Eq.6",
+        "content": "V(r) = V_N(r) + V_C(r) + V_l(r)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "a",
+        "value": "34.90593",
+        "condition": "预形成因子公式中的参数"
+      },
+      {
+        "quantity": "b",
+        "value": "0.003011",
+        "condition": "预形成因子公式中的参数"
+      },
+      {
+        "quantity": "c",
+        "value": "0.003717",
+        "condition": "预形成因子公式中的参数"
+      },
+      {
+        "quantity": "d",
+        "value": "0.151216",
+        "condition": "预形成因子公式中的参数"
+      },
+      {
+        "quantity": "e",
+        "value": "0.006681",
+        "condition": "预形成因子公式中的参数"
+      },
+      {
+        "quantity": "Z1",
+        "value": "82",
+        "condition": "幻数"
+      },
+      {
+        "quantity": "Z2",
+        "value": "126",
+        "condition": "幻数"
+      },
+      {
+        "quantity": "N1",
+        "value": "152",
+        "condition": "幻数"
+      },
+      {
+        "quantity": "N2",
+        "value": "184",
+        "condition": "幻数"
+      }
+    ],
+    "failure_points": []
+  }
+}

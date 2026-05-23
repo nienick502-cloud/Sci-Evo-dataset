@@ -1,0 +1,377 @@
+{
+  "id": "NPP_0149",
+  "meta": {
+    "id": "NPP_0149",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear mass systematics by complementing the Finite Range Droplet Model with neural networks",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_nucl-th_0511088"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T19:27:07.954713",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "原子核质量过剩的系统学",
+    "input_data": "已知条件：实验核质量过剩数据（AME03评估，共1654个核素，筛选后使用1620个）；FRDM模型的理论质量过剩值；用于神经网络建模的三个数据集M1（1276个核素，学习集）、M2（344个核素，验证集）、M3（529个核素，测试集，主要为远离稳定线的核素）。",
+    "user_intent": "研究动机：现有全局质量模型（如FRDM、HFB2）虽然基于物理原理，但可能尚未完全捕捉核结构的微妙规律性。需要确定FRDM模型的剩余物理修正究竟是源于大量随Z和N强烈波动、难以系统量化的小效应，还是部分可归因于理论中尚未体现的核结构规律性。",
+    "quantifiable_goal": "预测原子核质量过剩差值 ΔM^{exp} - ΔM^{FRDM}（单位：MeV），并由此构建一个改进的全局质量模型来预测原子核质量过剩 ΔM（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 论文采用混合模型方法，将FRDM理论质量过剩与神经网络残差修正相结合，以预测未知核的质量过剩。初始条件为质量数A、电荷数Z和中子数N，这些是计算质量过剩的基本输入。 [Gap] 需要从初始条件出发，沿着合法推导路径（prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector）的第一步，构建用于神经网络训练的特征向量，因为特征工程是机器学习预测的基础。 [Decision] 因此，第一步应使用feature_engineering工具，从A、Z、N构造物理相关的特征，如奇偶性、壳层效应、形变参数等，为后续神经网络训练做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_quantities": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "constructed_features": [
+          "parity_indicator",
+          "shell_correction_indicator",
+          "deformation_parameter_beta2",
+          "pairing_energy_estimate",
+          "distance_from_stability_line"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "由A、Z、N构造的物理特征向量，包含奇偶性、壳修正指示符、形变参数β2、对能估计、距稳定线距离等"
+      },
+      "observation": "从初始条件A、Z、N出发，通过特征工程构建了包含核结构信息的特征向量，作为神经网络输入。特征包括奇偶性、壳修正、形变、对能及稳定线距离，这些特征有助于神经网络学习FRDM残差中的系统性规律。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 根据论文方法，神经网络模型用于学习FRDM残差，因此需要准备训练数据集。训练数据集包含输入特征向量和对应的目标值（即FRDM残差）。目标值由实验质量过剩减去FRDM理论质量过剩得到。 [Gap] 当前已有特征向量，但尚未构建训练数据集。需要明确如何从实验数据和FRDM模型计算残差，并组织成训练数据格式。 [Decision] 使用ml_data_acquisition工具，从实验数据库（AME03）和FRDM模型计算结果中获取质量过剩数据，计算残差，并与特征向量配对，构建训练数据集。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": "1.0"
+      },
+      "parameters": {
+        "data_source": "AME03实验质量过剩数据库和FRDM模型理论质量过剩计算",
+        "feature_vector": "由A、Z、N构造的物理特征向量（奇偶性、壳修正指示符、形变参数β2、对能估计、距稳定线距离）",
+        "target_variable": "FRDM残差 = 实验质量过剩 - FRDM理论质量过剩",
+        "dataset_split": "M1、M2、M3划分基于核素稳定性和实验数据可用性"
+      },
+      "output_state": {
+        "training_dataset": "包含特征向量与对应FRDM残差的数据集，按M1、M2、M3划分"
+      },
+      "observation": "通过ml_data_acquisition工具，从AME03实验数据和FRDM模型计算中获取了质量过剩数据，计算了FRDM残差（实验值减去理论值），并与特征向量配对，构建了训练数据集。数据集按论文中的M1、M2、M3划分方式组织，其中M1包含稳定核素，M2包含已知不稳定核素，M3包含外推区域核素。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 根据论文方法，神经网络模型用于学习FRDM残差，即实验质量过剩与FRDM理论值之间的差值。在构建好特征向量和训练数据集后，下一步需要定义损失函数来指导神经网络的训练过程。损失函数通常采用均方误差（MSE）或平均绝对误差（MAE），以最小化预测残差与真实残差之间的差异。\n[Gap] 当前已构建特征向量和数据集，但尚未明确损失函数的具体形式及其与模型权重更新的关系。需要定义损失函数，以便后续通过优化算法调整神经网络权重。\n[Decision] 选择定义损失函数为均方误差（MSE），这是回归任务中常用的损失函数，能够有效衡量预测残差与真实残差之间的偏差，并用于后续的模型训练。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "mean_squared_error",
+        "optimizer": "Adam",
+        "learning_rate": 0.001
+      },
+      "output_state": {
+        "loss_function_value": "L = (1/N) * Σ (Δ_pred_i - Δ_true_i)^2，其中Δ_pred为神经网络预测的FRDM残差，Δ_true为实验残差"
+      },
+      "observation": "定义了均方误差损失函数，用于衡量神经网络预测的FRDM残差与真实残差之间的差异。该损失函数将作为后续训练过程中优化模型权重的目标函数。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 当前已构建特征向量、训练数据集和损失函数，下一步需要实际训练神经网络以得到模型权重。根据合法路径，从loss_function_value到model_weights需要使用神经网络训练工具。论文采用三层前馈神经网络，通过反向传播优化权重以最小化损失函数。[Gap] 需要明确训练过程如何从损失函数值更新到最终的模型权重，包括优化算法和迭代机制。[Decision] 选择ml_neural_network_training工具，执行标准的前馈神经网络训练，通过梯度下降法更新权重，得到训练后的model_weights。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "architecture": "三层前馈神经网络，输入层维度等于特征向量维度，隐藏层神经元数分别为128和64，输出层为1个神经元（预测FRDM残差）",
+        "activation": "隐藏层使用ReLU激活函数，输出层使用线性激活函数",
+        "optimizer": "Adam优化器，学习率0.001",
+        "epochs": 500,
+        "batch_size": 32,
+        "regularization": "L2正则化系数1e-5，早停法（patience=50）"
+      },
+      "output_state": {
+        "model_weights": "训练后的神经网络权重矩阵和偏置向量，记为W1, b1, W2, b2, W3, b3"
+      },
+      "observation": "使用ml_neural_network_training工具，在训练数据集（M1+M2+M3划分）上训练三层前馈神经网络。通过Adam优化器最小化均方误差损失函数，经过500个epoch训练后得到收敛的模型权重。训练过程中应用了L2正则化和早停法防止过拟合。最终得到的model_weights包含了输入层到隐藏层、隐藏层到输出层的全部权重和偏置参数，这些权重编码了从特征向量到FRDM残差的映射关系。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 根据合法推导路径，prediction_output 是最终目标，需要从 model_weights 和训练好的模型出发进行预测。当前已获得训练后的神经网络权重，接下来应使用这些权重对测试集或全数据集进行预测，得到 FRDM 残差的预测值，进而与 FRDM 理论质量过剩相加得到最终的质量过剩预测输出。[Gap] 目前尚未生成 prediction_output，需要明确预测过程：输入特征向量，通过前向传播计算网络输出，再结合 FRDM 理论值得到最终质量过剩。[Decision] 选择 ml_direct_prediction 工具，执行前向传播计算，生成预测输出。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "prediction_output": "M_pred(Z,N) = M_FRDM(Z,N) + Δ_NN(Z,N)，其中 Δ_NN = f(W3·σ(W2·σ(W1·x + b1) + b2) + b3)，x 为特征向量，σ 为激活函数（如 ReLU 或 tanh）"
+      },
+      "observation": "使用训练好的神经网络权重，对每个核素的特征向量进行前向传播计算，得到 FRDM 残差的预测值 Δ_NN。将该预测残差与 FRDM 理论质量过剩 M_FRDM 相加，得到最终的质量过剩预测值 M_pred。该输出即为论文混合模型（FRDM+NN）的最终预测结果。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经通过 ml_direct_prediction 得到了最终的质量过剩预测值 M_pred(Z,N)，这是论文的目标输出。然而，在核物理中，仅给出预测值而不评估其不确定性是不完整的，尤其是对于远离稳定线的核素，模型误差可能显著增大。论文中使用了三层神经网络，其预测的不确定性可以通过贝叶斯方法或集成方法量化。当前路径 prediction_output -> model_uncertainty 是合法的，且工具 bayesian_uncertainty_quantification 可用于从训练后的模型权重和损失函数值出发，估计预测的置信区间。 [Gap] 目前我们只有点预测值，缺少对预测可靠性的定量描述，例如每个核素预测质量过剩的标准差或置信区间。 [Decision] 因此，下一步应使用 bayesian_uncertainty_quantification 工具，基于训练后的模型权重和损失函数值，计算预测输出的不确定性，以完善最终结果。",
+      "action": "model_building",
+      "tool": {
+        "name": "bayesian_uncertainty_quantification",
+        "version": ""
+      },
+      "parameters": {
+        "model_weights": "W1, b1, W2, b2, W3, b3",
+        "loss_function_value": "L = (1/N) * Σ (Δ_pred_i - Δ_true_i)^2",
+        "training_dataset": "M1+M2+M3划分后的特征向量与残差对",
+        "method": "蒙特卡洛dropout近似贝叶斯推断"
+      },
+      "output_state": {
+        "model_uncertainty": "σ_pred(Z,N) = sqrt( (1/T) * Σ_{t=1}^T (M_pred_t(Z,N) - μ_pred(Z,N))^2 )，其中 T 为蒙特卡洛采样次数，μ_pred 为平均预测值"
+      },
+      "observation": "通过 bayesian_uncertainty_quantification 工具，在预测阶段对神经网络应用蒙特卡洛dropout（保持dropout层激活），进行 T=100 次前向传播，得到每个核素的预测分布。计算预测值的标准差 σ_pred，作为模型不确定性的度量。该不确定性反映了神经网络对FRDM残差预测的置信程度，尤其在训练数据稀疏的区域（如远离稳定线）会显著增大。最终输出包含预测质量过剩值及其不确定性，为后续物理分析提供完整信息。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6 分别使用 feature_engineering -> ml_data_acquisition -> neural_network_training -> ml_neural_network_training -> ml_direct_prediction -> bayesian_uncertainty_quantification 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 论文目标是利用神经网络模型修正FRDM理论质量过剩，从而得到更精确的预测输出。初始条件为质量数A、电荷数Z、中子数N。根据前提层，FRDM模型提供了理论质量过剩值，而神经网络用于学习FRDM残差。因此，第一步需要从FRDM模型计算理论质量过剩值，作为后续神经网络输入的特征之一。 [Gap] 当前没有直接可用的FRDM质量过剩值，需要基于核素参数（A, Z, N）通过FRDM公式计算。 [Decision] 使用有限程液滴模型（FRDM）中的bethe_weizsacker_mass_formula工具，计算给定核素的理论质量过剩。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": "FRDM_1995"
+      },
+      "parameters": {
+        "A": "mass_number_A",
+        "Z": "charge_number_Z",
+        "N": "neutron_number_N",
+        "model_type": "finite_range_droplet_model"
+      },
+      "output_state": {
+        "FRDM_mass_excess": "M_FRDM(A, Z, N) = a_v*A + a_s*A^{2/3} + a_c*Z^2/A^{1/3} + a_sym*(N-Z)^2/A + delta(A, Z) + finite_range_correction"
+      },
+      "observation": "使用FRDM参数化公式计算得到理论质量过剩值M_FRDM，该值作为后续神经网络输入的基础特征。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 第1步已通过FRDM模型计算出理论质量过剩值M_FRDM，这是混合模型的基础部分。论文的核心创新在于使用神经网络学习FRDM残差，即实验质量过剩与FRDM预测值之间的差值。这个残差包含了FRDM模型未能捕捉的核结构信息，如对效应、形变细节等。 [Gap] 目前仅有FRDM的理论输出，尚未引入神经网络来修正该值。需要明确神经网络的目标变量和输入特征，以构建完整的混合模型。 [Decision] 根据论文方法，下一步应定义神经网络的目标变量为FRDM残差，并构建特征向量。特征向量通常包括质量数A、电荷数Z、中子数N以及可能的衍生特征（如奇偶性、壳层填充数等）。这里先定义残差和基本特征，为后续神经网络训练做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "target_variable": "delta_M = M_exp - M_FRDM",
+        "input_features": "A, Z, N, parity_indicator = (-1)^A, shell_correction_indicator"
+      },
+      "output_state": {
+        "FRDM_residual": "delta_M = M_exp - M_FRDM",
+        "feature_vector": "x = [A, Z, N, (-1)^A, shell_correction_indicator]"
+      },
+      "observation": "定义了神经网络的目标为FRDM残差delta_M，并构建了包含核素基本参数和奇偶性、壳层修正指示符的特征向量。该特征向量将作为后续神经网络训练的输入，用于学习FRDM模型未能描述的系统性偏差。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 前两步已经定义了FRDM模型的理论质量过剩值M_FRDM以及神经网络的目标残差delta_M和特征向量x。接下来需要构建神经网络模型本身，以学习从特征向量x到残差delta_M的映射关系。论文中采用三层前馈神经网络，这是机器学习中的标准模型构建步骤。 [Gap] 目前尚未定义神经网络的具体结构、激活函数、损失函数等细节，这些是后续训练和预测的基础。 [Decision] 因此，第3步应进行模型构建，使用neural_network_training工具（但此处仅为模型定义，实际训练在后续步骤），定义三层前馈神经网络的结构，包括输入层、隐藏层和输出层的节点数及激活函数。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "network_architecture": "三层前馈神经网络",
+        "input_dimension": 5,
+        "hidden_layer_nodes": 20,
+        "output_dimension": 1,
+        "activation_function": "tanh",
+        "output_activation": "linear"
+      },
+      "output_state": {
+        "neural_network_model": "NN(x; W, b) = W^{(2)} * tanh(W^{(1)} * x + b^{(1)}) + b^{(2)}",
+        "model_weights": "W = {W^{(1)} \\in R^{20\\times5}, b^{(1)} \\in R^{20}, W^{(2)} \\in R^{1\\times20}, b^{(2)} \\in R}"
+      },
+      "observation": "定义了三层前馈神经网络结构：输入层5个节点（对应特征向量x的5个分量），隐藏层20个节点，激活函数为tanh，输出层1个节点（预测残差delta_M_pred），输出激活为线性。网络参数W和b将在后续训练中通过优化损失函数确定。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 前三步已建立了FRDM基础质量过剩计算、残差定义和神经网络结构。现在需要将神经网络模型与FRDM模型结合，形成最终的混合预测模型，即prediction_output。根据合法路径，prediction_output可以通过model_weights和loss_function_value得到，但当前步骤更直接的是构建混合模型的输出表达式。论文中混合模型将FRDM预测与神经网络残差预测相加，得到最终质量过剩预测值。 [Gap] 目前已有FRDM质量过剩M_FRDM和神经网络模型NN(x; W, b)，但尚未明确如何组合它们以生成最终的prediction_output。需要定义混合模型的输出公式。 [Decision] 因此，下一步是构建混合预测模型，将FRDM理论值与神经网络残差预测相加，得到最终质量过剩预测值。这属于模型构建步骤，使用规则应用（rule_application）来定义组合公式。",
+      "action": "rule_application",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "prediction_output": "M_pred(A, Z, N) = M_FRDM(A, Z, N) + NN(x; W, b)",
+        "hybrid_model": "M_pred = M_FRDM + delta_M_pred, where delta_M_pred = NN(x; W, b)"
+      },
+      "observation": "构建了混合模型：最终质量过剩预测值M_pred由FRDM宏观部分M_FRDM和神经网络微观修正NN(x; W, b)相加得到。该混合模型将FRDM的物理基础与神经网络的数据驱动能力结合，旨在更准确地预测原子核质量过剩。此步骤建立了从特征向量和模型权重到最终预测输出的直接路径，符合论文的混合方法思想。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 当前已构建了混合模型 M_pred = M_FRDM + NN(x; W, b)，其中神经网络用于预测 FRDM 残差。下一步需要训练神经网络，即通过优化损失函数来调整网络权重 W 和偏置 b，使得预测残差 delta_M_pred 尽可能接近实验残差 delta_M。这是机器学习流程中的核心步骤，属于模型训练阶段。 [Gap] 目前尚未定义损失函数和优化过程，需要明确如何利用训练数据集来更新网络参数。 [Decision] 选择使用均方误差损失函数和梯度下降优化算法，通过训练数据集（特征向量 x 与目标值 delta_M）来训练神经网络。该步骤对应工具 neural_network_training，但此处更具体地描述损失函数定义和优化过程，属于模型训练的子步骤。由于合法路径中 model_weights 之后是 loss_function_value，因此本步应定义损失函数并开始训练，输出 loss_function_value 作为状态。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "loss_function": "MSE = (1/N) * sum_i (delta_M_i - NN(x_i; W, b))^2",
+        "optimizer": "Adam",
+        "learning_rate": 0.001,
+        "epochs": 500,
+        "batch_size": 32,
+        "training_data": "M1 (1654 nuclei from AME03)"
+      },
+      "output_state": {
+        "loss_function_value": "L(W, b) = (1/N) * sum_{i=1}^{N} (delta_M_i - NN(x_i; W, b))^2",
+        "training_dataset": "M1 = {(x_i, delta_M_i) | i=1,...,1654, x_i=[A_i, Z_i, N_i, (-1)^{A_i}, shell_correction_indicator_i]}"
+      },
+      "observation": "定义了均方误差损失函数 L(W, b) 用于衡量神经网络预测残差与实验残差之间的偏差。训练数据集 M1 包含 1654 个核素的特征向量 x_i 和目标值 delta_M_i。后续将通过 Adam 优化器最小化损失函数，更新网络权重 W 和偏置 b，使神经网络学习 FRDM 残差的系统性规律。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将混合模型预测的质量过剩与AME2020实验数据在Z=20-82、N=20-126范围内对比，计算均方根偏差是否接近0.15 MeV；其次，对极端丰中子核（如N=126附近）进行极限情况检验，观察模型是否出现非物理发散；最后，通过量纲分析确认输入特征（如质量数、质子数）与输出单位（MeV）的一致性，并检查神经网络在训练集外插时的过拟合风险。",
+    "metrics": {
+      "result_1": {
+        "value": "0.23 MeV",
+        "unit": "测试集M3（529个核素，主要为远离稳定线核素）",
+        "interpretation": "质量过剩预测精度（均方根偏差）"
+      },
+      "result_2": {
+        "value": "0.15 MeV",
+        "unit": "验证集M2（344个核素）",
+        "interpretation": "质量过剩预测精度（均方根偏差）"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：finite_range_droplet_model；hybrid_model。"
+  },
+  "paper_methods": [
+    "neural_network_model",
+    "finite_range_droplet_model",
+    "hybrid_model"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "neural_network_model",
+        "desc": "使用三层前馈神经网络学习FRDM模型残差，输入为Z、N、A，输出为质量过剩修正值"
+      },
+      {
+        "name": "finite_range_droplet_model",
+        "desc": "基于宏观-微观方法的全局质量模型，提供理论质量过剩基准值"
+      },
+      {
+        "name": "hybrid_model",
+        "desc": "将FRDM理论值与神经网络修正值相加，得到最终质量过剩预测"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "M_{\\text{pred}} = M_{\\text{FRDM}} + \\Delta M_{\\text{NN}}"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "\\Delta M_{\\text{NN}} = f(Z, N, A; \\mathbf{w})"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "质量过剩预测精度（均方根偏差）",
+        "value": "0.23 MeV",
+        "condition": "测试集M3（529个核素，主要为远离稳定线核素）"
+      },
+      {
+        "quantity": "质量过剩预测精度（均方根偏差）",
+        "value": "0.15 MeV",
+        "condition": "验证集M2（344个核素）"
+      }
+    ],
+    "failure_points": [
+      "finite_range_droplet_model",
+      "hybrid_model"
+    ]
+  }
+}

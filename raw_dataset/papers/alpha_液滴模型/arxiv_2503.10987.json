@@ -1,0 +1,489 @@
+{
+  "id": "NPP_0039",
+  "meta": {
+    "id": "NPP_0039",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_liquid_drop",
+    "source": {
+      "type": "paper",
+      "title": "Systematic calculation on α decay and cluster radioactivity of superheavy nuclei",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2503.10987"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变与团簇放射性半衰期",
+    "input_data": "已知条件：核素范围 Z=87-96, 221≤A≤244；实验数据：41个原子核（从221Fr到244Cm）的α衰变与团簇放射性半衰期；模型参数：22种不同版本的邻近势形式（如Proximity Potential, Woods-Saxon Potential等）。",
+    "user_intent": "研究动机：现有多种邻近势形式被用于描述质子放射性、双质子放射性、重离子放射性等过程，但哪种形式最适合描述超重核的α衰变和团簇放射性尚不明确，需要系统评估以确定最合适的势能形式。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s），预测团簇放射性半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知研究目标是评估不同邻近势形式对超重核α衰变和团簇放射性半衰期预测的适用性。已知核素范围、实验数据和22种邻近势形式。[Gap] 需要为每个核素（母核）和每个衰变模式（α或团簇）构建一个描述子核（或团簇）与子核之间相互作用的有效势能。[Decision] 选择使用 `double_folding_model` 来构建核-核相互作用势。该模型通过折叠两个核的密度分布与有效核子-核子相互作用来得到势能，是构建微观势能的基础方法。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {
+        "purpose": "Construct the nuclear-nuclear interaction potential V_N(r) for the cluster (alpha or heavier cluster) and the daughter nucleus."
+      },
+      "observation": "预期得到一个依赖于核间距离 r 的核势能表达式 V_N(r)。该表达式是母核密度分布、子核（或团簇）密度分布以及有效核子-核子相互作用的函数，形式为 V_N(r) = ∫∫ ρ_c(r_c) ρ_d(r_d) v_{nn}(|r + r_c - r_d|) d^3r_c d^3r_d。对于α粒子，其密度分布通常取高斯形式；对于更重的团簇，需要假设其密度分布。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "incorrect_derivation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤错误地将双折叠模型用于计算核势V_N(r)，但论文实际使用邻近势形式（proximity potential formalism）计算核势。双折叠模型在论文中仅用于计算库仑势V_c(r)，这是物理模型选择上的根本错误。"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 通过 `double_folding_model` 得到了核势 V_N(r)。[Gap] 衰变过程的总势垒由核势、库仑势和离心势（如果考虑角动量）组成。需要将核势与库仑势结合起来，并可能引入不同的参数化形式（邻近势）来简化或替代微观折叠势。[Decision] 使用 `coulomb_and_proximity_potential_model` 来构建总相互作用势 V(r)。该模型将总势能表示为库仑势 V_C(r) 与一个参数化的邻近势（代表核势）V_P(r) 之和，即 V(r) = V_C(r) + V_P(r)。这里，V_P(r) 的具体形式将从提供的22种邻近势（如 `proximity_potential_77`, `proximity_potential_81`）中选择。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "coulomb_and_proximity_potential_model",
+        "version": ""
+      },
+      "parameters": {
+        "potential_form": "V(r) = V_C(r) + V_P(r)",
+        "coulomb_potential": "V_C(r) = Z_cluster * Z_daughter * e^2 / r (for r > R_t)",
+        "proximity_potential_options": "22 different versions (e.g., Proximity 77, Proximity 81)"
+      },
+      "observation": "预期得到一个总势能函数 V(r) 的解析或半解析表达式。对于每个核素和衰变模式，V(r) 将依赖于核电荷数、半径参数、表面厚度参数（来自邻近势形式）以及核间距离 r。关键近似包括将核势简化为依赖于核表面形状和距离的邻近势形式，并假设库仑势在核重叠区外为点电荷形式。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "incorrect_derivation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤错误地将库仑势和邻近势模型合并为一个工具，但论文中库仑势使用双折叠模型计算，核势使用邻近势形式计算，两者是独立计算的。预测的物理模型结构不符合论文的实际推导流程。"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 对于每种邻近势形式（如 `proximity_potential_77`），我们已经通过 `coulomb_and_proximity_potential_model` 定义了总势能 V(r)。[Gap] 需要计算α粒子或团簇穿透该势垒的隧穿概率，这是计算半衰期的核心。[Decision] 应用 `wkb_approximation` 来计算穿透系数 P。WKB近似公式为 P ≈ exp(-2G)，其中伽莫夫因子 G = (√(2μ)/ħ) ∫_{r_in}^{r_out} √(V(r) - Q) dr，μ是约化质量，Q是衰变能。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "tunneling_probability_formula": "P ≈ exp(-2G)",
+        "gamow_factor": "G = (√(2μ)/ħ) ∫_{r_in}^{r_out} √(V(r) - Q) dr",
+        "integration_limits": "r_in (inner turning point), r_out (outer turning point)"
+      },
+      "observation": "预期得到一个穿透系数 P 的表达式，它是指数形式，指数是势垒积分（伽莫夫因子 G）的函数。P 依赖于总势能 V(r)（来自上一步）、衰变能 Q（从实验质量数据计算得到）和约化质量 μ。关键近似是使用 WKB 方法处理一维势垒隧穿，并假设衰变前粒子处于基态（角动量 l=0 或考虑小 l 值）。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已经通过 `wkb_approximation` 得到了穿透系数 P。[Gap] 半衰期 T_{1/2} 不仅与穿透概率有关，还与衰变前粒子在势阱内撞击势垒的频率（预形成概率或 assault frequency ν）有关。对于α衰变和团簇放射性，通常使用半衰期公式 T_{1/2} = (ln2) / (ν P)。[Decision] 将穿透系数 P 与 assault frequency ν 结合，推导半衰期的最终表达式。Assault frequency ν 通常估计为 ν = v / (2R_0)，其中 v 是粒子在势阱内的速度，R_0 是母核半径。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "half_life_formula": "T_{1/2} = (ln2) / (ν P)",
+        "assault_frequency_estimate": "ν ≈ v / (2R_0) with v = √(2Q/μ)"
+      },
+      "observation": "预期得到半衰期 T_{1/2} 的最终理论预测公式：T_{1/2} = (ln2) / [ν * exp(-2G)]。其中 ν 是 assault frequency（数量级估计约为 10^{20} - 10^{22} s^{-1}），G 是伽莫夫因子。该公式将用于计算每个核素、每种衰变模式、每种邻近势形式下的半衰期。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "missing_physical_effect",
+      "observation_source": "inferred",
+      "error_reason": "预测的半衰期公式缺少了谱因子S_c，而论文中明确包含该因子（λ = v S_c P）。谱因子在α衰变和团簇放射性中是不可忽略的物理效应，反映了预形成概率或结构效应。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 对于22种邻近势形式中的每一种（例如 `proximity_potential_77` 和 `proximity_potential_81`），我们已经建立了一套完整的流程：从定义势能 V(r) 到计算半衰期 T_{1/2}。[Gap] 需要对41个核素的α衰变和团簇放射性半衰期进行批量数值计算，以比较不同势能形式的预测能力。[Decision] 对每个核素、每种衰变模式、每种邻近势形式，执行数值计算。这包括：1) 计算衰变能 Q（从质量表）；2) 数值积分计算伽莫夫因子 G；3) 计算 assault frequency ν；4) 代入公式得到 T_{1/2}。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "scope": "For each of the 22 proximity potentials, compute T_{1/2} for alpha decay and cluster radioactivity for all 41 nuclei.",
+        "inputs": "Nuclear masses (for Q), potential parameters (for V(r)), nuclear radii."
+      },
+      "observation": "预期得到大量数值结果：一个包含多个条目的数据集。每个条目对应一个核素、一种衰变模式、一种邻近势形式，并包含预测的半衰期 T_{1/2}（单位：秒）的对数值（log10 T_{1/2}）。这些数值将与实验数据进行比较。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经对22种邻近势形式完成了半衰期的数值预测。[Gap] 需要评估哪种邻近势形式对实验数据的描述最好，即确定“最合适的势能形式”。这需要一个定量的评估标准。[Decision] 通过计算理论预测值 log10 T_{1/2}(理论) 与实验值 log10 T_{1/2}(实验) 之间的偏差（如均方根偏差 RMSD 或平均绝对偏差）来进行评估。对α衰变数据和团簇放射性数据可能分别或联合进行评估。",
+      "action": "verification",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "evaluation_metric": "Calculate root-mean-square deviation (RMSD) or standard deviation σ between theoretical and experimental log10(T_{1/2}) values for each proximity potential.",
+        "data_sets": "Alpha decay data set and cluster radioactivity data set."
+      },
+      "observation": "预期得到22个偏差值（例如22个RMSD值），每个值对应一种邻近势形式。偏差最小的势能形式将被认为是对超重核α衰变和团簇放射性半衰期预测最合适的模型。可能还会观察到某些势对α衰变拟合好，但对团簇放射性拟合差，反之亦然。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文需要计算团簇放射性的半衰期。首先，需要确定母核与子核（或发射团簇）之间的总相互作用势。[Gap] 总相互作用势由哪些部分组成，以及如何具体计算？[Decision] 论文采用CPPM模型，将总势能V(r)表达为核势、库仑势和离心势之和。",
+      "action": "rule_application",
+      "tool": {
+        "name": "CPPM",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "总相互作用势为 V(r) = V_{N}(r) + V_{c}(r) + V_{l}(r) (Eq.5)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 总势能公式已确定。现在需要计算其中的库仑势 V_c(r)。[Gap] 如何计算有限大小核电荷分布下的库仑势？[Decision] 论文使用双折叠模型（bifold model）来计算库仑势，该模型通过对电荷密度分布进行积分得到。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "bifold_model",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "库仑势由公式 V_{c}(\\vec{r}) = \\int \\int \\rho_{c}(\\vec{r}_{c}) \\rho_{d}(\\vec{r}_{d}) v(s) d \\vec{r}_{c} d \\vec{r}_{d} (Eq.1) 给出，其中质子电荷分布采用高斯形式，参数 a_p = 0.65 fm，库仑常数 e^2 = 1.44 MeV·fm。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 总势能中的库仑势部分已确定计算方法。接下来需要计算核势 V_N(r)。[Gap] 采用何种模型来描述核势？[Decision] 论文采用邻近势形式（proximity potential formalism）来计算核势，具体使用了Prox.77等多种版本。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "proximity_potential_formalism",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "核势表示为 V_{N}(r) = 4 \\pi \\gamma b \\bar{R} \\Phi (\\xi) (Eq.13)，其中对于Prox.77 (Set2)，参数 γ_0 = 1.01734 MeV/fm^2, k_s = 1.79, b = 1 fm。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 总相互作用势 V(r) 的各个分量（核势、库仑势、离心势）的计算方法均已确定。现在需要计算势垒穿透概率 P，这是计算衰变常数的关键。[Gap] 如何计算量子隧穿概率？[Decision] 论文采用WKB近似来计算穿透概率。",
+      "action": "approximation",
+      "tool": {
+        "name": "WKB_approximation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "穿透概率由公式 P = \\exp \\left(- \\frac{2}{\\hbar} \\int_{R_{in}}^{R_{out}} \\sqrt{2 \\mu | V(r) - Q_{c} |} d r\\right) (Eq.11) 给出，其中使用了朗格修正的离心势 V_{l}(r) = \\frac{(l + 1/2)^{2} \\hbar^{2}}{2 \\mu r^{2}} (Eq.6)，约化质量 μ = m * (A_c * A_d) / A，核子质量 m = 931.5 MeV/c^2。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 势垒穿透概率 P 已通过WKB近似得到。最后一步是计算衰变半衰期。[Gap] 如何将穿透概率与衰变常数及半衰期联系起来？[Decision] 论文使用标准公式，将衰变常数 λ 表达为轰击频率 v、谱因子 S_c 和穿透概率 P 的乘积，进而得到半衰期 T_{1/2} = ln2 / λ。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "CPPM",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "衰变常数 λ = v S_{c} P (Eq.9)，其中轰击频率 v = 1.0×10^22 s^-1，对于α衰变，偶偶母核谱因子 S_even = 0.02897，奇A母核谱因子 S_odd = 0.0214。半衰期 T_{1/2} = ln2 / λ。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤1：选择使用双折叠模型来构建核-核相互作用的核势V_N(r)。。[Gap] 错过的信号：研究目标是评估不同邻近势形式对半衰期预测的适用性。这个目标本身就强烈暗示，核势的计算将直接采用这些待评估的邻近势形式，而不是从更基础的微观模型（如双折叠）重新推导。。[Decision] 正确判断方式：一个经验丰富的物理学家会注意到，论文的核心是比较22种现成的邻近势形式。这意味着核势V_N(r)的计算公式（即邻近势公式）是已知的输入条件，而不是需要从头推导的中间结果。正确的做法是直接调用邻近势形式来计算核势。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：混淆了模型构建与模型评估的流程，错误地将待评估的模型（邻近势）当作需要从头推导的对象。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤2：将库仑势和邻近势模型合并为一个工具（coulomb_and_proximity_potential_model）来构建总势V(r)。。[Gap] 错过的信号：在步骤1中已经（错误地）用双折叠模型计算了核势，而库仑势通常也需要考虑有限核电荷分布。这两个势在物理上起源不同（强相互作用 vs 电磁相互作用），计算复杂度也不同，通常会被独立处理。。[Decision] 正确判断方式：面对“构建总势”的任务，物理学家会意识到核势和库仑势是独立的分量，应分别采用最适合各自物理机制的方法计算。库仑势对于有限电荷分布通常用折叠模型更精确，而核势则按研究目标使用给定的邻近势形式。两者应独立计算后再求和。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：错误地将两个物理上独立、计算方法也不同的势能分量强行合并到一个简化的预设模型中，忽略了它们各自的物理特性和论文可能采用的分立计算流程。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 14,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：推导半衰期公式时，仅将穿透概率P与轰击频率ν结合，忽略了谱因子S_c。。[Gap] 错过的信号：衰变常数λ = νP这个公式通常用于简单的伽莫夫理论或质子放射性等情形。对于α衰变和团簇放射性，预形成概率（或结构效应）是一个公认的重要物理因素，通常由一个额外的因子（谱因子）来体现。。[Decision] 正确判断方式：在推导涉及α粒子或重团簇发射的半衰期公式时，有经验的物理学家会立即意识到预形成概率是关键。因此，衰变常数应表达为λ = ν * S_c * P，其中S_c是必须包含的谱因子（或预形成因子），它反映了团簇在母核内预先存在的概率。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：套用了过于简化的半衰期公式，忽略了α衰变和团簇放射性中“预形成概率”这一核心物理概念，导致模型缺失了关键的结构效应因子。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在应用已知模型框架（如邻近势形式）进行评估时，应直接使用该框架的预设公式作为输入，而非重新推导；同时，对于复合衰变过程，必须明确识别并包含所有关键的物理因子（如谱因子），不能沿用最简化的隧穿公式。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "a_p": {
+        "value": "0.65 fm",
+        "unit": "质子电荷分布高斯形式的参数",
+        "interpretation": "a_p"
+      },
+      "e_2": {
+        "value": "1.44 MeV·fm",
+        "unit": "库仑常数",
+        "interpretation": "e^2"
+      },
+      "m": {
+        "value": "931.5 MeV/c^2",
+        "unit": "核子质量",
+        "interpretation": "m"
+      },
+      "v": {
+        "value": "1.0×10^22 s^-1",
+        "unit": "轰击势垒的频率",
+        "interpretation": "v"
+      },
+      "S_even": {
+        "value": "0.02897",
+        "unit": "偶偶母核的α衰变谱因子",
+        "interpretation": "S_even"
+      },
+      "S_odd": {
+        "value": "0.0214",
+        "unit": "奇A母核的α衰变谱因子",
+        "interpretation": "S_odd"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "double_folding_model",
+    "coulomb_and_proximity_potential_model",
+    "wkb_approximation",
+    "proximity_potential_77",
+    "proximity_potential_81"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知研究目标是评估不同邻近势形式对超重核α衰变和团簇放射性半衰期预测的适用性。已知核素范围、实验数据和22种邻近势形式。[Gap] 需要为每个核素（母核）和每个衰变模式（α或团簇）构建一个描述子核（或团簇）与子核之间相互作用的有效势能。[Decision] 选择使用 `double_folding_model` 来构建核-核相互作用势。该模型通过折叠两个核的密度分布与有效核子-核子相互作用来得到势能，是构建微观势能的基础方法。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "double_folding_model",
+        "version": ""
+      },
+      "parameters": {
+        "purpose": "Construct the nuclear-nuclear interaction potential V_N(r) for the cluster (alpha or heavier cluster) and the daughter nucleus."
+      },
+      "observation": "预期得到一个依赖于核间距离 r 的核势能表达式 V_N(r)。该表达式是母核密度分布、子核（或团簇）密度分布以及有效核子-核子相互作用的函数，形式为 V_N(r) = ∫∫ ρ_c(r_c) ρ_d(r_d) v_{nn}(|r + r_c - r_d|) d^3r_c d^3r_d。对于α粒子，其密度分布通常取高斯形式；对于更重的团簇，需要假设其密度分布。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 通过 `double_folding_model` 得到了核势 V_N(r)。[Gap] 衰变过程的总势垒由核势、库仑势和离心势（如果考虑角动量）组成。需要将核势与库仑势结合起来，并可能引入不同的参数化形式（邻近势）来简化或替代微观折叠势。[Decision] 使用 `coulomb_and_proximity_potential_model` 来构建总相互作用势 V(r)。该模型将总势能表示为库仑势 V_C(r) 与一个参数化的邻近势（代表核势）V_P(r) 之和，即 V(r) = V_C(r) + V_P(r)。这里，V_P(r) 的具体形式将从提供的22种邻近势（如 `proximity_potential_77`, `proximity_potential_81`）中选择。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "coulomb_and_proximity_potential_model",
+        "version": ""
+      },
+      "parameters": {
+        "potential_form": "V(r) = V_C(r) + V_P(r)",
+        "coulomb_potential": "V_C(r) = Z_cluster * Z_daughter * e^2 / r (for r > R_t)",
+        "proximity_potential_options": "22 different versions (e.g., Proximity 77, Proximity 81)"
+      },
+      "observation": "预期得到一个总势能函数 V(r) 的解析或半解析表达式。对于每个核素和衰变模式，V(r) 将依赖于核电荷数、半径参数、表面厚度参数（来自邻近势形式）以及核间距离 r。关键近似包括将核势简化为依赖于核表面形状和距离的邻近势形式，并假设库仑势在核重叠区外为点电荷形式。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 对于每种邻近势形式（如 `proximity_potential_77`），我们已经通过 `coulomb_and_proximity_potential_model` 定义了总势能 V(r)。[Gap] 需要计算α粒子或团簇穿透该势垒的隧穿概率，这是计算半衰期的核心。[Decision] 应用 `wkb_approximation` 来计算穿透系数 P。WKB近似公式为 P ≈ exp(-2G)，其中伽莫夫因子 G = (√(2μ)/ħ) ∫_{r_in}^{r_out} √(V(r) - Q) dr，μ是约化质量，Q是衰变能。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "tunneling_probability_formula": "P ≈ exp(-2G)",
+        "gamow_factor": "G = (√(2μ)/ħ) ∫_{r_in}^{r_out} √(V(r) - Q) dr",
+        "integration_limits": "r_in (inner turning point), r_out (outer turning point)"
+      },
+      "observation": "预期得到一个穿透系数 P 的表达式，它是指数形式，指数是势垒积分（伽莫夫因子 G）的函数。P 依赖于总势能 V(r)（来自上一步）、衰变能 Q（从实验质量数据计算得到）和约化质量 μ。关键近似是使用 WKB 方法处理一维势垒隧穿，并假设衰变前粒子处于基态（角动量 l=0 或考虑小 l 值）。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已经通过 `wkb_approximation` 得到了穿透系数 P。[Gap] 半衰期 T_{1/2} 不仅与穿透概率有关，还与衰变前粒子在势阱内撞击势垒的频率（预形成概率或 assault frequency ν）有关。对于α衰变和团簇放射性，通常使用半衰期公式 T_{1/2} = (ln2) / (ν P)。[Decision] 将穿透系数 P 与 assault frequency ν 结合，推导半衰期的最终表达式。Assault frequency ν 通常估计为 ν = v / (2R_0)，其中 v 是粒子在势阱内的速度，R_0 是母核半径。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "half_life_formula": "T_{1/2} = (ln2) / (ν P)",
+        "assault_frequency_estimate": "ν ≈ v / (2R_0) with v = √(2Q/μ)"
+      },
+      "observation": "预期得到半衰期 T_{1/2} 的最终理论预测公式：T_{1/2} = (ln2) / [ν * exp(-2G)]。其中 ν 是 assault frequency（数量级估计约为 10^{20} - 10^{22} s^{-1}），G 是伽莫夫因子。该公式将用于计算每个核素、每种衰变模式、每种邻近势形式下的半衰期。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 对于22种邻近势形式中的每一种（例如 `proximity_potential_77` 和 `proximity_potential_81`），我们已经建立了一套完整的流程：从定义势能 V(r) 到计算半衰期 T_{1/2}。[Gap] 需要对41个核素的α衰变和团簇放射性半衰期进行批量数值计算，以比较不同势能形式的预测能力。[Decision] 对每个核素、每种衰变模式、每种邻近势形式，执行数值计算。这包括：1) 计算衰变能 Q（从质量表）；2) 数值积分计算伽莫夫因子 G；3) 计算 assault frequency ν；4) 代入公式得到 T_{1/2}。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "scope": "For each of the 22 proximity potentials, compute T_{1/2} for alpha decay and cluster radioactivity for all 41 nuclei.",
+        "inputs": "Nuclear masses (for Q), potential parameters (for V(r)), nuclear radii."
+      },
+      "observation": "预期得到大量数值结果：一个包含多个条目的数据集。每个条目对应一个核素、一种衰变模式、一种邻近势形式，并包含预测的半衰期 T_{1/2}（单位：秒）的对数值（log10 T_{1/2}）。这些数值将与实验数据进行比较。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经对22种邻近势形式完成了半衰期的数值预测。[Gap] 需要评估哪种邻近势形式对实验数据的描述最好，即确定“最合适的势能形式”。这需要一个定量的评估标准。[Decision] 通过计算理论预测值 log10 T_{1/2}(理论) 与实验值 log10 T_{1/2}(实验) 之间的偏差（如均方根偏差 RMSD 或平均绝对偏差）来进行评估。对α衰变数据和团簇放射性数据可能分别或联合进行评估。",
+      "action": "verification",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "evaluation_metric": "Calculate root-mean-square deviation (RMSD) or standard deviation σ between theoretical and experimental log10(T_{1/2}) values for each proximity potential.",
+        "data_sets": "Alpha decay data set and cluster radioactivity data set."
+      },
+      "observation": "预期得到22个偏差值（例如22个RMSD值），每个值对应一种邻近势形式。偏差最小的势能形式将被认为是对超重核α衰变和团簇放射性半衰期预测最合适的模型。可能还会观察到某些势对α衰变拟合好，但对团簇放射性拟合差，反之亦然。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "bifold_model",
+        "desc": "用于计算库仑势 V_c(r)"
+      },
+      {
+        "name": "CPPM",
+        "desc": "用于计算母核与子核之间的总相互作用势 V(r)，包括核势、库仑势和离心势"
+      },
+      {
+        "name": "WKB_approximation",
+        "desc": "用于计算分离碎片对应的势垒穿透率 P"
+      },
+      {
+        "name": "proximity_potential_formalism",
+        "desc": "用于计算核势 V_N(r)，包括 Prox.77 家族、Prox.81、Bass 家族等多个版本"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "V_{c}(\\vec{r}) = \\int \\int \\rho_{c}(\\vec{r}_{c}) \\rho_{d}(\\vec{r}_{d}) v(s) d \\vec{r}_{c} d \\vec{r}_{d}"
+      },
+      {
+        "label": "Eq.5",
+        "content": "V(r) = V_{N}(r) + V_{c}(r) + V_{l}(r)"
+      },
+      {
+        "label": "Eq.6",
+        "content": "V_{l}(r) = \\frac{(l + 1/2)^{2} \\hbar^{2}}{2 \\mu r^{2}}"
+      },
+      {
+        "label": "Eq.9",
+        "content": "\\lambda = v S_{c} P"
+      },
+      {
+        "label": "Eq.11",
+        "content": "P = \\exp \\left(- \\frac{2}{\\hbar} \\int_{R_{in}}^{R_{out}} \\sqrt{2 \\mu | V(r) - Q_{c} |} d r\\right)"
+      },
+      {
+        "label": "Eq.13",
+        "content": "V_{N}(r) = 4 \\pi \\gamma b \\bar{R} \\Phi (\\xi)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "a_p",
+        "value": "0.65 fm",
+        "condition": "质子电荷分布高斯形式的参数"
+      },
+      {
+        "quantity": "e^2",
+        "value": "1.44 MeV·fm",
+        "condition": "库仑常数"
+      },
+      {
+        "quantity": "m",
+        "value": "931.5 MeV/c^2",
+        "condition": "核子质量"
+      },
+      {
+        "quantity": "v",
+        "value": "1.0×10^22 s^-1",
+        "condition": "轰击势垒的频率"
+      },
+      {
+        "quantity": "S_even",
+        "value": "0.02897",
+        "condition": "偶偶母核的α衰变谱因子"
+      },
+      {
+        "quantity": "S_odd",
+        "value": "0.0214",
+        "condition": "奇A母核的α衰变谱因子"
+      },
+      {
+        "quantity": "γ_0",
+        "value": "1.01734 MeV/fm^2",
+        "condition": "Prox.77 表面能常数（Set2）"
+      },
+      {
+        "quantity": "k_s",
+        "value": "1.79",
+        "condition": "Prox.77 表面不对称常数（Set2）"
+      },
+      {
+        "quantity": "b",
+        "value": "1 fm",
+        "condition": "Prox.77 核势中的宽度参数"
+      }
+    ],
+    "failure_points": []
+  }
+}

@@ -1,0 +1,610 @@
+{
+  "id": "NPP_0136",
+  "meta": {
+    "id": "NPP_0136",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Deep Learning approaches for nuclear binding energy prediction: A comparative study of RNN, GRU and LSTM Models",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2503.19348"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T21:35:45.869731",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "原子核结合能预测",
+    "input_data": "数据来源：原子质量评估（AME2020）；输入特征：质子数、中子数、液滴模型项、壳修正效应项；用于验证的基准：Garvey-Kelson关系、WS/WS3/WS4模型。",
+    "user_intent": "传统全局模型（如液滴模型、FRDM、WS模型）在核素图上，特别是滴线附近区域，预测精度存在显著差异；局部模型（如Garvey-Kelson关系）在已知实验数据区域精度高，但外推能力有限。需要探索能够有效捕捉核数据中复杂非线性依赖关系的新方法，以提高整个核素图上核质量预测的精度和鲁棒性。",
+    "quantifiable_goal": "预测原子核结合能（单位：MeV）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 论文目标是通过深度学习模型（RNN/LSTM/GRU）预测原子核结合能，输入为质量数A、电荷数Z、中子数N，输出为结合能。传统模型在滴线附近精度不足，而深度学习能捕捉非线性依赖。[Gap] 需要明确如何将核物理特征（如液滴模型项、壳修正）与循环神经网络结合，以及输入特征的具体构造方式。[Decision] 首先进行模型构建，定义输入特征向量，将核物理先验知识（如液滴模型项）作为特征的一部分，并选择LSTM作为基础网络架构，以处理核子数序列中的长程依赖。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "mass_number_A, charge_number_Z, neutron_number_N, liquid_drop_terms (volume, surface, Coulomb, asymmetry, pairing), shell_correction_indicator",
+        "model_architecture": "LSTM with 2 hidden layers, 128 units each, dropout 0.2",
+        "output": "binding_energy"
+      },
+      "output_state": {
+        "input_feature_vector": "[A, Z, N, E_vol, E_surf, E_Coul, E_asym, E_pair, shell_flag]",
+        "model_type": "LSTM",
+        "binding_energy": "to be predicted"
+      },
+      "observation": "构建了包含核物理先验特征的输入向量，并选择LSTM作为循环神经网络架构，用于捕捉核子数序列中的非线性依赖关系。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 论文采用循环神经网络（LSTM）预测结合能，需要将核素按某种序列顺序输入网络，以利用序列依赖关系。常见的做法是将核素按质子数Z或中子数N排序，形成序列。 [Gap] 当前已构建了输入特征向量，但尚未定义序列的构建方式和网络输入的具体格式。 [Decision] 决定按质子数Z递增、中子数N递增的顺序构建核素序列，并将每个核素的输入特征向量作为时间步输入LSTM，以捕捉核子数变化对结合能的序列影响。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "sequence_ordering": "proton_number_Z_ascending_neutron_number_N_ascending",
+        "input_per_timestep": "feature_vector=[A, Z, N, E_vol, E_surf, E_Coul, E_asym, E_pair, shell_flag]",
+        "output_per_timestep": "binding_energy_prediction"
+      },
+      "output_state": {
+        "sequence_definition": "ordered by (Z, N) with Z from 1 to max, N from Z to max for each Z",
+        "input_shape": "(batch_size, sequence_length, 9)",
+        "model_type": "LSTM",
+        "binding_energy": "to be predicted per timestep"
+      },
+      "observation": "定义了核素序列的构建方式：按质子数Z从小到大、每个Z内中子数N从小到大排列，每个核素作为一个时间步，输入9维特征向量，LSTM输出对应结合能预测值。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在构建了输入特征向量和序列定义后，需要确定LSTM网络的具体架构，包括隐藏层大小、层数、激活函数等超参数，以有效学习核素序列中的依赖关系。 [Gap] 当前步骤尚未定义LSTM网络的具体结构，无法进行后续训练和预测。 [Decision] 根据论文方法中提及的LSTM架构，选择单层LSTM，隐藏单元数为128，使用tanh激活函数，并添加dropout正则化防止过拟合，以平衡模型容量和泛化能力。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "architecture": "LSTM",
+        "num_layers": 1,
+        "hidden_units": 128,
+        "activation": "tanh",
+        "dropout_rate": 0.2,
+        "input_dim": 9,
+        "output_dim": 1,
+        "sequence_length": "variable per Z chain"
+      },
+      "output_state": {
+        "model_architecture": "single_layer_LSTM_128_units",
+        "dropout_rate": 0.2,
+        "binding_energy": "to be predicted"
+      },
+      "observation": "定义了LSTM网络架构：单层、128个隐藏单元、tanh激活函数、dropout率0.2，输入9维特征，输出1维结合能预测值。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 我们已经构建了输入特征向量（9维核物理先验特征：A, Z, N, E_vol, E_surf, E_Coul, E_asym, E_pair, shell_flag），定义了核素序列的排列方式（按Z和N递增），并选择了单层128单元LSTM网络架构。现在需要确定训练数据的具体划分方式，包括训练集、验证集和测试集的构建策略，这是深度学习模型训练的关键步骤。 [Gap] 目前尚未定义数据集的划分方法，特别是如何确保模型在滴线附近的外推能力得到有效评估。论文方法中提到使用循环神经网络进行核质量预测，但未指定具体的数据划分策略。 [Decision] 我将采用核物理中常用的数据划分策略：将已知实验数据按核素区域划分为训练集、验证集和测试集，其中测试集专门包含滴线附近和未知区域的核素，以评估模型的外推能力。同时，使用AME2020数据作为来源，将已知质量数据按比例划分，并确保训练集覆盖广泛的核素区域。",
+      "action": "model_building",
+      "tool": {
+        "name": "training_data_preparation",
+        "version": ""
+      },
+      "parameters": {
+        "data_source": "AME2020",
+        "training_set_definition": "已知实验结合能数据的80%，覆盖稳定线附近区域",
+        "validation_set_definition": "已知实验结合能数据的10%，用于超参数调优和早停",
+        "test_set_definition": "已知实验结合能数据的10% + 滴线附近外推区域，用于评估外推能力",
+        "sequence_length": "可变长度，每个Z值对应一个序列，N从Z到最大可用值",
+        "data_normalization": "对输入特征进行Z-score标准化，结合能目标值进行标准化"
+      },
+      "output_state": {
+        "training_set": "80% known experimental binding energies from AME2020",
+        "validation_set": "10% known experimental binding energies from AME2020",
+        "test_set": "10% known experimental binding energies + extrapolation region near drip lines",
+        "data_split_strategy": "stratified by nuclear region (stable, neutron-rich, proton-rich)",
+        "binding_energy": "to be predicted"
+      },
+      "observation": "定义了训练/验证/测试集划分策略：训练集使用80%已知实验数据（覆盖稳定线附近区域），验证集10%用于超参数调优，测试集10%已知数据加上滴线附近外推区域用于评估外推能力。数据按核素区域分层采样，确保各区域都有代表性样本。输入特征和结合能目标值均进行Z-score标准化处理。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经构建了输入特征向量（包含核物理先验特征如液滴模型各项和壳修正标志），定义了核素序列的排列方式（按Z和N递增），并选择了LSTM网络架构（单层128单元）。现在需要确定具体的训练策略，包括损失函数、优化器和评估指标，以确保模型能够有效学习结合能的非线性依赖关系并具备外推能力。 [Gap] 当前缺少训练过程中的具体优化目标和评估方法，这会影响模型收敛性和预测精度。 [Decision] 选择均方误差作为损失函数（回归任务标准），Adam优化器（自适应学习率，适合RNN训练），并添加早停和学习率衰减策略防止过拟合。评估指标使用均方根误差（RMSE）和平均绝对误差（MAE），同时关注外推区域的预测偏差。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "mean_squared_error",
+        "optimizer": "Adam",
+        "learning_rate": 0.001,
+        "batch_size": 64,
+        "epochs": 500,
+        "early_stopping_patience": 30,
+        "learning_rate_reduction_factor": 0.5,
+        "learning_rate_reduction_patience": 10,
+        "evaluation_metrics": [
+          "RMSE",
+          "MAE"
+        ],
+        "validation_split": 0.1
+      },
+      "output_state": {
+        "training_strategy": "MSE_loss_Adam_optimizer_early_stopping_lr_scheduler",
+        "evaluation_metrics": "RMSE_MAE",
+        "binding_energy": "to be predicted after training"
+      },
+      "observation": "定义了LSTM模型的训练策略：使用均方误差（MSE）作为损失函数，Adam优化器（初始学习率0.001），批量大小64，最大训练轮数500。采用早停机制（patience=30轮）防止过拟合，当验证损失连续10轮不下降时学习率减半（因子0.5）。评估指标选择均方根误差（RMSE）和平均绝对误差（MAE），在验证集上监控模型性能。该策略适用于回归任务，且自适应学习率有助于处理核数据中的非线性模式。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经完成了LSTM模型的数据准备、网络架构定义和训练策略设定。当前状态是：训练集、验证集、测试集已划分，模型结构为单层128单元LSTM，训练策略使用MSE损失和Adam优化器。接下来需要定义具体的输入特征工程，即每个核素时间步的9维特征向量具体包含哪些物理量，这是模型能够学习核质量规律的关键。 [Gap] 当前缺少对9维输入特征的具体定义。根据核物理知识和论文方法（LSTM用于核质量预测），合理的特征应包括：质子数Z、中子数N、质量数A、液滴模型结合能（或质量过剩）、对能项、壳修正项、形变参数等。但我们需要确保特征与LSTM的序列学习机制匹配，且不引入未来信息（即每个时间步只能使用当前核素的信息）。 [Decision] 我将定义9维输入特征向量，包含：Z, N, A, 液滴模型结合能（Bethe-Weizsäcker公式计算值），对能项（奇偶效应），壳修正项（从Strutinsky方法或经验壳模型获得），形变参数β₂（从FRDM或经验值），以及两个额外的核结构特征（如配对间隙和费米能级近似）。这些特征将作为每个时间步的输入，LSTM通过序列学习捕捉核素间的演化规律。",
+      "action": "feature_engineering",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "feature_list": [
+          "proton_number_Z",
+          "neutron_number_N",
+          "mass_number_A",
+          "liquid_drop_binding_energy_B_LD",
+          "pairing_energy_term",
+          "shell_correction_energy",
+          "deformation_parameter_beta2",
+          "pairing_gap_approximation",
+          "Fermi_energy_approximation"
+        ],
+        "feature_description": "每个核素时间步的9维输入特征向量，包含核素基本参数(Z,N,A)、宏观液滴模型预测、微观壳修正、形变信息和配对效应。所有特征在当前时间步即可计算，不依赖未来核素信息。"
+      },
+      "output_state": {
+        "input_features": "9维向量: [Z, N, A, B_LD, E_pair, E_shell, β₂, Δ_pair, ε_F]",
+        "feature_engineering_complete": true,
+        "binding_energy": "to be predicted after training"
+      },
+      "observation": "定义了LSTM模型每个时间步的9维输入特征向量：(1)质子数Z，(2)中子数N，(3)质量数A，(4)液滴模型结合能B_LD（使用Bethe-Weizsäcker公式计算），(5)对能项E_pair（奇A核为0，偶偶核为正，奇奇核为负），(6)壳修正能E_shell（从经验壳模型或Strutinsky方法获得），(7)四极形变参数β₂（从FRDM或经验值），(8)配对间隙近似Δ_pair（约12/√A MeV），(9)费米能级近似ε_F（约-8 MeV）。这些特征覆盖了核质量的主要物理贡献，且每个时间步独立计算，适合LSTM的序列学习机制。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文使用LSTM模型预测结合能，需要定义输入序列的构造方式。LSTM擅长处理序列数据，因此需要将核素按某种物理顺序排列成序列，每个时间步输入一个核素的9维特征向量，输出该核素的结合能。 [Gap] 目前定义了特征工程，但尚未明确如何将核素数据组织成适合LSTM训练的序列样本。 [Decision] 选择ml_feature_construction工具，定义序列构造策略：按质量数A递增顺序排列核素，每个序列包含连续多个核素，形成监督学习样本。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_feature_construction",
+        "version": ""
+      },
+      "parameters": {
+        "sequence_length": 10,
+        "stride": 1,
+        "ordering": "by_mass_number_A_increasing",
+        "input_features": [
+          "Z",
+          "N",
+          "A",
+          "B_LD",
+          "E_pair",
+          "E_shell",
+          "β₂",
+          "Δ_pair",
+          "ε_F"
+        ],
+        "output_target": "binding_energy_experimental",
+        "sample_format": "each_sample_contains_sequence_of_10_consecutive_nuclei_ordered_by_A"
+      },
+      "output_state": {
+        "sequence_construction": "complete",
+        "sequence_length": 10,
+        "stride": 1,
+        "ordering_rule": "by_mass_number_A_increasing",
+        "input_shape": "(batch_size, 10, 9)",
+        "output_shape": "(batch_size, 10, 1)",
+        "binding_energy": "to be predicted after training"
+      },
+      "observation": "定义了LSTM输入序列的构造方式：将AME2020中所有核素按质量数A递增顺序排列，使用滑动窗口（窗口长度10，步长1）生成训练样本。每个样本包含连续10个核素的9维特征向量序列，输出对应10个核素的实验结合能。这种构造方式使LSTM能够学习核素之间的序列依赖关系，利用相邻核素的物理信息提高预测精度。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将核素按质量数A递增排列并使用滑动窗口生成序列样本，但核物理中结合能随A的变化并非单调平滑，且相邻A的核素可能属于不同同位素链，物理关联弱。论文实际按同位素链（固定Z，N递增）组织序列，这样每个序列内核素具有相同的质子数，物理上更自然地反映了中子数变化对结合能的影响，LSTM能学习到同位素链内的壳效应和对关联。预测的A排序破坏了这种物理结构，导致序列内相邻核素缺乏直接的核结构关联，不利于模型学习物理规律。"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 论文使用LSTM模型进行核结合能预测，目前已定义输入特征（9维向量）和序列构造方式（窗口长度10）。LSTM的核心优势在于能够捕捉序列中的长期依赖关系，因此需要设计合适的网络架构来有效处理这些特征序列并输出结合能预测。 [Gap] 当前尚未定义LSTM模型的具体网络结构，包括层数、隐藏单元数、是否使用双向LSTM、dropout正则化等关键超参数，这些直接影响模型的学习能力和泛化性能。 [Decision] 基于论文方法（recurrent_neural_network, long_short_term_memory, gated_recurrent_unit）和核质量预测任务的特点，选择构建一个堆叠式LSTM网络，包含两个LSTM层和一个全连接输出层，并加入dropout防止过拟合。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "stacked_LSTM",
+        "num_layers": 2,
+        "hidden_units_per_layer": [
+          128,
+          64
+        ],
+        "dropout_rate": 0.2,
+        "bidirectional": false,
+        "output_layer": "dense_with_linear_activation",
+        "sequence_output_mode": "return_sequences_for_all_layers"
+      },
+      "output_state": {
+        "model_architecture": "Input(10,9) -> LSTM(128, return_sequences=True, dropout=0.2) -> LSTM(64, return_sequences=True, dropout=0.2) -> TimeDistributed(Dense(1))",
+        "total_parameters": "to be computed",
+        "binding_energy": "to be predicted after training"
+      },
+      "observation": "构建了堆叠式LSTM网络架构：输入层接受形状为(batch_size, 10, 9)的序列数据；第一层LSTM包含128个隐藏单元，返回完整序列（return_sequences=True），dropout=0.2；第二层LSTM包含64个隐藏单元，同样返回完整序列，dropout=0.2；输出层使用TimeDistributed包装的全连接层（Dense(1)），对每个时间步输出一个结合能预测值，激活函数为线性。该架构允许模型在每个时间步利用前序核素信息预测当前核素的结合能，同时通过堆叠层捕捉更复杂的时序依赖关系。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤7：选择按质量数A递增顺序排列核素并滑动窗口生成序列样本，已知条件包括：AME2020数据包含所有已知核素的Z、N、A和结合能；核物理中结合能随A变化并非单调平滑；相邻A的核素可能属于不同同位素链。。[Gap] 错过的信号：结合能随A的变化并非单调平滑，且相邻A的核素可能属于不同同位素链，决策时已知因为这是核物理常识（液滴模型和壳模型都表明结合能随A有壳效应和奇偶振荡，且不同Z的核素物理性质差异大），本应触发警觉：按A排序会破坏同位素链内物理关联，不利于模型学习核结构规律。。[Decision] 正确判断方式：面对核素序列构造任务，应首先检查核素排序的物理合理性：如果按A排序，相邻核素可能Z不同，物理关联弱；如果按同位素链（固定Z，N递增）排序，则序列内核素共享相同质子数，物理上更自然地反映中子数变化对结合能的影响。因此应优先选择同位素链排序。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对序列排序物理意义的检查，直接采用了数学上简单但物理上不合理的A排序。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在将物理数据组织成机器学习输入时，必须优先考虑数据的物理结构（如同位素链、同中子素链），而非数学上的便利性（如按A排序），因为模型学习的是物理规律，序列顺序应反映物理关联的强弱。"
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6, 8 分别使用 feature_engineering -> feature_engineering -> neural_network_training -> training_data_preparation -> neural_network_training -> feature_engineering -> ml_model_selection 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 论文旨在利用深度学习模型（特别是循环神经网络及其变体LSTM、GRU）从核子数（Z, N）预测原子核的结合能。前提层已明确结合能定义为质量差，并采用AME2020数据。传统模型在滴线附近精度不足，而深度学习有望捕捉非线性模式。[Gap] 需要将原始输入（Z, N）转化为适合循环神经网络处理的特征序列，因为RNN天然处理序列数据，而核子数本身可视为一种序列（如按质子数、中子数顺序排列）。[Decision] 第一步应构建输入特征：将每个原子核的质子数Z和中子数N作为基本特征，并可能引入质量数A=Z+N作为辅助特征，同时考虑将数据按Z或N排序以形成序列。这里采用直接使用(Z, N, A)作为初始特征向量，为后续RNN层提供输入。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_features": [
+          "Z",
+          "N",
+          "A"
+        ],
+        "feature_transformation": "原始数值，无额外变换",
+        "sequence_construction": "按Z和N排序的二维网格序列"
+      },
+      "output_state": {
+        "input_features": "(Z, N, A)",
+        "feature_dimension": 3
+      },
+      "observation": "构建了初始输入特征：质子数Z、中子数N、质量数A，作为循环神经网络的输入向量。每个原子核对应一个三维特征向量。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在核质量预测任务中，仅使用Z、N、A作为输入特征可能不足以让循环神经网络（RNN）捕捉核结构中的壳效应、对关联和形变等精细结构。论文中通常需要构造更丰富的特征，例如核子数奇偶性、壳层填充数、形变参数等，以提升模型对结合能非线性依赖的拟合能力。 [Gap] 当前输入特征维度为3，缺乏对核结构关键物理量的显式编码，可能导致模型在滴线区域外推时精度不足。 [Decision] 因此，下一步应进行特征工程，添加奇偶性特征（如Z的奇偶、N的奇偶、A的奇偶）以及壳层修正相关的特征（如主壳层填充数、形变参数），以增强输入向量的物理信息。",
+      "action": "feature_engineering",
+      "tool": {
+        "name": "feature_engineering",
+        "version": ""
+      },
+      "parameters": {
+        "base_features": [
+          "Z",
+          "N",
+          "A"
+        ],
+        "additional_features": [
+          "Z_parity",
+          "N_parity",
+          "A_parity",
+          "magic_number_distance",
+          "deformation_parameter_beta2"
+        ]
+      },
+      "output_state": {
+        "input_features": "(Z, N, A, Z_parity, N_parity, A_parity, magic_number_distance, deformation_parameter_beta2)",
+        "feature_dimension": 8
+      },
+      "observation": "通过添加奇偶性特征（Z_parity、N_parity、A_parity，取值为0或1表示偶或奇）、到最近幻数的距离（magic_number_distance，取Z和N分别到最近幻数的绝对距离之和）以及形变参数β2（从FRDM或WS模型数据库获取），将输入特征维度从3扩展至8。这些特征有助于RNN学习壳效应和对关联对结合能的贡献。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 在核物理中，结合能的计算需要考虑核子之间的短程相互作用和壳效应。传统的液滴模型和微观模型在滴线附近精度不足，而深度学习模型通过循环神经网络（RNN）及其变体（LSTM、GRU）可以捕捉序列依赖关系。当前已构建了包含奇偶性和幻数距离的8维特征向量，但核质量数据通常具有序列特性（如同位素链、同中子素链），RNN需要按特定顺序输入才能有效学习。 [Gap] 目前特征向量是静态的，没有体现原子核在核素图中的序列关系。RNN/LSTM/GRU要求输入数据具有时间步或序列顺序，因此需要将原子核数据组织成序列形式，例如按中子数递增或质子数递增排列，以便模型学习相邻核之间的质量变化趋势。 [Decision] 因此，下一步应进行数据预处理，将原子核数据按同位素链（固定Z，N递增）或同中子素链（固定N，Z递增）组织成序列，并构建序列化的输入张量。这属于模型构建步骤，使用工具ml_data_acquisition来获取和整理序列数据。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": ""
+      },
+      "parameters": {
+        "data_source": "AME2020",
+        "sequence_ordering": "isotopic_chain",
+        "input_features": [
+          "Z",
+          "N",
+          "A",
+          "Z_parity",
+          "N_parity",
+          "A_parity",
+          "magic_number_distance"
+        ],
+        "output_target": "binding_energy"
+      },
+      "output_state": {
+        "sequence_data": "每个同位素链（固定Z）按N递增排列，形成序列；每个序列元素为8维特征向量，目标为结合能",
+        "sequence_length": "每个链的长度等于该Z对应的稳定核素数目（从最轻到最重）"
+      },
+      "observation": "从AME2020数据库获取原子核质量数据，按同位素链（固定质子数Z，中子数N递增）组织成序列。每个原子核的特征向量包含8个特征（Z, N, A, Z_parity, N_parity, A_parity, magic_number_distance），目标值为实验结合能。序列长度随Z变化，例如Z=8（氧）的链包含多个稳定同位素。这样构建的序列数据适合输入RNN/LSTM/GRU模型，使模型能够学习沿同位素链的质量变化趋势。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 我们已经构建了输入特征（8维）并按同位素链组织成序列数据。接下来需要选择循环神经网络的具体架构来处理这些序列，以预测结合能。论文使用了LSTM和GRU两种架构，这里需要先确定模型结构。 [Gap] 当前步骤需要明确循环神经网络的层数、隐藏单元数、输出层设计等超参数，以及如何将序列输出映射到单个原子核的结合能预测。 [Decision] 选择LSTM作为基础架构，设置隐藏层大小为128，输出层使用全连接层将最后一个时间步的隐藏状态映射到结合能预测值。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "LSTM",
+        "hidden_size": 128,
+        "num_layers": 1,
+        "output_dimension": 1,
+        "sequence_processing": "last_time_step_output"
+      },
+      "output_state": {
+        "model_architecture": "LSTM(8->128) -> Dense(128->1)",
+        "model_parameters": "hidden_size=128, num_layers=1, output_activation=linear"
+      },
+      "observation": "构建了单层LSTM网络，输入维度8，隐藏层维度128，输出层为全连接层将最后一个时间步的隐藏状态映射到结合能预测值。模型参数总数约为(8+128)*4*128 + 128*1 = 约70,000个可训练参数。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 在前四步中，我们完成了特征工程（构建了8维输入特征）、数据获取（按同位素链组织成序列）和模型选择（选择了单层LSTM网络，隐藏层维度128）。现在需要进入模型训练阶段，以学习从特征序列到结合能的映射。[Gap] 虽然模型架构已定义，但尚未指定训练过程中的损失函数、优化器、训练/验证数据划分以及训练策略（如早停、学习率调度等），这些是确保模型收敛和泛化能力的关键。[Decision] 选择ml_neural_network_training工具，配置均方误差损失函数、Adam优化器，并按80%/10%/10%比例划分训练/验证/测试集，采用早停法防止过拟合。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "mean_squared_error",
+        "optimizer": "Adam",
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "epochs": 200,
+        "early_stopping_patience": 20,
+        "validation_split": 0.1,
+        "test_split": 0.1,
+        "data_shuffle": false,
+        "sequence_padding": true
+      },
+      "output_state": {
+        "training_configuration": "损失函数=均方误差(MSE)，优化器=Adam(学习率0.001)，批量大小=32，最大训练轮数=200，早停耐心值=20轮，数据划分：训练集80%、验证集10%、测试集10%",
+        "training_data": "AME2020中所有同位素链的序列数据，每个序列按N递增排列，特征维度8，目标为结合能",
+        "model_initialization": "LSTM权重使用Glorot均匀初始化，偏置初始化为0"
+      },
+      "observation": "配置了LSTM模型的训练流程。采用均方误差作为损失函数，Adam优化器初始学习率0.001。数据按同位素链组织，不进行随机打乱以保持序列的时间顺序。训练过程中监控验证集损失，若连续20轮未改善则提前停止训练，防止过拟合。模型权重采用Glorot均匀初始化。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 在第5步中，我们配置了LSTM模型的训练流程，包括损失函数、优化器、批量大小和早停策略。现在需要实际执行训练过程，让模型学习从同位素链序列特征到结合能的映射。[Gap] 虽然训练配置已定义，但尚未描述训练过程中的具体行为，如损失收敛情况、验证集性能以及训练完成后的模型状态。[Decision] 因此，下一步应执行训练过程，记录训练和验证损失的变化，并保存训练好的模型权重，为后续预测做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "training_data": "AME2020中所有同位素链的序列数据，每个序列按N递增排列，特征维度8，目标为结合能",
+        "validation_split": 0.2,
+        "epochs": 200,
+        "batch_size": 32,
+        "optimizer": "Adam(learning_rate=0.001)",
+        "loss_function": "mean_squared_error",
+        "early_stopping_patience": 20,
+        "model_architecture": "LSTM(8->128) -> Dense(128->1)"
+      },
+      "output_state": {
+        "trained_model": "LSTM模型权重已保存，训练损失最终收敛至约0.5 MeV²，验证损失约0.8 MeV²",
+        "training_history": "训练损失从初始约100 MeV²迅速下降，前50轮降至约5 MeV²，之后缓慢收敛；验证损失在约80轮后达到最低点，之后略有上升（过拟合迹象），早停在100轮停止训练"
+      },
+      "observation": "LSTM模型在AME2020数据上完成训练。训练损失最终收敛至约0.5 MeV²，验证损失约0.8 MeV²。模型在已知核素区域表现良好，但验证损失略高于训练损失表明存在一定过拟合。训练过程中，模型成功学习了同位素链内结合能随中子数变化的平滑趋势，以及奇偶效应和壳效应等非线性特征。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "thought": "[Background] 我们已经完成了LSTM模型的构建和训练，模型在AME2020数据上取得了约0.8 MeV²的验证损失。现在需要评估模型在滴线附近区域的外推性能，这是论文的核心目标之一。[Gap] 当前模型仅在已知实验数据上训练，尚未测试其在未知核素（特别是滴线附近）的预测能力。需要设计一个合理的测试方案来评估模型的外推性能。[Decision] 采用留一链交叉验证（Leave-One-Chain-Out Cross-Validation）来评估模型的外推能力，即每次保留一个完整同位素链作为测试集，用其余所有链训练模型，然后评估模型在保留链上的预测精度。",
+      "action": "model_building",
+      "tool": {
+        "name": "cross_validation_evaluation",
+        "version": ""
+      },
+      "parameters": {
+        "validation_method": "leave_one_chain_out",
+        "test_chain_selection": "依次选择每个同位素链作为测试集",
+        "evaluation_metric": "均方根误差(RMSE)和平均绝对误差(MAE)",
+        "data_split": "训练集=除测试链外的所有同位素链，测试集=被保留的同位素链"
+      },
+      "output_state": {
+        "cross_validation_results": "每个同位素链作为测试集时的RMSE和MAE",
+        "extrapolation_performance": "模型在滴线附近核素上的预测误差分布",
+        "comparison_baseline": "与FRDM、WS4等全局模型的精度对比"
+      },
+      "observation": "留一链交叉验证结果表明：LSTM模型在已知实验数据区域的预测精度（RMSE约0.8 MeV）与局部模型相当；在滴线附近（距离稳定线超过5个中子）的外推区域，LSTM模型的RMSE约为1.5-2.5 MeV，显著优于FRDM（RMSE约3-4 MeV）和WS4（RMSE约2.5-3.5 MeV）等全局模型。这表明LSTM能够有效学习同位素链内部的物理规律，并合理外推至未知核素。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 18,
+      "thought": "[Background] 我们已经完成了LSTM模型的训练和交叉验证评估，验证了模型在已知区域和滴线附近外推区域的预测性能。现在需要进一步分析模型预测的物理合理性，特别是结合能作为核结构基础量，其预测结果应满足基本的物理约束，如液滴模型趋势和壳效应特征。[Gap] 当前我们只有数值预测精度指标，但缺乏对模型预测的物理一致性检验，例如结合能随质量数的平滑变化趋势、奇偶效应、幻数处的壳修正等物理特征是否被模型正确学习。[Decision] 因此，下一步应进行系统趋势分析，通过比较模型预测与实验值在核素图上的偏差分布，以及沿同位素链的预测曲线与液滴模型趋势的对比，来验证模型是否学习了正确的物理规律。",
+      "action": "verification",
+      "tool": {
+        "name": "systematic_trend_analysis",
+        "version": ""
+      },
+      "parameters": {
+        "analysis_type": "物理趋势验证",
+        "comparison_data": "AME2020实验结合能",
+        "model_predictions": "LSTM模型输出",
+        "reference_model": "液滴模型（Bethe-Weizsäcker公式）",
+        "features_to_check": [
+          "结合能随A的平滑变化",
+          "奇偶质量差异",
+          "幻数处壳修正"
+        ]
+      },
+      "output_state": {
+        "trend_analysis_results": "LSTM预测与实验结合能在核素图上的残差分布，沿同位素链的预测曲线与液滴模型趋势对比，奇偶效应和壳效应的捕捉情况"
+      },
+      "observation": "系统趋势分析表明：LSTM模型预测的结合能沿同位素链呈现平滑变化，与液滴模型的宏观趋势一致。在幻数（如N=50, 82, 126）附近，模型预测显示出明显的壳修正特征，残差分布显示模型在幻数区域的偏差小于0.5 MeV。奇偶效应也被模型成功捕捉，偶偶核与奇A核的预测偏差模式与实验一致。然而，在远离稳定线的极端丰中子区域（N-Z>20），模型预测的系统偏差略有增大（约1-2 MeV），表明模型对极端同位旋区域的物理约束学习尚不充分。",
+      "valid": true,
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的结合能与AME2020实验数据在Z=20-82、N=20-126范围内对比，计算均方根偏差是否接近0.25 MeV；其次，对超重核区（Z>100）进行极限情况检验，观察模型是否外推至已知系统学趋势（如液滴模型壳修正）；最后，使用独立方法如Hartree-Fock-Bogoliubov计算在相同核区交叉验证，注意RNN/LSTM/GRU在远离稳定线时可能因训练数据稀疏而失效。",
+    "metrics": {
+      "result_1": {
+        "value": "0.25 MeV",
+        "unit": "整个核素图（Z=1-118, N=1-200）",
+        "interpretation": "结合能预测均方根偏差"
+      },
+      "result_2": {
+        "value": "0.40 MeV",
+        "unit": "滴线附近区域（距离稳定线超过10个中子或质子）",
+        "interpretation": "结合能预测均方根偏差"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：liquid_drop_model；garvey_kelson_relation。"
+  },
+  "paper_methods": [
+    "recurrent_neural_network",
+    "long_short_term_memory",
+    "gated_recurrent_unit"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "recurrent_neural_network",
+        "desc": "循环神经网络，用于处理序列数据，捕捉核素链上的依赖关系"
+      },
+      {
+        "name": "long_short_term_memory",
+        "desc": "长短期记忆网络，一种特殊的RNN，能够学习长期依赖关系"
+      },
+      {
+        "name": "gated_recurrent_unit",
+        "desc": "门控循环单元，LSTM的简化变体，参数更少，训练更快"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "B(Z,N) = \\sum_{i} w_i \\cdot f_i(Z,N) + \\text{ShellCorrection}(Z,N)"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "\\text{LSTM: } h_t = \\text{LSTM}(x_t, h_{t-1}, c_{t-1})"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "结合能预测均方根偏差",
+        "value": "0.25 MeV",
+        "condition": "整个核素图（Z=1-118, N=1-200）"
+      },
+      {
+        "quantity": "结合能预测均方根偏差",
+        "value": "0.40 MeV",
+        "condition": "滴线附近区域（距离稳定线超过10个中子或质子）"
+      }
+    ],
+    "failure_points": [
+      "liquid_drop_model",
+      "garvey_kelson_relation"
+    ]
+  }
+}

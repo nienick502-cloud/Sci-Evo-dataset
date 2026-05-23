@@ -1,0 +1,453 @@
+{
+  "id": "NPP_0185",
+  "meta": {
+    "id": "NPP_0185",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "nuclear_scattering",
+    "source": {
+      "type": "paper",
+      "title": "Total reaction cross sections for neutron-nucleus scattering",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_nucl-th_0202050"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "中子-核总反应截面",
+    "input_data": "实验数据：中子入射能量为45、50、55、60、65、75 MeV，靶核为12C、28Si、56Fe、90Zr、208Pb的总反应截面；参考数据：LA-150数据库；微观输入：Bonn-B NN势作为Brueckner-Bethe-Goldstone方程的输入，以生成密度依赖的有效相互作用；结构输入：基于可信模型给出的靶核密度矩阵。",
+    "user_intent": "传统的唯象光学势（如Woods-Saxon型）是局域的、参数化的，缺乏真正的预测能力，其参数存在不确定性和模糊性，部分源于缺乏对具体散射体系的密度依赖性。虽然能描述微分截面，但不同的参数集可能导致对总反应截面的不同预测。需要一种基于微观理论、非局域且包含密度依赖性的光学势来可靠预测总反应截面。",
+    "quantifiable_goal": "预测中子-核总反应截面 σ_R（单位：mb）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是基于微观理论预测中子-核总反应截面。已知微观输入是Bonn-B NN势，需要通过Brueckner-Bethe-Goldstone (BBG)方程生成密度依赖的有效相互作用（即G矩阵）。[Gap] 需要从基本的核子-核子（NN）势出发，推导出适用于核介质中的有效相互作用，该相互作用是密度依赖的。[Decision] 使用full_folding_nn_g_matrix方法，以Bonn-B NN势作为输入，在给定的核物质密度下求解BBG方程，得到G矩阵。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "full_folding_nn_g_matrix",
+        "version": ""
+      },
+      "parameters": {
+        "input_potential": "Bonn-B NN potential",
+        "framework": "Brueckner-Bethe-Goldstone equation",
+        "output_type": "density-dependent G-matrix"
+      },
+      "observation": "预期得到一个密度依赖的有效相互作用（G矩阵），其形式为 $G(\\rho; \\mathbf{k}, \\mathbf{k}')$，其中 $\\rho$ 是核物质密度，$\\mathbf{k}$ 和 $\\mathbf{k}'$ 是相对动量。该G矩阵将作为构造光学势的基本输入。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得密度依赖的G矩阵。为了构造针对具体靶核（如12C, 28Si等）的光学势，需要知道靶核的密度分布（即密度矩阵）。[Gap] 需要为每个靶核提供一个可靠的核子密度分布。[Decision] 使用skyrm_hartree_fock方法，这是一种基于有效场论的微观核结构模型，可以自洽地计算原子核的基态性质，包括单核子密度分布。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "skyrm_hartree_fock",
+        "version": ""
+      },
+      "parameters": {
+        "target_nuclei": [
+          "12C",
+          "28Si",
+          "56Fe",
+          "90Zr",
+          "208Pb"
+        ],
+        "computed_quantity": "nucleon density distribution"
+      },
+      "observation": "预期得到每个靶核（12C, 28Si, 56Fe, 90Zr, 208Pb）的核子密度分布 $\\rho_A(r)$，其中A为质量数。这些密度分布将用于折叠计算，以产生靶核依赖的光学势。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "over_simplification",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤对所有靶核统一使用Skyrme-Hartree-Fock方法，但论文实际根据靶核特性采用不同核结构模型（如12C用壳模型、208Pb用Skyrme-HF），这种统一处理忽略了不同核区结构模型的适用性差异，可能导致轻核密度分布描述不准确。"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已获得密度依赖的G矩阵（步骤1）和各靶核的密度分布（步骤2）。[Gap] 需要将这两者结合起来，构造一个针对具体散射体系（中子+靶核）的非局域、密度依赖的光学势。[Decision] 运用nonlocal_optical_model方法。其核心是折叠模型：将G矩阵与靶核的密度矩阵（由密度分布构造）进行折叠积分，从而产生非局域的光学势 $U(\\mathbf{r}, \\mathbf{r}')$。这里的关键近似是单折叠近似（忽略反冲效应和交换项的复杂处理，或做适当简化）。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "nonlocal_optical_model",
+        "version": ""
+      },
+      "parameters": {
+        "input_interaction": "density-dependent G-matrix from step 1",
+        "input_density": "nucleon density distributions from step 2",
+        "approximation": "single-folding model"
+      },
+      "observation": "预期得到一个非局域的光学势 $U_A(\\mathbf{r}, \\mathbf{r}'; E)$，其中下标A标识靶核，E是中子入射能量。该势能是复数（包含吸收部分），并且显式依赖于靶核密度分布和入射能量。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已为每个靶核构造了非局域光学势 $U_A(\\mathbf{r}, \\mathbf{r}'; E)$。[Gap] 为了求解散射问题并计算总反应截面，需要知道靶核的基态波函数信息，特别是用于描述靶核内部结构的单粒子轨道，这可能影响光学势的具体实现或用于验证密度分布的合理性。[Decision] 使用shell_model方法为轻核（如12C）或作为参考，提供一套单粒子能级和波函数。这些信息可能用于：1）验证skyrm_hartree_fock得到的密度；2）在某些简化计算中作为输入。这里假设研究者主要用它来提供结构输入的一致性检查或作为折叠模型的另一种密度矩阵来源。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "shell_model",
+        "version": ""
+      },
+      "parameters": {
+        "target_nuclei": [
+          "12C",
+          "28Si",
+          "56Fe",
+          "90Zr",
+          "208Pb"
+        ],
+        "computed_quantity": "single-particle wavefunctions and energies"
+      },
+      "observation": "预期得到一套用于目标核的单粒子波函数 $\\phi_{n l j}(\\mathbf{r})$ 和相应的单粒子能量。这些信息可用于构建密度矩阵或与skyrm_hartree_fock结果进行交叉验证。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测认为需要壳模型波函数来构建密度矩阵或验证密度分布，但论文中壳模型波函数是直接用于折叠计算光学势的输入（步骤8），而非后续验证。预测误解了壳模型在此工作流中的核心作用——它是生成密度矩阵的直接方法，而非辅助验证工具。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已获得非局域光学势 $U_A(\\mathbf{r}, \\mathbf{r}'; E)$。总反应截面 $\\sigma_R$ 需要通过求解包含该势的散射方程得到。[Gap] 非局域势的散射方程（如Lippmann-Schwinger方程或非局域薛定谔方程）求解复杂，需要引入数值方法。[Decision] 采用数值计算求解非局域势下的散射问题。关键近似可能是将非局域势在坐标空间或动量空间离散化，并利用光学定理：总反应截面与向前散射振幅的虚部相关，即 $\\sigma_R \\propto \\operatorname{Im} f(0^{\\circ})$。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "equation": "Scattering equation with nonlocal potential U_A(r, r'; E)",
+        "method": "Partial wave expansion and numerical solution",
+        "relation": "Optical theorem for reaction cross section"
+      },
+      "observation": "预期对每个靶核（A）和每个入射能量（E = 45, 50, 55, 60, 65, 75 MeV），通过数值求解分波方程，得到总反应截面 $\\sigma_R(A, E)$ 的数值（单位mb）。结果应是一组随A和E变化的截面值。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已通过微观模型计算得到一组总反应截面预测值 $\\sigma_{R, \\text{calc}}(A, E)$。[Gap] 需要评估该微观模型的预测能力，并与已知实验数据及传统参数化光学势的结果进行对比。[Decision] 进行验证步骤：将计算结果与提供的实验数据（45-75 MeV入射能量，靶核12C, 28Si, 56Fe, 90Zr, 208Pb）以及LA-150数据库中的参考数据进行比较。关键是比较趋势（随A和E的变化）和绝对大小。",
+      "action": "verification",
+      "tool": {
+        "name": "verification",
+        "version": ""
+      },
+      "parameters": {
+        "comparison_data": "Experimental data and LA-150 database",
+        "calculated_results": "sigma_R(A, E) from step 5"
+      },
+      "observation": "预期通过图表或数值对比，展示微观非局域光学势预测的 $\\sigma_R$ 与实验数据在数量级（~几百mb）和变化趋势上基本吻合，特别是在中重核区域。可能会发现对轻核12C的预测存在一定偏差，这可能是由于模型对轻核结构的描述不足所致。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文旨在基于微观理论预测中子-核总反应截面。需要构建一个非局域的光学势来描述中子与靶核的相互作用。[Gap] 如何从基本的核子-核子相互作用和靶核结构出发，生成一个可用于散射计算的光学势？[Decision] 论文采用 full_folding_NN_g_matrices 方法，将微观核子-核子有效相互作用（g矩阵）与靶核的基态密度矩阵进行折叠，生成非局域光学势。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "full_folding_NN_g_matrices",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "光学势表示为直接项和交换项之和：U_{D}\\left(\\boldsymbol{r}_{1}; E\\right) \\delta\\left(\\boldsymbol{r}_{1} - \\boldsymbol{r}_{2}\\right) + U_{Ex}\\left(\\boldsymbol{r}_{1}, \\boldsymbol{r}_{2}; E\\right) (Eq.1)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 已经定义了生成光学势的微观方法，其中需要靶核的基态密度矩阵作为输入。[Gap] 对于不同的靶核（如12C, 28Si, 56Fe, 90Zr, 208Pb），如何具体指定其核结构以获取密度矩阵？[Decision] 论文根据靶核的不同，采用不同的核结构模型（如壳模型、Skyrme-Hartree-Fock）来计算基态波函数和密度矩阵。",
+      "action": "rule_application",
+      "tool": {
+        "name": "shell_model",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "对12C使用完整的(0+2)ħω壳模型；对28Si使用完整的0ħω壳模型波函数；对208Pb使用Skyrme-Hartree-Fock波函数。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 已经构建了非局域光学势并指定了靶核结构。下一步是求解散射问题以获取总反应截面。[Gap] 如何从光学势计算出总反应截面？[Decision] 论文应用散射理论的标准公式，将总反应截面表示为分波S矩阵模（或吸收系数）的求和。",
+      "action": "rule_application",
+      "tool": {
+        "name": "microscopic_nonlocal_optical_model",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "总反应截面公式为：\\sigma_{R}(E) = \\frac{\\pi}{k^{2}} \\sum_{l = 0}^{\\infty} \\left\\{(l + 1) \\left[ 1 - \\left(\\eta_{l}^{+}\\right)^{2} \\right] + l \\left[ 1 - \\left(\\eta_{l}^{-}\\right)^{2} \\right] \\right\\} (Eq.2)，其中 \\eta_{l}^{\\pm} \\equiv \\eta_{l}^{\\pm}(k) = \\left| S_{l}^{\\pm}(k) \\right| = e^{- 2 \\Im \\left[ \\delta_{l}^{\\pm}(k) \\right]} (Eq.3)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 已经建立了从光学势计算总反应截面的理论框架。[Gap] 如何验证该微观模型的预测能力？[Decision] 论文对多个靶核和入射能量进行数值计算，并将预测的总反应截面值与实验数据进行比较。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "microscopic_nonlocal_optical_model",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "对于45 MeV中子入射，预测的总反应截面（单位：barn）与实验值对比：12C (预测: 0.408, 实验: 0.435)；28Si (预测: 0.786, 实验: 0.738)；56Fe (预测: 1.122, 实验: 1.156)；90Zr (预测: 1.487, 实验: 1.407)；208Pb (预测: 2.443, 实验: 2.425)。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤2：对所有靶核（12C, 28Si, 56Fe, 90Zr, 208Pb）统一使用Skyrme-Hartree-Fock方法计算核子密度分布。。[Gap] 错过的信号：已知的物理事实是，轻核（如12C）具有显著的壳层结构和集团效应，而重核（如208Pb）更接近连续介质近似。Skyrme-HF方法基于平均场，对重核描述较好，但对轻核的壳层效应和关联描述可能不足。。[Decision] 正确判断方式：经验丰富的物理学家会意识到，不同质量区域的原子核结构特性差异显著。在决定计算密度的方法时，会先根据靶核的质量和已知结构特性（如轻核的壳模型主导、重核的平均场主导）来选择合适的微观模型，而不是预设一个统一方法。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：忽略了核结构模型对不同质量数靶核的适用性差异，未根据核的物理特性（如壳层效应强弱）选择模型。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：使用壳模型为所有靶核计算单粒子波函数，并认为其主要作用是验证Skyrme-HF密度或作为辅助输入。。[Gap] 错过的信号：已知的物理事实是，在微观折叠模型中，光学势直接依赖于靶核的基态密度矩阵。如果已经决定用壳模型计算波函数，那么这些波函数本身就是构建密度矩阵最直接、最自洽的输入，而不是一个次要的验证工具。。[Decision] 正确判断方式：经验丰富的物理学家会从工作流的整体逻辑出发：既然目标是构建微观光学势，而折叠公式明确需要靶核的密度矩阵，那么选择壳模型就意味着它将是生成该密度矩阵的主要（甚至唯一）方法。他们会将壳模型置于核心计算路径上，而不是一个平行的、用于验证的辅助路径。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：误解了不同核结构模型在工作流中的逻辑关系，将核心输入方法（壳模型）误判为辅助验证工具，导致工作流设计冗余且逻辑错位。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "这篇论文揭示的教训是：在构建微观多体理论模型时，选择核结构输入不应是统一的，而必须基于靶核的具体物理特性（如质量、壳层结构）来定制；并且，不同计算模块（如结构模型与折叠模型）之间的接口是核心而非辅助，输入数据的来源决定了整个计算路径的设计。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "neutron_total_reaction_cross_section": {
+        "value": "1.122",
+        "unit": "56Fe, 45 MeV, SHF prediction",
+        "interpretation": "neutron total reaction cross section"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "nonlocal_optical_model",
+    "shell_model",
+    "skyrm_hartree_fock",
+    "full_folding_nn_g_matrix"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是基于微观理论预测中子-核总反应截面。已知微观输入是Bonn-B NN势，需要通过Brueckner-Bethe-Goldstone (BBG)方程生成密度依赖的有效相互作用（即G矩阵）。[Gap] 需要从基本的核子-核子（NN）势出发，推导出适用于核介质中的有效相互作用，该相互作用是密度依赖的。[Decision] 使用full_folding_nn_g_matrix方法，以Bonn-B NN势作为输入，在给定的核物质密度下求解BBG方程，得到G矩阵。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "full_folding_nn_g_matrix",
+        "version": ""
+      },
+      "parameters": {
+        "input_potential": "Bonn-B NN potential",
+        "framework": "Brueckner-Bethe-Goldstone equation",
+        "output_type": "density-dependent G-matrix"
+      },
+      "observation": "预期得到一个密度依赖的有效相互作用（G矩阵），其形式为 $G(\\rho; \\mathbf{k}, \\mathbf{k}')$，其中 $\\rho$ 是核物质密度，$\\mathbf{k}$ 和 $\\mathbf{k}'$ 是相对动量。该G矩阵将作为构造光学势的基本输入。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得密度依赖的G矩阵。为了构造针对具体靶核（如12C, 28Si等）的光学势，需要知道靶核的密度分布（即密度矩阵）。[Gap] 需要为每个靶核提供一个可靠的核子密度分布。[Decision] 使用skyrm_hartree_fock方法，这是一种基于有效场论的微观核结构模型，可以自洽地计算原子核的基态性质，包括单核子密度分布。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "skyrm_hartree_fock",
+        "version": ""
+      },
+      "parameters": {
+        "target_nuclei": [
+          "12C",
+          "28Si",
+          "56Fe",
+          "90Zr",
+          "208Pb"
+        ],
+        "computed_quantity": "nucleon density distribution"
+      },
+      "observation": "预期得到每个靶核（12C, 28Si, 56Fe, 90Zr, 208Pb）的核子密度分布 $\\rho_A(r)$，其中A为质量数。这些密度分布将用于折叠计算，以产生靶核依赖的光学势。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已获得密度依赖的G矩阵（步骤1）和各靶核的密度分布（步骤2）。[Gap] 需要将这两者结合起来，构造一个针对具体散射体系（中子+靶核）的非局域、密度依赖的光学势。[Decision] 运用nonlocal_optical_model方法。其核心是折叠模型：将G矩阵与靶核的密度矩阵（由密度分布构造）进行折叠积分，从而产生非局域的光学势 $U(\\mathbf{r}, \\mathbf{r}')$。这里的关键近似是单折叠近似（忽略反冲效应和交换项的复杂处理，或做适当简化）。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "nonlocal_optical_model",
+        "version": ""
+      },
+      "parameters": {
+        "input_interaction": "density-dependent G-matrix from step 1",
+        "input_density": "nucleon density distributions from step 2",
+        "approximation": "single-folding model"
+      },
+      "observation": "预期得到一个非局域的光学势 $U_A(\\mathbf{r}, \\mathbf{r}'; E)$，其中下标A标识靶核，E是中子入射能量。该势能是复数（包含吸收部分），并且显式依赖于靶核密度分布和入射能量。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已为每个靶核构造了非局域光学势 $U_A(\\mathbf{r}, \\mathbf{r}'; E)$。[Gap] 为了求解散射问题并计算总反应截面，需要知道靶核的基态波函数信息，特别是用于描述靶核内部结构的单粒子轨道，这可能影响光学势的具体实现或用于验证密度分布的合理性。[Decision] 使用shell_model方法为轻核（如12C）或作为参考，提供一套单粒子能级和波函数。这些信息可能用于：1）验证skyrm_hartree_fock得到的密度；2）在某些简化计算中作为输入。这里假设研究者主要用它来提供结构输入的一致性检查或作为折叠模型的另一种密度矩阵来源。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "shell_model",
+        "version": ""
+      },
+      "parameters": {
+        "target_nuclei": [
+          "12C",
+          "28Si",
+          "56Fe",
+          "90Zr",
+          "208Pb"
+        ],
+        "computed_quantity": "single-particle wavefunctions and energies"
+      },
+      "observation": "预期得到一套用于目标核的单粒子波函数 $\\phi_{n l j}(\\mathbf{r})$ 和相应的单粒子能量。这些信息可用于构建密度矩阵或与skyrm_hartree_fock结果进行交叉验证。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已获得非局域光学势 $U_A(\\mathbf{r}, \\mathbf{r}'; E)$。总反应截面 $\\sigma_R$ 需要通过求解包含该势的散射方程得到。[Gap] 非局域势的散射方程（如Lippmann-Schwinger方程或非局域薛定谔方程）求解复杂，需要引入数值方法。[Decision] 采用数值计算求解非局域势下的散射问题。关键近似可能是将非局域势在坐标空间或动量空间离散化，并利用光学定理：总反应截面与向前散射振幅的虚部相关，即 $\\sigma_R \\propto \\operatorname{Im} f(0^{\\circ})$。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "equation": "Scattering equation with nonlocal potential U_A(r, r'; E)",
+        "method": "Partial wave expansion and numerical solution",
+        "relation": "Optical theorem for reaction cross section"
+      },
+      "observation": "预期对每个靶核（A）和每个入射能量（E = 45, 50, 55, 60, 65, 75 MeV），通过数值求解分波方程，得到总反应截面 $\\sigma_R(A, E)$ 的数值（单位mb）。结果应是一组随A和E变化的截面值。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已通过微观模型计算得到一组总反应截面预测值 $\\sigma_{R, \\text{calc}}(A, E)$。[Gap] 需要评估该微观模型的预测能力，并与已知实验数据及传统参数化光学势的结果进行对比。[Decision] 进行验证步骤：将计算结果与提供的实验数据（45-75 MeV入射能量，靶核12C, 28Si, 56Fe, 90Zr, 208Pb）以及LA-150数据库中的参考数据进行比较。关键是比较趋势（随A和E的变化）和绝对大小。",
+      "action": "verification",
+      "tool": {
+        "name": "verification",
+        "version": ""
+      },
+      "parameters": {
+        "comparison_data": "Experimental data and LA-150 database",
+        "calculated_results": "sigma_R(A, E) from step 5"
+      },
+      "observation": "预期通过图表或数值对比，展示微观非局域光学势预测的 $\\sigma_R$ 与实验数据在数量级（~几百mb）和变化趋势上基本吻合，特别是在中重核区域。可能会发现对轻核12C的预测存在一定偏差，这可能是由于模型对轻核结构的描述不足所致。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "microscopic_nonlocal_optical_model",
+        "desc": "用于预测中能中子与各种核散射的总反应截面。"
+      },
+      {
+        "name": "full_folding_NN_g_matrices",
+        "desc": "与微观（核子）靶结构结合生成非定域光学势。"
+      },
+      {
+        "name": "shell_model",
+        "desc": "用于指定核基态密度，例如对12C使用完整的(0+2)ħω壳模型，对28Si使用完整的0ħω壳模型波函数。"
+      },
+      {
+        "name": "Skyrme-Hartree-Fock",
+        "desc": "用于生成208Pb的波函数。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "U_{D}\\left(\\boldsymbol{r}_{1}; E\\right) \\delta\\left(\\boldsymbol{r}_{1} - \\boldsymbol{r}_{2}\\right) + U_{Ex}\\left(\\boldsymbol{r}_{1}, \\boldsymbol{r}_{2}; E\\right)"
+      },
+      {
+        "label": "Eq.2",
+        "content": "\\sigma_{R}(E) = \\frac{\\pi}{k^{2}} \\sum_{l = 0}^{\\infty} \\left\\{(l + 1) \\left[ 1 - \\left(\\eta_{l}^{+}\\right)^{2} \\right] + l \\left[ 1 - \\left(\\eta_{l}^{-}\\right)^{2} \\right] \\right\\}"
+      },
+      {
+        "label": "Eq.3",
+        "content": "\\eta_{l}^{\\pm} \\equiv \\eta_{l}^{\\pm}(k) = \\left| S_{l}^{\\pm}(k) \\right| = e^{- 2 \\Im \\left[ \\delta_{l}^{\\pm}(k) \\right]}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "0.435",
+        "condition": "12C, 45 MeV, experimental"
+      },
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "0.408",
+        "condition": "12C, 45 MeV, SHF prediction"
+      },
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "0.738",
+        "condition": "28Si, 45 MeV, experimental"
+      },
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "0.786",
+        "condition": "28Si, 45 MeV, SHF prediction"
+      },
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "1.156",
+        "condition": "56Fe, 45 MeV, experimental"
+      },
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "1.122",
+        "condition": "56Fe, 45 MeV, SHF prediction"
+      },
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "1.407",
+        "condition": "90Zr, 45 MeV, experimental"
+      },
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "1.487",
+        "condition": "90Zr, 45 MeV, SHF prediction"
+      },
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "2.425",
+        "condition": "208Pb, 45 MeV, experimental"
+      },
+      {
+        "quantity": "neutron total reaction cross section",
+        "value": "2.443",
+        "condition": "208Pb, 45 MeV, SHF prediction"
+      }
+    ],
+    "failure_points": []
+  }
+}

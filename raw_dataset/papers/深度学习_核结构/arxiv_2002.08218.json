@@ -1,0 +1,548 @@
+{
+  "id": "NPP_0118",
+  "meta": {
+    "id": "NPP_0118",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Estimations of First $2 ^ { + }$ Energy States of Even-even",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2002.08218"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "偶偶核第一2+激发态能量",
+    "input_data": "已知条件：核素范围 Z=2-104，包含636个偶偶核的第一2+激发态实验能量数据（来自Pritychenko等人汇编）；用于比较的壳模型计算覆盖p、sd、sdpf和pf壳层核素。",
+    "user_intent": "研究动机：现有理论模型（如壳模型）对第一2+激发态能量的预测存在不足，需要一种能够捕捉输入（Z、N）与输出（能量）之间非线性关系的更有效方法，以更好地预测未知核素的该能量值。",
+    "quantifiable_goal": "预测偶偶核第一2+激发态的能量 E(2_1^+)（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知研究目标是预测偶偶核第一2+激发态能量 E(2_1^+)，拥有一个包含636个偶偶核（Z=2-104）实验能量值的数据集。壳模型计算作为基准，但预测能力有限。[Gap] 需要将原始实验数据（E(2_1^+)）和核素特征（Z， N）准备为适合神经网络训练的输入-输出对。原始能量值跨越多个数量级（例如，从约0.1 MeV到数MeV），直接使用可能不利于网络训练。[Decision] 对目标能量值进行对数变换，以压缩数据范围，使网络更容易学习。同时，将质子数Z和中子数N作为基本输入特征。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "logarithmic_data_transformation",
+        "version": ""
+      },
+      "parameters": {
+        "target_variable": "E(2_1^+)",
+        "transformation": "log10(E)",
+        "input_features": [
+          "Z",
+          "N"
+        ]
+      },
+      "observation": "预期得到一个新的数据集，其中每个样本的输入为 (Z, N)，输出为 log10(E(2_1^+))。变换后的输出值范围预计被压缩，例如从原始约0.1-10 MeV变为约-1到1的对数值。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 数据已预处理，输入为二维特征 (Z, N)，输出为一维目标 log10(E)。[Gap] 需要构建一个能够学习Z、N与log10(E)之间复杂非线性映射关系的模型架构。[Decision] 采用多层前馈神经网络（MLFFN）。设计网络结构：输入层2个神经元（对应Z和N），一个或多个隐藏层（每个隐藏层包含若干神经元，使用非线性激活函数如sigmoid或tanh），输出层1个神经元（对应预测的log10(E)，使用线性激活函数）。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "multi_layer_feed_forward_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_dimension": 2,
+        "hidden_layers_config": "待定（例如，1个含10个神经元的隐藏层）",
+        "output_dimension": 1,
+        "activation_functions": "hidden: sigmoid/tanh, output: linear"
+      },
+      "observation": "预期得到一个定义好的神经网络模型结构，其数学形式为：log10(E_pred) = f_output(W_out * f_hidden(... f_hidden(W_in * [Z, N]^T + b_in)...) + b_out)，其中f为激活函数，W和b为待优化的权重和偏置参数。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 神经网络模型结构已定义，包含大量未知参数（权重和偏置）。[Gap] 需要一种算法来优化这些参数，使得网络在训练数据上的预测输出 log10(E_pred) 尽可能接近真实的 log10(E_exp)。这通常通过最小化损失函数（如均方误差MSE）来实现。[Decision] 采用Levenberg-Marquardt算法作为训练算法。该算法结合了梯度下降和高斯-牛顿法的优点，特别适合中小规模数据集的非线性最小二乘问题，能高效地调整网络参数。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "levenberg_marquardt_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "mean_squared_error(log10(E_pred), log10(E_exp))",
+        "training_data": "预处理后的 (Z, N, log10(E_exp)) 数据集",
+        "network_model": "上一步定义的MLFFN"
+      },
+      "observation": "预期得到一个训练过程，其中LM算法迭代地计算网络输出相对于权重的雅可比矩阵，并更新权重以最小化MSE损失。预期损失值随着迭代次数增加而下降。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 训练算法已选定，整个建模流程的核心组件已齐备。[Gap] 需要将数据、网络结构和训练算法整合成一个完整的、可执行的预测系统。[Decision] 构建一个基于人工神经网络的完整预测模型。具体操作包括：将预处理后的数据集划分为训练集和测试集（可能还有验证集），用训练集通过LM算法训练MLFFN，最终得到一组最优的网络参数。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "components": [
+          "logarithmic_data_transformation",
+          "multi_layer_feed_forward_network",
+          "levenberg_marquardt_algorithm"
+        ],
+        "data_split": "例如 80% 训练，20% 测试",
+        "training_goal": "最小化训练集上的MSE"
+      },
+      "observation": "预期得到一个训练完成的ANN模型。该模型接收 (Z, N) 作为输入，内部经过网络计算和对数逆变换（10^x），最终输出对 E(2_1^+) 的预测值（单位MeV）。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "missing_physical_effect",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤忽略了核素图不同区域（轻核与重核）物理行为的显著差异。在核物理中，轻核（Z<40）和重核（Z≥40）的集体激发模式、形变特征和能级密度存在系统性差异，用一个全局模型处理会因物理机制不同而导致预测精度下降。论文实际步骤7明确进行了区域划分，这是基于核结构物理的合理处理。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已训练好一个ANN模型。[Gap] 需要评估该模型在未见过的数据上的泛化能力，并与传统壳模型进行性能比较。[Decision] 在独立的测试集上运行训练好的ANN模型进行预测。将ANN的预测能量与测试集的实验值进行比较，计算评价指标（如均方根误差RMSE、平均绝对误差MAE）。同时，在相同的测试集核素上，获取或计算壳模型的预测值，并进行同样的误差计算。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "trained_model": "上一步得到的ANN",
+        "test_data": "预留的测试集 (Z, N, E_exp)",
+        "comparison_baseline": "壳模型计算的 E(2_1^+) 值",
+        "metrics": [
+          "RMSE",
+          "MAE"
+        ]
+      },
+      "observation": "预期得到两组误差指标：ANN在测试集上的预测误差（例如，RMSE约为0.1-0.3 MeV量级的估计），以及壳模型在相同测试集上的预测误差。预期ANN的误差显著低于壳模型，表明其更好的预测能力。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] ANN模型在测试集上表现出优于壳模型的预测精度。[Gap] 需要理解模型学到了什么，以及其预测的物理合理性。例如，模型是否捕捉到了已知的物理规律，如壳效应（在幻数附近E(2_1^+)升高）和形变（在特定区域E(2_1^+)降低）？[Decision] 进行模型分析。可以绘制ANN预测的E(2_1^+)随Z、N变化的等高线图（核图），并与实验核图进行定性对比。还可以选择特定同位素链或同中子素链，绘制ANN预测值与实验值的趋势对比图。",
+      "action": "verification",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "analysis_type": "trend_analysis",
+        "plot_type": [
+          "核图 (N vs Z, color=E(2+))",
+          "同位素链曲线",
+          "同中子素链曲线"
+        ]
+      },
+      "observation": "预期得到一系列图表。预期ANN预测的核图能大致重现实验核图的整体特征，例如在已知的幻数区域（如Z/N=20, 28, 50, 82, 126附近）预测能量较高（峰），在形变区（如稀土区、锕系区）预测能量较低（谷）。趋势图应显示ANN预测曲线能紧密跟随实验数据点的变化趋势。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文的目标是预测偶偶核的第一2+激发态能量，并拥有包含636个核素的数据集。[Gap] 数据集中不同质量区域的核素行为差异显著，例如轻核和重核的平均能量不同，直接用一个模型处理可能效果不佳。[Decision] 论文根据原子序数将整个核素图划分为两个区域（Z<40和Z≥40），以便分别进行建模。",
+      "action": "rule_application",
+      "tool": {
+        "name": "region_separation",
+        "version": ""
+      },
+      "parameters": {
+        "criterion": "atomic_number_Z",
+        "threshold": 40
+      },
+      "observation": "将核素分为两个区域：Z < 40（平均第一2+激发态能量为1393 keV）和 Z ≥ 40（平均第一2+激发态能量为479 keV）。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 数据已按区域划分，准备输入到人工神经网络（ANN）进行训练和预测。[Gap] 第一2+激发态能量的数值范围跨度大（从几百keV到几MeV），直接使用原始能量值可能不利于ANN的学习收敛和性能。[Decision] 论文对输出值（即目标能量）进行对数变换，以归一化数据尺度并加速学习过程。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "data_normalization",
+        "version": ""
+      },
+      "parameters": {
+        "operation": "logarithmic_transform",
+        "target": "output_energy"
+      },
+      "observation": "对第一2+激发态能量值取对数，以处理数据尺度差异并加速ANN学习过程。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 数据已预处理并划分区域，需要构建ANN模型来学习输入（Z， N）与输出（对数化能量）之间的复杂非线性关系。[Gap] 需要确定ANN的具体架构、学习算法和激活函数，以实现有效的学习。[Decision] 论文采用一个具有一个隐藏层（12个神经元）、Levenberg-Marquardt学习算法、双曲正切激活函数（Eq.3）的多层前馈神经网络。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "hidden_layers": 1,
+        "neurons_per_hidden_layer": 12,
+        "learning_algorithm": "Levenberg-Marquardt",
+        "activation_function": "tangent_hyperbolic"
+      },
+      "observation": "构建ANN模型：输入层（2个神经元：Z和N），隐藏层（12个神经元，激活函数为 G(n_j) = (e^{n_j} - e^{-n_j})/(e^{n_j} + e^{-n_j})），输出层（1个神经元：对数化能量）。总权重连接数为36。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] ANN模型已构建，并已使用训练数据（约80%）通过调整权重进行学习。[Gap] 需要量化模型在训练过程中的学习效果，即网络输出与期望输出之间的偏差。[Decision] 论文使用均方误差（MSE， Eq.2）作为损失函数来评估和指导权重的调整过程。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "mean_square_error"
+      },
+      "observation": "在训练过程中，通过最小化均方误差 MSE = (1/N) * Σ(y_i - d_i)^2 来优化网络权重，其中y_i是网络输出，d_i是期望值。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] ANN模型在两个区域分别完成了训练。[Gap] 需要评估训练好的模型在未见过的测试数据（约20%）上的泛化能力，以确认其预测的有效性。[Decision] 论文使用最终确定的权重，在测试数据集上计算预测值，并与实验值比较，计算均方根误差（RMSE）和相关系数（r）等指标。",
+      "action": "verification",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "evaluation_metrics": [
+          "rmse",
+          "correlation_coefficient"
+        ],
+        "data_split": "test_set"
+      },
+      "observation": "对于Z < 40区域，测试数据的rmse为140.1 keV，相关系数r为0.94。对于Z ≥ 40区域，测试数据的rmse为91.4 keV，相关系数r为0.94。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] ANN模型在两个区域都表现出了良好的预测性能。[Gap] 需要将ANN的预测能力与传统的理论方法（如壳模型）进行对比，以证明其优势。[Decision] 论文选取一组参考核素（来自文献[10]表4的49个核），分别计算ANN预测值和壳模型计算值与采纳实验值的平均绝对误差。",
+      "action": "verification",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "comparison_method": "shell_model",
+        "metric": "mean_absolute_error",
+        "nuclei_count": 49
+      },
+      "observation": "ANN估计值与采纳值的平均绝对误差为136.0 keV，而壳模型(SM)结果与采纳值的平均绝对误差为174.6 keV。ANN的最大和最小偏差分别为869 keV和2 keV，壳模型分别为1217 keV和3 keV。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：决定构建一个单一的全局人工神经网络模型，使用整个数据集进行训练，以预测所有核素的第一2+激发态能量。。[Gap] 错过的信号：已知的核物理事实是，原子核的集体激发行为（如第一2+态能量）强烈依赖于核的质量和形变。轻核（Z<40）通常具有更高的激发能，且形变模式与重核（Z≥40）存在系统性差异。在构建模型前，直接观察数据集中E(2_1^+)随Z的分布，应能明显看到能量值在Z≈40附近存在数量级的跃变（从MeV量级降至几百keV量级），这是一个强烈的物理信号，表明存在不同的物理机制主导区域。。[Decision] 正确判断方式：面对包含636个核素、Z和N范围很广的数据集，经验丰富的核物理学家会首先进行探索性数据分析，绘制E(2_1^+)随Z或A变化的散点图。观察到能量在Z≈40处存在显著不连续性后，会立即意识到用一个连续函数（如单一ANN）去拟合两个物理机制不同的区域是不合理的。正确的做法是先根据物理知识（如集体激发模式的转变、壳效应、形变特征）对数据进行区域划分，再为每个区域分别建立模型。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：在模型设计阶段，没有先对目标物理量（E(2_1^+)）的全局分布进行基本的可视化或统计分析，从而错过了数据本身已明确展示的、基于原子序数的物理分区信号。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在核物理的机器学习建模中，首要步骤必须是基于领域知识（如壳结构、形变）对核素图进行物理分区，因为不同区域的核结构主导机制不同，强行用一个全局模型拟合会模糊物理本质并降低预测精度。数据分布本身是揭示物理分区最直接的信号。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "2": {
+        "value": "4085.52 keV",
+        "unit": "核素 ^208Pb",
+        "interpretation": "第一2+激发态能量"
+      },
+      "rmse": {
+        "value": "125.1 keV",
+        "unit": "Z < 40 区域，训练数据",
+        "interpretation": "均方根误差 (rmse)"
+      },
+      "r": {
+        "value": "0.96",
+        "unit": "Z < 40 区域，训练数据",
+        "interpretation": "相关系数 (r)"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "artificial_neural_network",
+    "levenberg_marquardt_algorithm",
+    "multi_layer_feed_forward_network",
+    "logarithmic_data_transformation"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知研究目标是预测偶偶核第一2+激发态能量 E(2_1^+)，拥有一个包含636个偶偶核（Z=2-104）实验能量值的数据集。壳模型计算作为基准，但预测能力有限。[Gap] 需要将原始实验数据（E(2_1^+)）和核素特征（Z， N）准备为适合神经网络训练的输入-输出对。原始能量值跨越多个数量级（例如，从约0.1 MeV到数MeV），直接使用可能不利于网络训练。[Decision] 对目标能量值进行对数变换，以压缩数据范围，使网络更容易学习。同时，将质子数Z和中子数N作为基本输入特征。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "logarithmic_data_transformation",
+        "version": ""
+      },
+      "parameters": {
+        "target_variable": "E(2_1^+)",
+        "transformation": "log10(E)",
+        "input_features": [
+          "Z",
+          "N"
+        ]
+      },
+      "observation": "预期得到一个新的数据集，其中每个样本的输入为 (Z, N)，输出为 log10(E(2_1^+))。变换后的输出值范围预计被压缩，例如从原始约0.1-10 MeV变为约-1到1的对数值。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 数据已预处理，输入为二维特征 (Z, N)，输出为一维目标 log10(E)。[Gap] 需要构建一个能够学习Z、N与log10(E)之间复杂非线性映射关系的模型架构。[Decision] 采用多层前馈神经网络（MLFFN）。设计网络结构：输入层2个神经元（对应Z和N），一个或多个隐藏层（每个隐藏层包含若干神经元，使用非线性激活函数如sigmoid或tanh），输出层1个神经元（对应预测的log10(E)，使用线性激活函数）。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "multi_layer_feed_forward_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_dimension": 2,
+        "hidden_layers_config": "待定（例如，1个含10个神经元的隐藏层）",
+        "output_dimension": 1,
+        "activation_functions": "hidden: sigmoid/tanh, output: linear"
+      },
+      "observation": "预期得到一个定义好的神经网络模型结构，其数学形式为：log10(E_pred) = f_output(W_out * f_hidden(... f_hidden(W_in * [Z, N]^T + b_in)...) + b_out)，其中f为激活函数，W和b为待优化的权重和偏置参数。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 神经网络模型结构已定义，包含大量未知参数（权重和偏置）。[Gap] 需要一种算法来优化这些参数，使得网络在训练数据上的预测输出 log10(E_pred) 尽可能接近真实的 log10(E_exp)。这通常通过最小化损失函数（如均方误差MSE）来实现。[Decision] 采用Levenberg-Marquardt算法作为训练算法。该算法结合了梯度下降和高斯-牛顿法的优点，特别适合中小规模数据集的非线性最小二乘问题，能高效地调整网络参数。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "levenberg_marquardt_algorithm",
+        "version": ""
+      },
+      "parameters": {
+        "loss_function": "mean_squared_error(log10(E_pred), log10(E_exp))",
+        "training_data": "预处理后的 (Z, N, log10(E_exp)) 数据集",
+        "network_model": "上一步定义的MLFFN"
+      },
+      "observation": "预期得到一个训练过程，其中LM算法迭代地计算网络输出相对于权重的雅可比矩阵，并更新权重以最小化MSE损失。预期损失值随着迭代次数增加而下降。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 训练算法已选定，整个建模流程的核心组件已齐备。[Gap] 需要将数据、网络结构和训练算法整合成一个完整的、可执行的预测系统。[Decision] 构建一个基于人工神经网络的完整预测模型。具体操作包括：将预处理后的数据集划分为训练集和测试集（可能还有验证集），用训练集通过LM算法训练MLFFN，最终得到一组最优的网络参数。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "components": [
+          "logarithmic_data_transformation",
+          "multi_layer_feed_forward_network",
+          "levenberg_marquardt_algorithm"
+        ],
+        "data_split": "例如 80% 训练，20% 测试",
+        "training_goal": "最小化训练集上的MSE"
+      },
+      "observation": "预期得到一个训练完成的ANN模型。该模型接收 (Z, N) 作为输入，内部经过网络计算和对数逆变换（10^x），最终输出对 E(2_1^+) 的预测值（单位MeV）。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 已训练好一个ANN模型。[Gap] 需要评估该模型在未见过的数据上的泛化能力，并与传统壳模型进行性能比较。[Decision] 在独立的测试集上运行训练好的ANN模型进行预测。将ANN的预测能量与测试集的实验值进行比较，计算评价指标（如均方根误差RMSE、平均绝对误差MAE）。同时，在相同的测试集核素上，获取或计算壳模型的预测值，并进行同样的误差计算。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "trained_model": "上一步得到的ANN",
+        "test_data": "预留的测试集 (Z, N, E_exp)",
+        "comparison_baseline": "壳模型计算的 E(2_1^+) 值",
+        "metrics": [
+          "RMSE",
+          "MAE"
+        ]
+      },
+      "observation": "预期得到两组误差指标：ANN在测试集上的预测误差（例如，RMSE约为0.1-0.3 MeV量级的估计），以及壳模型在相同测试集上的预测误差。预期ANN的误差显著低于壳模型，表明其更好的预测能力。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] ANN模型在测试集上表现出优于壳模型的预测精度。[Gap] 需要理解模型学到了什么，以及其预测的物理合理性。例如，模型是否捕捉到了已知的物理规律，如壳效应（在幻数附近E(2_1^+)升高）和形变（在特定区域E(2_1^+)降低）？[Decision] 进行模型分析。可以绘制ANN预测的E(2_1^+)随Z、N变化的等高线图（核图），并与实验核图进行定性对比。还可以选择特定同位素链或同中子素链，绘制ANN预测值与实验值的趋势对比图。",
+      "action": "verification",
+      "tool": {
+        "name": "artificial_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "analysis_type": "trend_analysis",
+        "plot_type": [
+          "核图 (N vs Z, color=E(2+))",
+          "同位素链曲线",
+          "同中子素链曲线"
+        ]
+      },
+      "observation": "预期得到一系列图表。预期ANN预测的核图能大致重现实验核图的整体特征，例如在已知的幻数区域（如Z/N=20, 28, 50, 82, 126附近）预测能量较高（峰），在形变区（如稀土区、锕系区）预测能量较低（谷）。趋势图应显示ANN预测曲线能紧密跟随实验数据点的变化趋势。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "artificial_neural_network",
+        "desc": "使用具有一个隐藏层（12个神经元）、Levenberg-Marquardt学习算法、双曲正切激活函数和多层前馈架构的ANN来估计偶偶核的第一2+激发态能量。"
+      },
+      {
+        "name": "data_normalization",
+        "desc": "对输出值（第一2+态能量）取对数，以处理数据尺度差异并加速ANN学习过程。"
+      },
+      {
+        "name": "region_separation",
+        "desc": "根据原子序数将核素图分为两个区域（Z<40和Z≥40）分别进行ANN估计，以处理不同质量区域的不同行为。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.1",
+        "content": "n_{j} = \\sum_{i = 1}^{N} w_{i} \\times x_{i}"
+      },
+      {
+        "label": "Eq.2",
+        "content": "MSE = \\frac{1}{N} \\sum_{i = 1}^{N} \\left(y_{i} - d_{i}\\right)^{2}"
+      },
+      {
+        "label": "Eq.3",
+        "content": "G \\left(n_{j}\\right) = \\frac{e^{n_{j}} - e^{- n_{j}}}{e^{n_{j}} + e^{- n_{j}}}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "平均第一2+激发态能量",
+        "value": "1393 keV",
+        "condition": "Z < 40 区域"
+      },
+      {
+        "quantity": "平均第一2+激发态能量",
+        "value": "479 keV",
+        "condition": "Z ≥ 40 区域"
+      },
+      {
+        "quantity": "第一2+激发态能量",
+        "value": "4041.20 keV",
+        "condition": "核素 ^132Sn"
+      },
+      {
+        "quantity": "第一2+激发态能量",
+        "value": "4085.52 keV",
+        "condition": "核素 ^208Pb"
+      },
+      {
+        "quantity": "均方根误差 (rmse)",
+        "value": "125.1 keV",
+        "condition": "Z < 40 区域，训练数据"
+      },
+      {
+        "quantity": "相关系数 (r)",
+        "value": "0.96",
+        "condition": "Z < 40 区域，训练数据"
+      },
+      {
+        "quantity": "均方根误差 (rmse)",
+        "value": "140.1 keV",
+        "condition": "Z < 40 区域，测试数据"
+      },
+      {
+        "quantity": "相关系数 (r)",
+        "value": "0.94",
+        "condition": "Z < 40 区域，测试数据"
+      },
+      {
+        "quantity": "均方根误差 (rmse)",
+        "value": "82.4 keV",
+        "condition": "Z ≥ 40 区域，训练数据"
+      },
+      {
+        "quantity": "相关系数 (r)",
+        "value": "0.97",
+        "condition": "Z ≥ 40 区域，训练数据"
+      },
+      {
+        "quantity": "均方根误差 (rmse)",
+        "value": "91.4 keV",
+        "condition": "Z ≥ 40 区域，测试数据"
+      },
+      {
+        "quantity": "相关系数 (r)",
+        "value": "0.94",
+        "condition": "Z ≥ 40 区域，测试数据"
+      },
+      {
+        "quantity": "平均绝对误差",
+        "value": "136.0 keV",
+        "condition": "ANN估计值与采纳值的比较（针对参考[10]表4中的49个核）"
+      },
+      {
+        "quantity": "平均绝对误差",
+        "value": "174.6 keV",
+        "condition": "壳模型(SM)结果与采纳值的比较（针对参考[10]表4中的49个核）"
+      },
+      {
+        "quantity": "最大偏差",
+        "value": "869 keV",
+        "condition": "ANN估计值与采纳值的偏差"
+      },
+      {
+        "quantity": "最小偏差",
+        "value": "2 keV",
+        "condition": "ANN估计值与采纳值的偏差"
+      },
+      {
+        "quantity": "最大偏差",
+        "value": "1217 keV",
+        "condition": "壳模型(SM)计算结果与采纳值的偏差"
+      },
+      {
+        "quantity": "最小偏差",
+        "value": "3 keV",
+        "condition": "壳模型(SM)计算结果与采纳值的偏差"
+      }
+    ],
+    "failure_points": []
+  }
+}

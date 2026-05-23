@@ -1,0 +1,440 @@
+{
+  "id": "NPP_0026",
+  "meta": {
+    "id": "NPP_0026",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "Alpha decay half-lives of superheavy",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "scielo_RodriguezGuzman_2011"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T13:51:54.926544",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "超重核α衰变半衰期",
+    "input_data": "已知条件：超重核区域；实验α衰变半衰期数据；宏观微观方法结合双中心壳模型计算得到的核质量和四极形变参数；邻近势与库仑势参数。",
+    "user_intent": "研究动机：现有许多α衰变半衰期计算（如半经验公式或某些量子隧穿模型）忽略了核形变的影响，而形变对于超重核的衰变性质可能至关重要。需要发展一种能够考虑核四极形变的理论方法来更可靠地预测半衰期，以辅助实验鉴别新核素并检验其他理论模型（如核质量与形变计算）的准确性。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是从给定的初始条件（质量数A、电荷数Z、形变参数、Q值）出发，通过WKB近似和邻近势（Proximity Potential）计算α衰变半衰期。合法推导路径为：half_life -> alpha_decay_width -> penetrability -> action_integral -> effective_potential -> turning_points -> preformation_factor -> binding_energy -> pairing_energy -> assault_frequency -> nuclear_radius。第一步需要构建有效势能，它是后续计算转折点和作用量积分的基础。根据论文方法，核势采用邻近势，库仑势需考虑形变修正。 [Gap] 当前缺少有效势能的具体表达式，需要将核势、库仑势和离心势组合起来。 [Decision] 因此，第一步使用effective_potential_assembly工具，结合邻近势参数化、形变修正的库仑势和离心势，构建总有效势能。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential_type": "proximity_potential",
+        "coulomb_potential_type": "deformed_coulomb",
+        "centrifugal_term": "included",
+        "deformation_parameter": "deformation_parameter",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)，其中V_N为邻近势，V_C为形变修正库仑势，V_l为离心势"
+      },
+      "observation": "有效势能已构建，包含邻近核势、形变库仑势和离心势，为下一步求解转折点做准备。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 有效势能 V_eff(r) 已构建，包含邻近势 V_N、形变库仑势 V_C 和离心势 V_l。下一步需要求解隧穿过程的转折点，即经典转折点 r_in 和 r_out，它们是 WKB 作用积分积分的边界。\n[Gap] 当前有效势能是 r 的函数，但形变参数（如四极形变 β_2）会影响势能形状，尤其是库仑势和离心势的形变修正。转折点求解需要数值求解方程 V_eff(r) = Q_value，其中 Q_value 是衰变能。\n[Decision] 选择 turning_point_solver 工具，基于有效势能和 Q_value 数值求解内转折点 r_in 和外转折点 r_out。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "Q_value": "Q_value (由初始条件给出)",
+        "deformation_parameter": "β_2 (由初始条件给出)",
+        "method": "numerical_root_finding"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out"
+      },
+      "observation": "通过求解 V_eff(r) = Q_value，得到内转折点 r_in 和外转折点 r_out。这两个转折点将用于下一步计算 WKB 作用积分。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 根据WKB近似，α衰变的穿透概率P由作用积分S决定：P = exp(-2S)，其中S = ∫_{r_in}^{r_out} √(2μ/ℏ²)[V_eff(r) - Q] dr。当前已获得有效势V_eff(r)和转折点r_in、r_out，需要计算该积分。[Gap] 有效势包含邻近势、形变库仑势和离心势，形式复杂，无法解析积分，必须采用数值积分方法。[Decision] 选择数值积分工具numerical_integration，对WKB作用积分进行数值计算，得到S值，进而得到穿透概率P。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_integration",
+        "version": ""
+      },
+      "parameters": {
+        "integrand": "sqrt(2*mu/hbar^2 * (V_eff(r) - Q))",
+        "lower_limit": "r_in",
+        "upper_limit": "r_out",
+        "method": "adaptive_gauss_kronrod"
+      },
+      "output_state": {
+        "WKB_action_integral": "S = ∫_{r_in}^{r_out} √(2μ/ℏ²)[V_eff(r) - Q] dr",
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "通过数值积分计算WKB作用积分S，得到穿透概率P = exp(-2S)。该步骤严格遵循合法推导路径Path 1（half_life -> alpha_decay_width -> penetrability -> action_integral），且使用经验规则rule_040确保转折点r_in和r_out由实际有效势定义域确定，未使用远场近似值。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 根据合法推导路径 Path 1，在得到穿透概率 P 后，下一步需要计算碰撞频率 ν（assault frequency），这是从穿透概率到衰变宽度 Γ = P × ν 的关键中间量。碰撞频率通常由 α 粒子在核内的经典振动频率近似，与核半径和 α 粒子在核内的速度有关。[Gap] 当前已获得穿透概率 P，但尚未计算碰撞频率 ν。需要选择合适的模型来计算 ν，通常采用公式 ν = v / (2R)，其中 v 是 α 粒子在核内的速度，R 是核半径。速度 v 可由 Q 值估算：v = √(2Q/μ)，其中 μ 是约化质量。核半径 R 需根据形变核的几何形状确定，论文采用邻近势和双中心壳模型，核半径应使用考虑了形变的等效半径。[Decision] 选择使用 assault_frequency_calculation 工具，基于 Q 值和核半径计算碰撞频率 ν。核半径采用经验公式 R = r0 * A^(1/3) 并考虑形变修正，r0 取典型值 1.2 fm。速度 v 由 Q 值通过非相对论动能关系计算。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Q_value": "Q_value",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "deformation_parameter": "deformation_parameter",
+        "nuclear_radius_constant": "r0 = 1.2 fm",
+        "reduced_mass": "μ = (4 * (A-4)) / (4 + (A-4)) * u，其中 u 为原子质量单位"
+      },
+      "output_state": {
+        "assault_frequency": "ν = v / (2R) = √(2Q/μ) / (2 * r0 * A^(1/3) * (1 + β2 * √(5/(4π)) * correction_factor))",
+        "alpha_velocity": "v = √(2Q/μ)",
+        "nuclear_radius": "R = r0 * A^(1/3) * (1 + β2 * √(5/(4π)) * correction_factor)"
+      },
+      "observation": "计算得到碰撞频率 ν。该步骤基于经典振动模型，α 粒子在核内以速度 v 在核半径 R 内来回运动，碰撞频率为 ν = v/(2R)。核半径考虑了形变参数 β2 的修正，修正因子由形变核的几何平均半径导出。速度 v 由 Q 值通过动能关系计算，约化质量 μ 采用 α 粒子与子核的约化质量。该步骤严格遵循合法推导路径 Path 1，为下一步计算衰变宽度 Γ = P × ν 做准备。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 根据合法推导路径 Path 1，在得到穿透概率 P 和碰撞频率 ν 后，下一步应计算 α 衰变宽度 Γ = P × ν × S_α，其中 S_α 为预形成因子（preformation factor）。论文方法中采用双中心壳模型（TCSM）和壳修正方法计算预形成因子，而非设为常数。[Gap] 当前状态已有穿透概率 P 和碰撞频率 ν，但缺少预形成因子 S_α。根据经验规则 rule_043，预形成因子不能随意设为常数，需有明确的物理依据。论文采用宏观微观方法结合双中心壳模型计算 S_α，这需要从核结构信息中提取。[Decision] 因此，第 5 步应调用 preformation_factor_model 工具，基于双中心壳模型和壳修正方法计算预形成因子 S_α。该步骤属于模型构建，沿合法路径 Path 1 前进。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {
+        "method": "two_center_shell_model",
+        "shell_correction": "Strutinsky_shell_correction",
+        "mass_model": "finite_range_liquid_drop_model",
+        "deformation_parameter": "β2",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z"
+      },
+      "output_state": {
+        "preformation_factor": "S_α = exp(-G_shell) × f_cluster，其中 G_shell 为壳修正对预形成因子的贡献，f_cluster 为双中心壳模型中 α 团簇形成概率"
+      },
+      "observation": "基于双中心壳模型（TCSM）和 Strutinsky 壳修正方法，结合有限程液滴模型（FRLDM）计算的基态形变，得到预形成因子 S_α。该因子反映了 α 粒子在母核表面形成的概率，其值依赖于核的壳结构和形变参数 β2。对于超重核，S_α 通常在 0.1 到 1 之间，具体由双中心势阱中 α 团簇波函数与母核波函数的重叠积分决定。",
+      "valid": false,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将预形成因子 S_α 作为独立因子乘入衰变宽度公式 Γ = P × ν × S_α，但论文实际推导中衰变宽度公式为 Γ = P × ν，预形成因子已隐含在穿透概率 P 的计算中（通过双中心壳模型修正势垒或内转折点），而非作为独立乘子。这种处理会导致物理量重复计算或错误解释预形成因子的作用机制。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已通过 WKB 作用积分得到穿透概率 P，通过经典振动模型得到碰撞频率 ν，并通过双中心壳模型和 Strutinsky 壳修正方法得到预形成因子 S_α。根据衰变宽度公式 Γ = P × ν × S_α，需要将这三个物理量组合以得到衰变宽度，进而计算半衰期。 [Gap] 尚未将穿透概率、碰撞频率和预形成因子组合为衰变宽度，也未将衰变宽度转换为半衰期。 [Decision] 根据合法推导路径 Path 1（half_life -> alpha_decay_width -> penetrability -> ...），下一步应使用 decay_width_formula 工具，将 P、ν 和 S_α 相乘得到衰变宽度 Γ，然后利用半衰期与宽度的关系 T_{1/2} = ℏ ln2 / Γ 计算半衰期。",
+      "action": "rule_application",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": ""
+      },
+      "parameters": {
+        "penetrability": "P",
+        "assault_frequency": "ν",
+        "preformation_factor": "S_α",
+        "decay_width": "Γ = P × ν × S_α",
+        "half_life": "T_{1/2} = ℏ ln2 / Γ"
+      },
+      "output_state": {
+        "decay_width": "Γ = P × ν × S_α",
+        "half_life": "T_{1/2} = ℏ ln2 / (P × ν × S_α)"
+      },
+      "observation": "通过衰变宽度公式 Γ = P × ν × S_α 将穿透概率、碰撞频率和预形成因子组合，得到衰变宽度。再利用半衰期与衰变宽度的关系 T_{1/2} = ℏ ln2 / Γ，得到半衰期的理论表达式。该步骤严格遵循合法推导路径 Path 1，完成了从穿透概率到半衰期的最终推导。 [DONE]",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "incorrect_derivation",
+      "error_reason": "基于第5步的错误，衰变宽度公式 Γ = P × ν × S_α 在论文框架下不成立。论文中衰变宽度仅由穿透概率 P 和碰撞频率 ν 决定，预形成因子已通过双中心壳模型整合到 P 的计算中。因此，第6步的推导在物理逻辑上错误，导致半衰期表达式不正确。"
+    },
+    {
+      "step_index": 7,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：调用 preformation_factor_model 工具，将预形成因子 S_α 作为独立乘子引入衰变宽度公式 Γ = P × ν × S_α。当时已知的条件包括：穿透概率 P 已通过 WKB 作用积分得到，碰撞频率 ν 已通过经典振动模型得到，且论文采用双中心壳模型（TCSM）和壳修正方法计算预形成因子。。[Gap] 错过的信号：在步骤5之前，步骤4（WKB_action_integral）的观测中已明确说明穿透概率 P 的计算基于有效势 V_eff(r, θ)，而该有效势的构建（步骤8）中核势采用邻近势、库仑势包含形变修正（β2、β4），这些修正已隐含了核结构信息（如形变对势垒的影响）。决策时已知：双中心壳模型（TCSM）正是用于描述核结构（包括形变和壳效应）的模型，而预形成因子 S_α 反映的是 α 粒子在核表面形成的概率，本质上也是核结构效应。如果 S_α 作为独立乘子，则意味着核结构效应被重复计入：一次通过形变修正势垒（影响 P），一次通过 S_α。这种重复在物理上不合理，本应触发警觉：检查 S_α 是否已隐含在 P 的计算中。。[Decision] 正确判断方式：面对“穿透概率 P 已通过形变修正势垒计算”和“双中心壳模型用于描述核结构”这两个条件，应首先检查：P 的计算是否已经包含了核结构对势垒的修正？如果 P 的势垒构建中已使用了双中心壳模型或形变参数（如 β2、β4），则 S_α 不应再作为独立因子，而应整合到 P 中或仅作为修正项。正确的做法是：查阅论文中衰变宽度公式的定义，确认 Γ = P × ν 还是 Γ = P × ν × S_α，而不是凭经验假设。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了物理一致性检查：未验证预形成因子 S_α 是否与穿透概率 P 的计算存在物理量重复，导致将本已隐含在势垒修正中的核结构效应重复计入。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：调用 decay_width_formula 工具，基于步骤5的错误结果，将 P、ν 和 S_α 相乘得到衰变宽度 Γ = P × ν × S_α，并进一步推导半衰期。当时已知的条件包括：步骤5已错误地将 S_α 作为独立因子，且步骤6直接沿用该错误公式。。[Gap] 错过的信号：步骤6的观测中明确提到“该步骤严格遵循合法推导路径 Path 1”，但步骤5的错误标签（wrong_physical_interpretation）和错误原因（预形成因子已隐含在 P 中）在步骤6的输入中并未被有效利用。决策时已知：步骤5的观测中已给出 S_α 的物理含义（反映 α 粒子在核表面形成的概率），且步骤4的观测中已说明 P 的计算基于形变修正势垒。如果 S_α 已隐含在 P 中，则 Γ = P × ν × S_α 会导致物理量重复计算，本应触发警觉：检查衰变宽度公式的原始定义是否与当前推导一致。。[Decision] 正确判断方式：面对“步骤5已给出 S_α 的物理含义”和“步骤4已说明 P 包含形变修正”这两个条件，应首先检查：衰变宽度公式 Γ = P × ν 是否已经完整？如果 P 的计算已包含核结构效应（如形变、壳修正），则 S_α 不应再作为独立乘子。正确的做法是：回溯到论文的原始公式定义，确认 Γ 的表达式，而不是盲目沿用步骤5的错误结果。。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了结果验证步骤：未检查步骤5的输出是否与论文的物理框架一致，直接基于错误输入进行后续推导，导致错误累积。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在构建复杂物理模型时，必须仔细检查各物理量之间的独立性，避免将已隐含在某个量中的效应重复计入。当多个模型（如双中心壳模型和 WKB 势垒）描述同一物理效应（如核结构对势垒的影响）时，应优先验证它们是否重叠，而不是简单叠加。"
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4 分别使用 effective_potential_assembly -> turning_point_solver -> numerical_integration -> assault_frequency_calculation 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 根据前提层，α衰变半衰期T1/2与衰变宽度Γ的关系为T1/2 = ℏ ln2 / Γ，而Γ = P × ν，其中P为穿透概率，ν为碰撞频率。要计算半衰期，首先需要确定α粒子在核表面的碰撞频率ν，这依赖于α粒子在母核内的运动速度以及核半径。核半径是计算势垒和碰撞频率的基础几何参数。[Gap] 当前已知初始条件包括质量数A、电荷数Z、形变参数和Q值，但尚未给出核半径的具体表达式。在形变核中，核半径不再是简单的球形半径，需要考虑形变修正。[Decision] 因此，第一步应使用核半径估计工具，结合形变参数，计算等效核半径。这属于合法推导路径Path 1中的第一个工具nuclear_radius_estimation。",
+      "action": "rule_application",
+      "tool": {
+        "name": "nuclear_radius_estimation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number": "A",
+        "charge_number": "Z",
+        "deformation_parameter": "β2, β4",
+        "radius_formula": "R = R0 * (1 + β2 * Y20 + β4 * Y40) 其中R0 = 1.2 * A^(1/3) fm"
+      },
+      "output_state": {
+        "nuclear_radius": "R(θ) = 1.2 A^{1/3} [1 + β2 Y_{20}(θ) + β4 Y_{40}(θ)] fm",
+        "equivalent_spherical_radius": "R_eq = (1/4π ∫ R^3(θ) dΩ)^{1/3} ≈ 1.2 A^{1/3} [1 + (5/4π) β2^2 + ...] fm"
+      },
+      "observation": "采用形变核半径公式，得到依赖于极角θ的核半径表达式。对于后续计算，通常使用等效球半径R_eq或沿隧穿方向（通常取对称轴方向）的半径。此处保留形变参数β2和β4的影响。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在α衰变WKB计算中，核心是构建α粒子在核外区域的势垒。势垒由核势（短程吸引）、库仑势（长程排斥）和离心势（角动量相关）组成。论文采用邻近势（Proximity Potential）描述核势部分，该势基于两核表面间距，能自然处理形变核的方位依赖性。库仑势需考虑形变核的电荷分布修正，通常采用多极展开至β2、β4项。离心势则依赖于α粒子携带的轨道角动量l。 [Gap] 当前步骤需要从已确定的形变核半径出发，显式构建出有效势V_eff(r, θ)的表达式，其中r是α粒子与剩余核质心的距离，θ是相对于对称轴的角度。对于沿对称轴（θ=0）的隧穿，势垒最低，是衰变的主要通道。 [Decision] 因此，本步选择工具'effective_potential_assembly'，将邻近核势、形变库仑势和离心势组合成有效势，并给出沿对称轴（θ=0）的简化形式，为后续求解转折点做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential_type": "Proximity_Potential",
+        "coulomb_potential_type": "Deformed_Coulomb",
+        "centrifugal_term": "hbar^2 * l*(l+1) / (2*mu*r^2)",
+        "deformation_parameters": "beta2, beta4",
+        "tunneling_direction": "theta=0 (symmetry axis)"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r, θ) = V_N(r, θ) + V_C(r, θ) + V_l(r)",
+        "V_N_along_axis": "V_N(r, θ=0) = 4πγR_eq Φ(s), 其中 s = (r - R_1 - R_2)/b, R_1=R_eq, R_2=α粒子半径≈1.2×4^{1/3} fm, γ=0.9517 MeV/fm², b≈1 fm, Φ(s)为邻近势通用函数",
+        "V_C_along_axis": "V_C(r, θ=0) = (Z_d Z_α e^2 / r) [1 + (3/5) (R_eq^2/r^2) β2 Y_{20}(0) + ...]",
+        "V_l": "V_l(r) = ℏ^2 l(l+1) / (2μ r^2)",
+        "reduced_mass": "μ = m_α * M_d / (m_α + M_d) ≈ (4A-4)/A * m_n"
+      },
+      "observation": "成功构建了形变核α衰变的有效势V_eff(r, θ)。沿对称轴（θ=0）方向，势垒最低，是隧穿的主要路径。核势采用邻近势，库仑势包含形变修正（β2、β4项），离心势依赖于角动量l。该势能表达式将用于下一步求解内外转折点。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在构建了形变核的等效势垒后，下一步需要求解势垒的内外转折点，这是WKB计算穿透概率的前提。对于α衰变，内转折点通常取在核表面附近，外转折点由Q值与库仑势的交点决定。[Gap] 当前已得到有效势V_eff(r, θ)的表达式，但尚未明确转折点的具体定义和求解方法。对于形变核，沿对称轴方向（θ=0）的势垒最低，因此隧穿路径取此方向。内转折点r_in通常取为核半径之和R_1+R_2，外转折点r_out满足V_eff(r_out, θ=0) = Q_α。[Decision] 因此，本步将应用turning_point_solver工具，基于有效势和Q值，计算沿对称轴方向的内外转折点。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": "1.0"
+      },
+      "parameters": {
+        "potential": "V_eff(r, θ=0) = V_N(r, θ=0) + V_C(r, θ=0) + V_l(r)",
+        "Q_value": "Q_α (从实验或质量模型得到)",
+        "direction": "θ=0 (对称轴方向)",
+        "inner_turning_point_definition": "r_in = R_1 + R_2，其中R_1和R_2分别为母核和α粒子的等效半径，R_1 = R_eq (母核), R_2 = 1.2 fm (α粒子半径)",
+        "outer_turning_point_condition": "V_eff(r_out, θ=0) = Q_α"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in = R_1 + R_2 = R_eq + 1.2 fm",
+        "outer_turning_point": "r_out = 满足 V_eff(r_out, θ=0) = Q_α 的数值解，通常由库仑势主导，近似为 r_out ≈ Z_d Z_α e^2 / Q_α (当离心势可忽略时)"
+      },
+      "observation": "确定了沿对称轴方向的内转折点r_in（核表面接触点）和外转折点r_out（势垒与Q值交点）。对于超重核，r_out通常远大于r_in，势垒宽度较大。这些转折点将用于下一步WKB作用量积分的积分限。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 根据前提层，α衰变宽度Γ = P × ν，其中穿透概率P由WKB近似计算，而WKB作用量积分是计算P的关键。当前已得到有效势V_eff(r, θ=0)和转折点r_in、r_out，下一步需要计算WKB作用量积分S = ∫_{r_in}^{r_out} √(2μ|V_eff(r) - Q_α|) dr。 [Gap] 需要将有效势表达式代入积分，并考虑形变参数β2、β4对势垒形状的影响，从而得到解析或数值积分结果。 [Decision] 选择WKB_action_integral工具，沿合法路径Path 1（half_life -> alpha_decay_width -> penetrability -> action_integral）前进，计算沿对称轴方向的作用量积分。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V_eff(r, θ=0) = V_N(r) + V_C(r) + V_l(r)",
+        "inner_turning_point": "r_in = R_eq + 1.2 fm",
+        "outer_turning_point": "r_out = 满足 V_eff(r_out) = Q_α 的数值解",
+        "reduced_mass": "μ = (4A-4)/A * m_n",
+        "Q_value": "Q_α",
+        "deformation_parameters": "β2, β4"
+      },
+      "output_state": {
+        "WKB_action_integral": "S = ∫_{r_in}^{r_out} √(2μ|V_eff(r, θ=0) - Q_α|) dr",
+        "penetrability": "P = exp(-2S/ℏ)"
+      },
+      "observation": "沿对称轴方向计算WKB作用量积分S。由于有效势包含邻近势（指数衰减形式）和库仑势（含形变修正），积分需数值求解。对于超重核，势垒宽且高，S值较大，导致穿透概率P很小。形变参数β2、β4通过改变核半径和库仑势修正项影响势垒形状：正β2使核拉长，降低势垒高度和宽度，增大P；β4修正高阶形变效应。该积分结果将直接用于计算衰变宽度Γ = P × ν。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 前四步已构建了形变核的核半径、有效势（含邻近势、形变修正库仑势和离心势）、确定了内外转折点，并计算了沿对称轴方向的WKB作用量积分S和穿透概率P。接下来需要计算α衰变宽度Γ和半衰期T1/2。根据前提层定义，Γ = P × ν，其中ν为碰撞频率（assault frequency），表示α粒子在核内每秒撞击势垒的次数。T1/2 = ℏ ln2 / Γ。 [Gap] 当前缺少碰撞频率ν的具体表达式。ν通常由α粒子在核内的经典运动速度除以核直径估算：ν = v / (2R_eq)，其中v = √(2Q_α/μ) 是α粒子在核内的速度（假设动能近似等于Q值），μ为约化质量。 [Decision] 因此，下一步应计算碰撞频率ν，然后结合穿透概率P得到衰变宽度Γ，最后计算半衰期T1/2。使用工具assault_frequency_calculation和halflife_from_width。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Q_value": "Q_α",
+        "reduced_mass": "μ",
+        "equivalent_spherical_radius": "R_eq",
+        "formula": "ν = v / (2R_eq), v = √(2Q_α/μ)"
+      },
+      "output_state": {
+        "assault_frequency": "ν = √(2Q_α/μ) / (2R_eq)",
+        "decay_width": "Γ = P × ν = exp(-2S/ℏ) × √(2Q_α/μ) / (2R_eq)",
+        "half_life": "T_{1/2} = ℏ ln2 / Γ = ℏ ln2 / [exp(-2S/ℏ) × √(2Q_α/μ) / (2R_eq)]"
+      },
+      "observation": "计算得到碰撞频率ν的表达式，进而得到衰变宽度Γ和半衰期T1/2的完整表达式。该表达式依赖于形变参数β2、β4（通过R_eq和S隐含）、Q值、角动量l（通过离心势影响S）等。对于超重核，由于P极小，T1/2通常很大。此结果可直接用于数值计算并与实验数据比较。[DONE]",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将计算的半衰期与已知实验数据（如NUBASE2020或ENSDF数据库）中对应核素的测量值对比，验证在Z≥82、N≥126的重核区（如Po、Rn同位素）的偏差是否在1-2个数量级内。其次，对偶偶核与奇A核分别检验半衰期随中子数变化的系统性趋势（如N=126壳层附近半衰期突增），确认模型是否复现已知的壳效应。最后，采用量纲分析验证半衰期公式中约化质量、库仑势垒穿透因子的量纲一致性，并检查在极端形变（β₂>0.3）或高角动量（l>5）条件下，two_center_shell_model的基态形变参数是否导致非物理的势能面。独立方法交叉验证可改用Coulomb and Proximity Potential Model（CPPM）重新计算相同核素，若结果差异超过3个数量级则提示wkb_approximation的势垒穿透因子在低Q值（<4 MeV）时可能失效。",
+    "metrics": {
+      "half_life": {
+        "value": "1.2 s",
+        "unit": "核素^{286}Fl，Q_α=10.35 MeV，β2=0.18",
+        "interpretation": "half_life"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：semi_empirical_formula；spherical_tunneling_model。"
+  },
+  "paper_methods": [
+    "wkb_approximation",
+    "proximity_potential",
+    "two_center_shell_model",
+    "finite_range_liquid_drop_model",
+    "shell_correction_method"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "wkb_approximation",
+        "desc": "用于计算α粒子在形变核势垒中的隧穿概率，考虑核形变对势垒形状的影响"
+      },
+      {
+        "name": "proximity_potential",
+        "desc": "描述α粒子与剩余核之间的核相互作用势，基于核表面间距和形变参数"
+      },
+      {
+        "name": "two_center_shell_model",
+        "desc": "用于计算超重核的基态质量与四极形变参数β2，提供形变输入"
+      },
+      {
+        "name": "finite_range_liquid_drop_model",
+        "desc": "宏观部分用于计算核质量，结合壳修正得到微观修正"
+      },
+      {
+        "name": "shell_correction_method",
+        "desc": "修正液滴模型质量，得到更精确的核质量与形变参数"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\hbar \\ln 2}{\\Gamma}, \\quad \\Gamma = P \\times \\nu"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "P = \\exp\\left[-\\frac{2}{\\hbar} \\int_{r_{\\text{in}}}^{r_{\\text{out}}} \\sqrt{2\\mu (V(r) - Q_\\alpha)} \\, dr\\right]"
+      },
+      {
+        "label": "Eq.(8)",
+        "content": "V(r) = V_N(r, \\beta_2) + V_C(r, \\beta_2) + \\frac{\\hbar^2 l(l+1)}{2\\mu r^2}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "0.28 ms",
+        "condition": "核素^{270}Hs，Q_α=9.59 MeV，β2=0.24"
+      },
+      {
+        "quantity": "half_life",
+        "value": "1.2 s",
+        "condition": "核素^{286}Fl，Q_α=10.35 MeV，β2=0.18"
+      }
+    ],
+    "failure_points": [
+      "semi_empirical_formula",
+      "spherical_tunneling_model"
+    ]
+  }
+}

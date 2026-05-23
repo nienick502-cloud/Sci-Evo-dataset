@@ -1,0 +1,358 @@
+{
+  "id": "NPP_0138",
+  "meta": {
+    "id": "NPP_0138",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Hybrid neural network method of a multilayer perceptron and autoencoder for $\\alpha$ -particle preformation factor in $\\alpha$ -decay theory",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2504.02487"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T18:49:49.491576",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "α衰变预成形因子与半衰期",
+    "input_data": "已知实验α衰变半衰期与衰变能数据；广义液滴模型框架；Z=119和120的超重核素。",
+    "user_intent": "现有经验公式和宏观-微观模型在提取α粒子预成形因子时存在局限性，需要更可靠的方法来获取该因子，以提供核结构信息并支持超重核素的鉴定。",
+    "quantifiable_goal": "预测α衰变预成形因子 P_\\alpha（无量纲）和α衰变半衰期 T_{1/2}（单位：s）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是从质量数A、电荷数Z和Q值出发，计算α衰变宽度Γ。根据前提层定义，Γ = ℏλ，而λ与半衰期T_{1/2}的关系为T_{1/2} = ln2 / (ν₀ S_α P)，因此需要先获得碰撞频率ν₀、预成形因子S_α和势垒穿透概率P。论文方法中使用了广义液滴模型（GLDM）和WKB近似，因此第一步应构建GLDM框架下的有效势能，这是后续求解穿透概率的基础。 [Gap] 当前仅有初始条件（A, Z, Q值），尚未建立核势能面的具体形式。 [Decision] 选择使用广义液滴模型（GLDM）的有效势能组装工具，将核势能、库仑势和离心势组合起来，为后续计算势垒穿透做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "model": "generalized_liquid_drop_model",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "Q_value": "Q_value",
+        "include_nuclear_potential": true,
+        "include_coulomb_potential": true,
+        "include_centrifugal_potential": false
+      },
+      "output_state": {
+        "effective_potential_GLDM": "V_eff(r) = V_nuc(r) + V_coul(r) + V_l(r)，其中V_nuc(r)为GLDM核势，V_coul(r)为库仑势，V_l(r)为离心势（此处取l=0）"
+      },
+      "observation": "构建了广义液滴模型下的有效势能V_eff(r)，包含核势、库仑势和离心势（l=0），为后续WKB穿透概率计算提供势能面。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在广义液滴模型（GLDM）框架下，有效势能 V_eff(r) 已经构建完成，包含核势、库仑势和离心势。为了计算 α 衰变的势垒穿透概率 P，需要确定 WKB 近似中的内、外转折点 r_in 和 r_out，它们由方程 V_eff(r) = Q_α 决定，其中 Q_α 是衰变能。\n[Gap] 当前步骤需要从有效势能和 Q_α 值出发，求解转折点位置，这是连接势能面与穿透概率计算的关键中间步骤。\n[Decision] 选择使用 turning_point_solver 工具，基于有效势能 V_eff(r) 和给定的 Q_α 值，数值求解内转折点 r_in 和外转折点 r_out。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V_eff(r) = V_nuc(r) + V_coul(r) + V_l(r)",
+        "Q_value": "Q_α",
+        "angular_momentum": "l=0",
+        "method": "root_finding"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out"
+      },
+      "observation": "通过求解 V_eff(r) = Q_α，得到内转折点 r_in（约 1.2-1.5 fm，对应核表面附近）和外转折点 r_out（约 10-20 fm，取决于 Q_α 大小），为后续 WKB 作用量积分提供积分限。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在广义液滴模型（GLDM）下，我们已经构建了有效势能 V_eff(r) 并求解了内、外转折点 r_in 和 r_out。接下来需要计算 α 粒子隧穿势垒的 WKB 作用量积分，这是获得势垒穿透概率 P 的关键中间步骤。 [Gap] 当前缺少从转折点到穿透概率的桥梁，即 WKB 作用量积分 S = ∫_{r_in}^{r_out} k(r) dr，其中 k(r) = sqrt(2μ/ℏ² |V_eff(r) - Q_α|)。 [Decision] 因此，下一步应使用 WKB_action_integral 工具，基于已得到的有效势能和转折点，数值计算作用量积分 S，为后续计算穿透概率 P = exp(-2S) 做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_nuc(r) + V_coul(r) + V_l(r)",
+        "Q_value": "Q_α",
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "reduced_mass": "μ = (A_d * 4) / (A_d + 4) * m_n (近似为 4m_n 对于重核)"
+      },
+      "output_state": {
+        "WKB_action_integral": "S = ∫_{r_in}^{r_out} sqrt(2μ/ℏ² (V_eff(r) - Q_α)) dr"
+      },
+      "observation": "数值计算得到 WKB 作用量积分 S 的值（无量纲），该值将直接用于计算势垒穿透概率 P = exp(-2S)。S 的典型值在超重核区域约为 10-30 量级，具体取决于 Q_α 和势垒高度。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 根据WKB近似，势垒穿透概率P与作用量积分S的关系为P = exp(-2S)。在α衰变宽度Γ的计算中，Γ = ℏλ，而衰变常数λ = ν₀ S_α P，其中ν₀为碰撞频率（即α粒子在核内撞击势垒的频率），S_α为预成形因子。目前我们已经得到了WKB作用量积分S，因此可以直接计算穿透概率P。 [Gap] 从S到P的转换是直接的指数关系，但需要注意数值精度，因为S的微小变化会导致P的指数级变化。此外，P的计算是连接作用量积分与最终衰变宽度的关键中间步骤。 [Decision] 因此，下一步应使用穿透概率公式P = exp(-2S)进行数值计算，得到无量纲的穿透概率P。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {
+        "WKB_action_integral": "S",
+        "formula": "P = exp(-2*S)"
+      },
+      "output_state": {
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "根据WKB近似，势垒穿透概率P由作用量积分S通过指数关系P = exp(-2S)计算得到。S的典型值在超重核区域约为10-30，因此P的量级约为10^{-9}至10^{-26}，具体取决于Q_α和势垒形状。该穿透概率将用于后续与预成形因子S_α和碰撞频率ν₀结合，计算α衰变宽度Γ。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 当前已通过WKB近似计算出势垒穿透概率P，下一步需要计算预成形因子S_α。根据论文方法，论文使用了MLP-AE混合神经网络来预测S_α，但当前处于半盲预测模式，我们不知道具体细节。然而，根据经验规则层中的rule_137，神经网络应仅用于修正已知物理过程的残余误差，不可替代具有明确物理依据的中间步骤。因此，在引入神经网络之前，应先基于物理模型（如GLDM）给出S_α的初步估计或经验公式。常见的做法是使用经验关系或宏观-微观模型提取S_α。由于当前路径是alpha_decay_width -> penetrability -> ...，下一步应计算预成形因子。合法路径上的工具是preformation_factor_model。 [Gap] 需要从穿透概率P过渡到预成形因子S_α，但S_α不能直接从P推导，而是需要独立的模型或经验输入。 [Decision] 选择使用preformation_factor_model工具，基于GLDM和系统学趋势，给出S_α的初步估计，为后续可能的神经网络修正提供基线。",
+      "action": "model_building",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "empirical_systematics",
+        "reference": "基于GLDM和超重核区域系统学，S_α通常取0.1-1.0量级，对于偶偶核接近1，对于奇A核或奇奇核较小"
+      },
+      "output_state": {
+        "preformation_factor_S_alpha": "S_α = 经验估计值（例如对于偶偶核取0.8，奇A核取0.2）"
+      },
+      "observation": "采用经验系统学方法，基于GLDM框架和超重核区域已知趋势，初步估计预成形因子S_α。对于偶偶核（如Z=120附近），S_α通常接近1；对于奇A核，S_α约为0.1-0.5。该估计将作为后续神经网络修正的基线输入。",
+      "valid": false,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测中认为对于偶偶核（如Z=120附近），预成形因子S_α通常接近1，这不符合超重核区域的物理事实。在超重核中，由于壳效应和形变，预成形因子通常远小于1（典型值在10^{-1}至10^{-3}量级），即使对于偶偶核也是如此。将S_α估计为接近1会严重高估衰变宽度，导致后续物理结果错误。论文实际使用神经网络精确预测S_α，而非依赖这种不准确的经验估计。"
+    },
+    {
+      "step_index": 6,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：采用经验系统学方法，基于GLDM框架和超重核区域已知趋势，初步估计预成形因子S_α。对于偶偶核（如Z=120附近），S_α通常接近1；对于奇A核，S_α约为0.1-0.5。已知条件包括：当前核为超重核（Z=120附近），已通过WKB计算出势垒穿透概率P，下一步需要计算预成形因子S_α。。[Gap] 错过的信号：超重核区域（Z≥104）的α衰变预成形因子通常远小于1（典型值10^{-1}至10^{-3}），即使对于偶偶核也是如此。决策时已知因为：input_data中给定的核是超重核（Z=120附近），且教科书级别的核物理常识指出，超重核由于强壳效应和形变，α粒子预形成概率显著降低，与轻核区（如Po、Rn同位素）的S_α≈1不同。。[Decision] 正确判断方式：面对超重核（Z≥104）和偶偶核条件，应首先检查该核区已知的S_α系统学趋势：查阅文献或经验公式可知，超重核的S_α普遍在10^{-1}至10^{-3}量级，而非接近1。如果当前核属于超重核区，则不应直接套用轻核区的经验规则（S_α≈1），而应基于该核区的系统学数据给出更合理的估计（如10^{-2}量级），或直接采用神经网络等更精确的方法。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对核区适用性的检查：将轻核区（偶偶核S_α≈1）的经验规则错误地外推到超重核区，未考虑超重核特有的强壳效应和形变对预成形因子的压制作用。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在核物理推理中，经验规则（如偶偶核S_α≈1）具有明确的核区适用范围，不能随意外推。当处理极端核区（如超重核）时，必须首先检查该核区的系统学趋势是否与已知规则一致，否则应基于该核区的数据重新校准估计，而非盲目套用轻核区的经验。"
+    },
+    {
+      "step_index": 7,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4 分别使用 effective_potential_assembly -> turning_point_solver -> WKB_action_integral -> penetrability_from_action 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 论文旨在提取超重核（Z=119,120附近）的α衰变预成形因子，并构建MLP-AE混合神经网络模型。推导起点是α衰变宽度的基本定义，即Γ = ℏλ，其中λ为衰变常数。衰变常数与半衰期T_{1/2}的关系为T_{1/2} = ln2 / λ。在WKB近似下，衰变常数可分解为λ = ν₀ S_α P，其中ν₀为碰撞频率（或称为撞击频率），S_α为预成形因子，P为势垒穿透概率。因此，α衰变宽度可表示为Γ = ℏ ν₀ S_α P。这是后续所有推导的基础公式。 [Gap] 当前步骤需要从目标alpha_decay_width出发，利用已知定义和假设，建立宽度与可计算量（ν₀, S_α, P）之间的基本关系。 [Decision] 因此，第一步应用规则：从α衰变宽度的定义出发，结合衰变常数与半衰期的关系以及WKB分解，写出宽度表达式。",
+      "action": "rule_application",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": "1.0"
+      },
+      "parameters": {
+        "decay_type": "alpha",
+        "model": "WKB_GLDM",
+        "expression_type": "decomposition"
+      },
+      "output_state": {
+        "alpha_decay_width": "Γ = ℏ ν₀ S_α P"
+      },
+      "observation": "根据α衰变宽度定义Γ = ℏλ，以及衰变常数λ = ν₀ S_α P（其中ν₀为碰撞频率，S_α为预成形因子，P为WKB穿透概率），得到宽度表达式Γ = ℏ ν₀ S_α P。这是后续计算各分量的出发点。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 在α衰变宽度公式 Γ = ℏ ν₀ S_α P 中，碰撞频率 ν₀ 是α粒子在核内来回运动的频率，通常由α粒子在核内的速度 v 和核半径 R 决定：ν₀ = v / (2R)。而α粒子的速度 v 可由其动能 E_α 通过非相对论关系 v = √(2E_α / m_α) 得到，其中 m_α 是α粒子的质量，E_α 近似等于衰变能 Q_α（忽略反冲核的微小动能）。[Gap] 需要将 ν₀ 用已知量 Q_α 和核半径 R 表示出来，以便后续代入宽度公式。[Decision] 因此，本步采用 assault_frequency_calculation 工具，基于 GLDM 的核半径公式计算 ν₀。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Q_value": "Q_α",
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "nuclear_radius_model": "GLDM"
+      },
+      "output_state": {
+        "assault_frequency": "ν₀ = v / (2R) = √(2Q_α / m_α) / (2R_GLDM)"
+      },
+      "observation": "根据 GLDM 的核半径公式 R_GLDM = r_0 A^{1/3}（通常取 r_0 ≈ 1.2 fm），以及α粒子质量 m_α ≈ 4 u，得到碰撞频率 ν₀ 的数值表达式。该值将用于后续计算势垒穿透概率和预成形因子。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 根据论文方法，α衰变宽度Γ = ℏ ν₀ S_α P，其中ν₀已由第2步确定，下一步需要计算势垒穿透概率P。论文采用广义液滴模型（GLDM）构建有效势能，并利用WKB近似计算穿透概率。有效势能包括核势、库仑势和离心势，其中核势采用GLDM的液滴势形式，并考虑形变效应。[Gap] 当前缺少有效势能的具体表达式，特别是GLDM中核势的形变依赖项和库仑势的形变修正。[Decision] 因此，本步使用effective_potential_assembly工具，基于GLDM框架组装有效势能，包括核势（液滴势）、库仑势（考虑形变）和离心势，为后续求解转折点和WKB积分做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "model": "generalized_liquid_drop_model",
+        "deformation_effects": true,
+        "components": [
+          "nuclear_potential",
+          "coulomb_potential",
+          "centrifugal_potential"
+        ]
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_nuc(r) + V_coul(r) + V_cent(r)",
+        "V_nuc_GLDM": "-V_0 [1 - β_2 Y_{20}(θ)] / [1 + exp((r - R_0)/a)]  (形变液滴势)",
+        "V_coul": "Z_d Z_α e^2 / r + 形变修正项（四极矩）",
+        "V_cent": "ℏ^2 l(l+1) / (2 μ r^2)"
+      },
+      "observation": "基于GLDM组装了有效势能V_eff(r)，包含形变液滴核势、形变库仑势和离心势。其中核势采用Woods-Saxon形式的形变修正，库仑势包含四极形变修正项，离心势依赖于角动量l。该势能用于后续求解内外转折点及WKB穿透积分。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在GLDM框架下，有效势能V_eff(r)已构建完成，包含形变核势、形变库仑势和离心势。为了计算α粒子隧穿势垒的穿透概率P，需要先确定势垒的内外转折点r_in和r_out，这些转折点满足V_eff(r) = Q_α，其中Q_α为衰变能。 [Gap] 当前已知V_eff(r)的解析形式，但转折点无法解析求解，需要数值方法。 [Decision] 使用turning_point_solver工具，基于数值求根算法（如二分法或牛顿法）在有效势能曲线上找到满足V_eff(r) = Q_α的两个根，分别对应内转折点r_in和外转折点r_out。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_nuc(r) + V_coul(r) + V_cent(r)",
+        "Q_value": "Q_α",
+        "method": "bisection",
+        "initial_guess_inner": "1.0 fm",
+        "initial_guess_outer": "20.0 fm"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out"
+      },
+      "observation": "通过数值求解V_eff(r) = Q_α，得到内转折点r_in（约在核表面附近，典型值约8-10 fm）和外转折点r_out（约在库仑势垒顶部之外，典型值约15-25 fm）。这两个转折点定义了WKB积分区间[r_in, r_out]，用于后续计算势垒穿透概率P。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的α衰变半衰期与实验测量的半衰期数据（如NUBASE2020或ENSDF数据库）在原子序数Z=84-118范围内进行对比，验证模型在10^{-6}–10^{-3}s区间的准确性。其次，对预成形因子进行量纲分析，确保其无量纲性，并检验极限情况（如母核接近幻数时S_α应趋近于0.01），与已知系统学趋势（如S_α随中子数变化）对比。最后，使用独立方法（如密度泛函理论或壳模型）交叉验证预成形因子，注意MLP-AE混合神经网络在训练数据稀疏时可能过拟合，需通过交叉验证评估泛化能力。",
+    "metrics": {
+      "S": {
+        "value": "0.01–0.1",
+        "unit": "Z=119, 120 超重核素，由 MLP-AE 网络预测",
+        "interpretation": "预成形因子 S_α"
+      },
+      "T__1_2": {
+        "value": "10^{-6}–10^{-3} s",
+        "unit": "Z=119, 120 超重核素，基于 GLDM+WKB+MLP 预测",
+        "interpretation": "α衰变半衰期 T_{1/2}"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：empirical_formulas；macroscopic_microscopic_model。"
+  },
+  "paper_methods": [
+    "generalized_liquid_drop_model",
+    "wkb_approximation",
+    "mlp_ae_hybrid_neural_network",
+    "adam_optimization"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "generalized_liquid_drop_model",
+        "desc": "用于计算α衰变势垒和穿透概率的宏观核模型"
+      },
+      {
+        "name": "wkb_approximation",
+        "desc": "用于计算势垒穿透概率的准经典近似方法"
+      },
+      {
+        "name": "mlp_ae_hybrid_neural_network",
+        "desc": "结合多层感知机和自编码器的混合神经网络，用于预测预成形因子"
+      },
+      {
+        "name": "adam_optimization",
+        "desc": "用于训练神经网络的随机梯度下降优化算法"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\ln 2}{\\nu_0 S_\\alpha P}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "P = \\exp\\left[-\\frac{2}{\\hbar}\\int_{R_1}^{R_2} \\sqrt{2\\mu (V(r) - Q_\\alpha)}\\,dr\\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "预成形因子 S_α",
+        "value": "0.01–0.1",
+        "condition": "Z=119, 120 超重核素，由 MLP-AE 网络预测"
+      },
+      {
+        "quantity": "α衰变半衰期 T_{1/2}",
+        "value": "10^{-6}–10^{-3} s",
+        "condition": "Z=119, 120 超重核素，基于 GLDM+WKB+MLP 预测"
+      }
+    ],
+    "failure_points": [
+      "empirical_formulas",
+      "macroscopic_microscopic_model"
+    ]
+  }
+}

@@ -1,0 +1,485 @@
+{
+  "id": "NPP_0133",
+  "meta": {
+    "id": "NPP_0133",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear mass predictions using machine learning models",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2401.02824"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T21:23:09.281726",
+      "generated_by": "Lenovo",
+      "ml_library_version": "1.0",
+      "ml_library_hash": "d7f565d5"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "原子核质量过剩的预测",
+    "input_data": "可用的实验核质量数据（如AME2020中的新测量核素），以及基于物理的特征空间。",
+    "user_intent": "现有微观宏观模型（如WS4、FRDM-2012）和自洽平均场理论（基于HFB的EDF）在预测远离稳定线核素的质量时存在不确定性，均方根误差较高（从约0.3 MeV到5.0 MeV不等），且对丰中子区核素的行为预测仍不确定。需要探索更可靠的方法来预测核质量，特别是在实验数据稀缺的区域。",
+    "quantifiable_goal": "预测原子核的质量过剩（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 推导目标是预测输出（prediction_output），即核质量过剩的预测值。初始条件为质量数A、电荷数Z、中子数N。论文方法包括支持向量回归和高斯过程回归，使用基于物理的特征空间。根据合法推导路径，第一步需要从初始条件构建特征向量（feature_vector），这是机器学习预测的基础。特征空间由基于物理的核素描述符构成，因此需要从A、Z、N出发构造有物理意义的特征。\n[Gap] 当前只有原始核素标识（A、Z、N），尚未构建出论文中使用的物理特征向量。\n[Decision] 使用ML数据工程中的ml_feature_construction工具，基于核物理知识从A、Z、N构造特征，例如结合质量过剩定义和核结构描述符（如结合能、壳效应等），但此处先构建基础特征如同位旋T = (N-Z)/2、对能项等，为后续模型输入做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_feature_construction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_variables": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "constructed_features": [
+          "isotopic_spin_T",
+          "pairing_term_delta",
+          "asymmetry_term"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "\\mathbf{x} = [A, Z, N, T = (N-Z)/2, \\delta = (-1)^N + (-1)^Z, I = (N-Z)/A]"
+      },
+      "observation": "从初始条件A、Z、N出发，构建了包含质量数、电荷数、中子数、同位旋T、对能符号项δ、不对称度I的初始特征向量，作为后续机器学习模型输入的基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在核质量预测任务中，仅使用基本的核素标识符（A, Z, N）和简单的组合量（T, δ）作为特征，往往不足以捕捉核质量的精细结构，特别是壳效应、对关联和形变等物理效应。论文采用了基于物理的特征空间，这意味着需要引入更多反映核结构物理量的特征，以提升模型预测能力。 [Gap] 当前特征向量仅包含运动学量，缺乏与核质量直接相关的物理量，如结合能、壳修正、对能等。 [Decision] 因此，下一步应基于现有特征，通过物理公式计算或引入经验模型，构建更丰富的特征向量，例如结合能B(A,Z)的粗略估计或对能项，作为后续机器学习模型的输入。这里选择使用贝特-魏茨泽克质量公式（液滴模型）计算宏观结合能，作为特征之一。",
+      "action": "rule_application",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "volume_coefficient": "a_v = 15.75 MeV",
+        "surface_coefficient": "a_s = 17.8 MeV",
+        "coulomb_coefficient": "a_c = 0.711 MeV",
+        "asymmetry_coefficient": "a_a = 23.7 MeV",
+        "pairing_coefficient": "a_p = 11.18 MeV"
+      },
+      "output_state": {
+        "feature_vector": "\\mathbf{x} = [A, Z, N, T, \\delta, I, B_{LD}(A,Z)]",
+        "liquid_drop_binding_energy": "B_{LD}(A,Z) = a_v A - a_s A^{2/3} - a_c \\frac{Z(Z-1)}{A^{1/3}} - a_a \\frac{(N-Z)^2}{A} + \\delta_{pair} \\cdot a_p A^{-1/2}"
+      },
+      "observation": "使用贝特-魏茨泽克质量公式计算了液滴模型下的宏观结合能B_LD(A,Z)，并将其作为新的特征加入特征向量。其中对能项δ_pair根据A、Z的奇偶性取值为+1（偶偶核）、0（奇A核）、-1（奇奇核）。该特征提供了核质量的宏观趋势信息，有助于机器学习模型学习系统学规律。",
+      "step_mode": "empirical_approximation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在核质量预测的机器学习方法中，仅使用宏观液滴模型结合简单对能项和同位旋特征，尚不足以捕捉微观壳效应和形变对质量的精细修正，而论文方法明确采用基于物理的核素描述符，需要进一步引入微观修正特征。 [Gap] 当前特征向量包含宏观结合能B_LD，但缺少壳修正、形变修正等微观物理量，这些是WS4、FRDM-2012等模型的核心组成部分，也是提升预测精度的关键。 [Decision] 因此，下一步应利用宏观-微观方法中的壳修正理论，计算Strutinsky壳修正能δU_shell和形变修正能δU_def，将其加入特征向量，以增强特征空间的物理完备性。",
+      "action": "model_building",
+      "tool": {
+        "name": "shell_correction_strutinsky",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "neutron_number_N": "neutron_number_N",
+        "liquid_drop_binding_energy": "B_LD(A,Z)"
+      },
+      "output_state": {
+        "feature_vector": "\\mathbf{x} = [A, Z, N, T, \\delta, I, B_{LD}(A,Z), \\delta U_{\\text{shell}}(A,Z), \\delta U_{\\text{def}}(A,Z)]",
+        "shell_correction_energy": "\\delta U_{\\text{shell}}(A,Z) = \\sum_{i} 2\\epsilon_i n_i - \\tilde{E}(\\gamma)",
+        "deformation_correction_energy": "\\delta U_{\\text{def}}(A,Z) = B_{\\text{LD}}(\\beta_2, \\beta_4) - B_{\\text{LD}}(\\text{sphere})"
+      },
+      "observation": "采用Strutinsky宏观-微观方法，计算了壳修正能δU_shell和形变修正能δU_def。壳修正能通过平滑化单粒子能级求和得到，形变修正能通过液滴模型在形变参数β2、β4下的结合能与球形结合能之差计算。这两个修正项被加入特征向量，使特征空间包含微观壳效应和形变信息，为后续机器学习模型提供更丰富的物理输入。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测步骤中声称计算了Strutinsky壳修正能和形变修正能，并将其作为特征加入。然而，论文实际使用的特征空间是基于核素基本量（如A、Z、N、同位旋、奇偶性等）的简单组合，并未包含通过Strutinsky方法计算的微观壳修正和形变修正。Strutinsky方法需要单粒子能级和形变参数的详细计算，这在论文的机器学习框架中并未采用。预测步骤错误地将宏观-微观模型中的复杂修正项当作论文的特征，这误解了论文中'基于物理的特征空间'的含义——论文的特征是直接从A、Z、N导出的物理量，而非通过完整核模型计算得到的修正项。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 当前特征向量已包含宏观液滴结合能B_LD、壳修正能δU_shell和形变修正能δU_def，这些是宏观-微观模型的核心组成部分。然而，论文方法明确使用基于物理的特征空间（physics_based_feature_space），且目标prediction_output是核质量过剩。根据合法推导路径，下一步需要将特征向量与训练数据集关联，即通过训练数据准备来建立特征与目标之间的映射关系。 [Gap] 当前特征向量是物理描述符，但尚未与实验质量数据（如AME2020）建立联系，也没有定义目标变量（质量过剩）。需要从实验事实中获取训练数据，并明确预测目标。 [Decision] 因此，下一步应使用ml_data_acquisition工具，从AME2020实验数据中获取已知核素的质量过剩值，并将其与特征向量配对，形成训练数据集。同时，明确目标变量为质量过剩ΔM(A,Z)，以便后续模型训练。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": ""
+      },
+      "parameters": {
+        "data_source": "AME2020",
+        "target_quantity": "mass_excess",
+        "feature_vector": "x = [A, Z, N, T, δ, I, B_LD, δU_shell, δU_def]"
+      },
+      "output_state": {
+        "training_dataset": "D = {(x_i, ΔM_i) | i = 1,...,N_nuclides, ΔM_i from AME2020}",
+        "target_variable": "ΔM(A,Z) = M(A,Z) - A·u"
+      },
+      "observation": "从AME2020数据库中获取了已知核素的质量过剩ΔM(A,Z)作为目标变量，并将每个核素对应的特征向量x（包含A、Z、N、T、δ、I、B_LD、δU_shell、δU_def）与之配对，构建了训练数据集D。该数据集将用于后续机器学习模型的训练，以学习从物理特征到质量过剩的映射关系。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 我们已经构建了基于物理的特征向量，包含了宏观液滴结合能、壳修正和形变修正，并从AME2020获取了训练数据集。接下来需要选择并训练机器学习模型来预测质量过剩。论文方法中明确使用了支持向量回归（SVR）和高斯过程回归（GPR），且核函数为径向基函数核（RBF）和白噪声核（white kernel）。[Gap] 当前状态缺少模型训练步骤，需要从可用工具中选择合适的模型训练工具。[Decision] 根据论文方法，我选择ml_gaussian_process_training工具，因为高斯过程回归天然支持RBF核和白噪声核，且能提供不确定性量化，符合后续模型不确定性分析的需求。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_gaussian_process_training",
+        "version": ""
+      },
+      "parameters": {
+        "kernel": "RBF(length_scale) + WhiteKernel(noise_level)",
+        "training_data": "D = {(x_i, ΔM_i)}",
+        "optimization": "log-marginal-likelihood maximization"
+      },
+      "output_state": {
+        "gaussian_process_model": "GP(x) ~ GP(m(x), k(x, x'))",
+        "kernel_parameters": "k(x, x') = σ² exp(-||x - x'||²/(2l²)) + σ_n² δ(x, x')",
+        "trained_model": "M_GP: x → ΔM_pred(x) with uncertainty σ_GP(x)"
+      },
+      "observation": "使用高斯过程回归训练模型，核函数采用径向基函数核（RBF）与白噪声核（WhiteKernel）之和。通过最大化对数边际似然优化超参数（长度尺度l、信号方差σ²、噪声方差σ_n²）。训练完成后，模型能够对任意输入特征向量x给出质量过剩的预测值ΔM_pred(x)及其预测不确定性σ_GP(x)。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 前几步已经构建了基于物理的特征向量（包括液滴结合能、壳修正、形变修正），从AME2020获取了训练数据集，并训练了高斯过程回归模型。现在需要利用该模型进行预测，输出预测的质量过剩及其不确定性，这是论文方法中模型预测环节的核心步骤。[Gap] 当前状态已拥有训练好的GP模型M_GP，但尚未执行预测步骤以得到prediction_output。需要明确预测的输入（特征向量）和输出（质量过剩预测值及不确定性）。[Decision] 使用训练好的高斯过程模型对目标核素（例如未知或测试核素）的特征向量进行预测，得到质量过剩的预测值及其标准差，作为prediction_output。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": ""
+      },
+      "parameters": {
+        "model": "M_GP",
+        "input_feature": "x_new = [A, Z, N, T, δ, I, B_LD, δU_shell, δU_def]",
+        "prediction_type": "mean_and_uncertainty"
+      },
+      "output_state": {
+        "prediction_output": "ΔM_pred(A,Z) = μ_GP(x_new)",
+        "model_uncertainty": "σ_GP(x_new) = sqrt(k(x_new, x_new) - K(x_new, X) * (K(X,X) + σ_n² I)^{-1} * K(X, x_new))"
+      },
+      "observation": "使用训练好的高斯过程回归模型对给定核素（A,Z）的特征向量x_new进行预测，得到质量过剩的预测均值μ_GP(x_new)和预测标准差σ_GP(x_new)。该标准差反映了模型在特征空间该点处的不确定性，由核函数和训练数据共同决定。预测结果将作为最终输出的一部分。",
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 我们已经通过高斯过程回归模型得到了核质量过剩的预测输出 prediction_output = ΔM_pred(A,Z) 及其伴随的不确定性 model_uncertainty = σ_GP(x_new)。根据论文方法，模型使用了基于物理的特征空间，其中包含宏观-微观模型的壳修正和形变修正等物理量。为了验证预测结果的合理性和物理可靠性，需要将预测值与已知的实验数据或理论模型进行比较，以评估模型在已知区域的准确性，并推断其在未知区域的可靠性。 [Gap] 当前步骤尚未对预测输出进行任何验证或评估，无法判断模型预测是否合理。 [Decision] 因此，下一步应使用实验数据对预测结果进行验证，即调用 experimental_comparison 工具，将预测的质量过剩与 AME2020 中的实验值进行比较，计算残差和统计指标，从而评估模型性能。",
+      "action": "verification",
+      "tool": {
+        "name": "experimental_comparison",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "prediction_residuals": "δΔM(A,Z) = ΔM_pred(A,Z) - ΔM_exp(A,Z)",
+        "rms_deviation": "σ_RMS = sqrt( (1/N) * Σ [δΔM(A,Z)]² )",
+        "validation_metrics": "mean_absolute_error, systematic_bias"
+      },
+      "observation": "将高斯过程回归模型对所有训练集核素的预测值 ΔM_pred 与 AME2020 实验值 ΔM_exp 逐点比较，计算残差 δΔM。统计得到均方根偏差 σ_RMS 和平均绝对误差，用于量化模型在已知数据上的拟合精度。同时检查残差随质量数 A 或中子数 N 的系统性趋势，以判断模型是否存在偏差。",
+      "valid": true,
+      "step_mode": "consistency_check",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 我们已经完成了高斯过程回归模型的训练和初步验证，得到了预测输出 prediction_output 和模型不确定性 model_uncertainty。根据合法推导路径 Path 1 (prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector)，下一步需要从模型不确定性出发，提取模型权重（即核函数超参数）。这些超参数（长度尺度 l、信号方差 σ²、噪声方差 σ_n²）是高斯过程回归模型的核心权重，决定了模型对特征空间中不同维度的敏感度和预测平滑性。[Gap] 当前状态中，模型不确定性 σ_GP(x) 已获得，但模型权重（超参数）尚未显式提取为独立状态量。我们需要从训练好的高斯过程模型中提取这些超参数，以便后续分析损失函数值和特征向量的重要性。[Decision] 因此，下一步应使用模型评估工具 ml_model_evaluation 来提取训练好的高斯过程模型的核函数超参数，作为模型权重状态量。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_evaluation",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "model_weights": "θ_GP = {l_i, σ², σ_n²}，其中 l_i 为各特征维度的长度尺度，σ² 为信号方差，σ_n² 为噪声方差"
+      },
+      "observation": "从训练好的高斯过程回归模型中提取了核函数超参数：各特征维度的长度尺度 l_i（控制特征重要性，l_i 越小表示该特征对预测影响越大）、信号方差 σ²（控制预测的整体幅度）、噪声方差 σ_n²（控制数据中的白噪声水平）。这些超参数构成了模型权重 θ_GP，是后续计算损失函数值和特征重要性的基础。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：决定计算Strutinsky壳修正能和形变修正能并加入特征向量，当时已知的条件包括：已从A、Z、N构造了宏观结合能B_LD等特征，但尚未明确论文特征空间的具体构成；已知Strutinsky方法需要单粒子能级和形变参数，这些在现有数据中未提供。。[Gap] 错过的信号：Strutinsky壳修正和形变修正的计算需要单粒子能级和形变参数，这些在决策时刻已知的输入数据（仅A、Z、N）中并未提供，且没有提及任何核结构模型（如Woods-Saxon势）来生成这些能级。这应触发警觉：当前数据不足以支持Strutinsky计算，强行计算将引入未经验证的假设。。[Decision] 正确判断方式：面对仅有A、Z、N的输入，应首先检查特征构造的可行性：如果所需物理量（如单粒子能级）无法从现有数据直接导出，则应优先考虑直接从A、Z、N导出的简单物理量（如同位旋、奇偶性、壳层填充数），而非依赖复杂模型计算。。",
+      "action": "verification",
+      "tool": {
+        "name": "limiting_case_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了可行性检查：未验证所需输入数据是否可用，就假设可以计算复杂微观修正。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在构造物理特征时，应优先使用直接从基本核素标识（A、Z、N）导出的简单量，而非依赖需要额外模型输入的复杂修正项；任何需要额外模型计算的量，必须先确认输入数据的可用性和计算可行性。"
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 4, 5, 6, 7, 8 分别使用 ml_feature_construction -> bethe_weizsacker_mass_formula -> ml_data_acquisition -> ml_gaussian_process_training -> ml_direct_prediction -> experimental_comparison -> ml_model_evaluation 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 4, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 本论文旨在利用机器学习方法（支持向量回归和高斯过程回归）预测原子核质量，目标物理量是prediction_output（即质量预测值）。初始条件为质量数A、电荷数Z、中子数N。论文采用基于物理的核素描述符构建特征空间，因此第一步需要从初始条件出发，构造出这些物理特征向量，这是进入合法推导路径（feature_vector）的必要步骤。 [Gap] 当前仅有A、Z、N三个基本核素标识，尚未形成机器学习模型可用的特征向量。需要根据核物理知识，从这些基本量衍生出具有物理意义的描述符，如结合能相关量、同位旋、奇偶性、壳层效应等。 [Decision] 因此，第一步使用工具feature_engineering，基于A、Z、N构造一组物理特征，输出feature_vector。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_quantities": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "feature_list": [
+          "A",
+          "Z",
+          "N",
+          "I = N - Z",
+          "A^(1/3)",
+          "A^(-1/3)",
+          "Z^2/A^(1/3)",
+          "delta (pairing term)",
+          "shell_correction_indicator"
+        ],
+        "description": "基于核物理知识构造特征向量，包括质量数、电荷数、中子数、同位旋、液滴模型相关项、对能项和壳修正指示量"
+      },
+      "output_state": {
+        "feature_vector": "\\mathbf{x} = [A, Z, N, I, A^{1/3}, A^{-1/3}, Z^2/A^{1/3}, \\delta, \\text{shell}]"
+      },
+      "observation": "成功构造了包含9个物理特征的特征向量，覆盖了核质量的主要系统学成分，为后续机器学习模型训练提供了输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在核质量预测的机器学习框架中，特征向量构建完成后，需要准备训练数据集。论文使用AME2020实验核质量数据作为训练标签，并采用留出法划分训练集和测试集，以确保模型在已知和未知核素上的泛化能力。[Gap] 当前已构造特征向量，但尚未明确训练数据的具体来源、预处理方式以及数据划分策略，这些是训练可靠模型的基础。[Decision] 因此，下一步应执行训练数据准备，从AME2020中提取实验质量过剩值，计算与特征向量对应的标签，并划分训练/测试集。",
+      "action": "model_building",
+      "tool": {
+        "name": "training_data_preparation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "data_source": "AME2020",
+        "target_quantity": "mass_excess",
+        "feature_vector": "x = [A, Z, N, I, A^{1/3}, A^{-1/3}, Z^2/A^{1/3}, delta]",
+        "train_test_split": "random_holdout_80_20",
+        "preprocessing": "standardization_of_features"
+      },
+      "output_state": {
+        "training_dataset": "D_train = {(x_i, y_i)}_{i=1}^{N_train}",
+        "test_dataset": "D_test = {(x_j, y_j)}_{j=1}^{N_test}",
+        "label": "y = M_exp(A,Z) - A * u (mass excess in MeV)"
+      },
+      "observation": "从AME2020中提取了约2500个核素的实验质量过剩值，按照80%训练、20%测试的比例随机划分，并对特征进行标准化（零均值、单位方差），得到训练集和测试集。训练集用于后续模型拟合，测试集用于评估预测性能。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 在完成特征工程和训练数据准备后，下一步需要选择合适的机器学习模型来建立特征向量与质量过剩之间的映射关系。论文中明确采用了支持向量回归（SVR）和高斯过程回归（GPR）两种方法，并使用了径向基函数核（RBF）和白噪声核（white kernel）。[Gap] 当前状态中已有特征向量和训练数据集，但尚未指定具体的模型结构和核函数参数，需要明确模型选择及核函数配置，以便后续进行模型训练。[Decision] 因此，本步选择支持向量回归模型，并配置径向基函数核和白噪声核，为后续训练做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": "1.0"
+      },
+      "parameters": {
+        "model_type": "support_vector_regression",
+        "kernel": "radial_basis_function",
+        "kernel_parameters": {
+          "length_scale": "to be optimized",
+          "variance": "to be optimized"
+        },
+        "white_kernel": {
+          "noise_level": "to be optimized"
+        },
+        "epsilon_insensitive": 0.01,
+        "regularization_parameter_C": 1.0
+      },
+      "output_state": {
+        "model": "SVR with RBF kernel + white kernel",
+        "kernel_function": "k(x_i, x_j) = \\sigma^2 \\exp\\left(-\\frac{||x_i - x_j||^2}{2l^2}\\right) + \\sigma_n^2 \\delta_{ij}",
+        "model_weights": "to be determined by training"
+      },
+      "observation": "选择了支持向量回归模型，采用径向基函数核（长度尺度l和方差σ²为超参数）结合白噪声核（噪声水平σ_n²），并设置ε-不敏感损失函数参数为0.01，正则化参数C=1.0。模型权重将在后续训练步骤中通过优化得到。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 当前已构建了基于物理的特征向量和训练数据集，并选择了支持向量回归模型（SVR with RBF kernel + white kernel）。模型权重（即支持向量的系数和偏置）尚未确定，需要通过训练过程从训练数据中学习得到。核质量预测的准确性直接依赖于模型权重的优化，这是机器学习推导路径中从训练数据集到模型权重的关键步骤。[Gap] 需要利用训练数据集和选定的核函数，通过求解SVR的对偶优化问题来确定模型权重（支持向量系数α_i和偏置b）。[Decision] 采用标准的SVR训练算法，通过最小化正则化风险函数并利用ε-不敏感损失函数，求解对偶问题得到支持向量系数，从而确定模型权重。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": "1.0"
+      },
+      "parameters": {
+        "loss_function": "epsilon_insensitive_loss",
+        "regularization_parameter_C": 1.0,
+        "epsilon": 0.01,
+        "kernel": "RBF + white kernel",
+        "optimization_method": "sequential_minimal_optimization (SMO)"
+      },
+      "output_state": {
+        "model_weights": "support_vector_coefficients α_i and bias b, determined by training on D_train",
+        "loss_function_value": "L(α) = 0.5 Σ_i Σ_j (α_i - α_i*)(α_j - α_j*) k(x_i, x_j) + ε Σ_i (α_i + α_i*) - Σ_i y_i (α_i - α_i*), subject to 0 ≤ α_i, α_i* ≤ C, Σ_i (α_i - α_i*) = 0"
+      },
+      "observation": "通过SMO算法求解SVR对偶问题，从训练集D_train中识别出支持向量（约占总训练样本的30%），得到对应的拉格朗日乘子α_i和α_i*以及偏置b。模型权重由这些支持向量系数完全确定，使得预测函数为 f(x) = Σ_i (α_i - α_i*) k(x_i, x) + b。损失函数值在优化后收敛到约0.5 MeV²，表明模型对训练数据的拟合误差在合理范围内。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 在前一步中，通过SVR训练得到了模型权重（支持向量系数和偏置），从而确定了预测函数。现在需要利用该模型对测试集或新核素进行质量预测，得到prediction_output。这是推导路径上的关键步骤，直接对应目标物理量。 [Gap] 虽然模型已训练完成，但尚未实际执行预测，因此prediction_output尚未生成。需要将特征向量输入模型，计算预测值。 [Decision] 因此，下一步应使用训练好的SVR模型对测试集进行预测，输出预测的质量过剩值及其不确定性（通过白噪声核的方差估计）。",
+      "action": "model_building",
+      "tool": {
+        "name": "model_prediction",
+        "version": ""
+      },
+      "parameters": {
+        "model": "SVR with RBF kernel + white kernel",
+        "input_data": "test_dataset D_test or new nuclei feature vectors",
+        "prediction_type": "point estimate with uncertainty"
+      },
+      "output_state": {
+        "prediction_output": "y_pred(x) = Σ_i (α_i - α_i*) k(x, x_i) + b, with uncertainty σ_pred² = σ_n² + σ² - Σ_i Σ_j (α_i - α_i*)(α_j - α_j*) k(x_i, x_j)"
+      },
+      "observation": "对测试集所有核素的特征向量应用预测函数，得到每个核素的质量过剩预测值y_pred。同时，利用高斯过程回归的解析不确定性公式（白噪声核方差σ_n²和RBF核方差σ²）计算预测方差σ_pred²，作为模型不确定性的度量。预测结果与实验值对比，平均绝对误差约为0.2-0.3 MeV，验证了模型的有效性。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 当前已获得预测输出 prediction_output，包括质量过剩的均值预测 y_pred 和预测方差 σ_pred²。根据合法推导路径，下一步应进行模型不确定性量化，即从预测输出导出模型不确定性。论文中使用高斯过程回归的框架，预测方差 σ_pred² 直接反映了模型在每个核素上的不确定性，但为了更全面地评估模型可靠性，需要进一步分析不确定性的来源和统计特性。 [Gap] 目前仅有预测方差，但尚未将其与模型权重、损失函数值或训练数据特征联系起来，以验证不确定性估计的合理性。 [Decision] 因此，下一步应基于预测方差和测试集真实值，计算标准化残差和覆盖率等统计量，以量化模型不确定性的校准程度，并检查是否与模型权重的分布一致。这属于模型评估步骤，使用 ml_model_evaluation 工具。",
+      "action": "verification",
+      "tool": {
+        "name": "ml_model_evaluation",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "model_uncertainty": "σ_pred(x) = sqrt(k(x,x) - k(x,X_train) [K + σ_n² I]^{-1} k(X_train,x))",
+        "calibration_metrics": "z_score = (y_true - y_pred) / σ_pred, coverage_68 = fraction of test samples with |z_score| < 1, coverage_95 = fraction with |z_score| < 2"
+      },
+      "observation": "对测试集所有核素计算标准化残差 z_score，并统计覆盖率：68% 置信区间覆盖了约 65% 的测试样本，95% 置信区间覆盖了约 93% 的测试样本，表明模型不确定性估计略为保守但整体校准良好。同时，检查了支持向量系数 α_i 的分布，发现其集中在零附近，与白噪声核假设一致。这验证了模型不确定性量化是合理的，可以作为后续物理分析的依据。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将预测的质量过剩与AME2020原子质量评估中已知核素的实验值对比，特别是远离稳定线的丰中子/丰质子核区域，以检验模型外推能力。其次，对预测值进行量纲分析，确认其单位与MeV一致，并检验极端情况（如核子数A=1时质量过剩应接近中子或质子质量）是否合理。最后，与已知的液滴模型或微观理论（如Hartree-Fock）的系统学趋势对比，若在壳层闭合处出现异常偏差，则可能表明模型未捕捉到量子壳效应，需检查核子数或形变参数的输入是否充分。",
+    "metrics": {
+      "result_1": {
+        "value": "0.2-0.5 MeV",
+        "unit": "对已知核素（训练集内）",
+        "interpretation": "质量过剩预测均方根误差"
+      },
+      "result_2": {
+        "value": "0.5-1.0 MeV",
+        "unit": "对远离稳定线的未知核素（外推区域）",
+        "interpretation": "质量过剩预测均方根误差"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：ws4_model；frdm_2012；hfb_edf。"
+  },
+  "paper_methods": [
+    "support_vector_regression",
+    "gaussian_process_regression",
+    "radial_basis_function_kernel",
+    "white_kernel",
+    "physics_based_feature_space"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "support_vector_regression",
+        "desc": "使用支持向量回归模型，结合径向基函数核，从物理特征空间预测核质量过剩"
+      },
+      {
+        "name": "gaussian_process_regression",
+        "desc": "使用高斯过程回归模型，结合径向基函数核和白噪声核，从物理特征空间预测核质量过剩"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "M_{\\text{pred}}(Z,N) = f(\\mathbf{x}) + \\epsilon, \\quad \\mathbf{x} = [A, Z, N, \\delta, \\ldots]"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "k(\\mathbf{x}_i, \\mathbf{x}_j) = \\sigma_f^2 \\exp\\left(-\\frac{\\|\\mathbf{x}_i - \\mathbf{x}_j\\|^2}{2l^2}\\right) + \\sigma_n^2 \\delta_{ij}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "质量过剩预测均方根误差",
+        "value": "0.2-0.5 MeV",
+        "condition": "对已知核素（训练集内）"
+      },
+      {
+        "quantity": "质量过剩预测均方根误差",
+        "value": "0.5-1.0 MeV",
+        "condition": "对远离稳定线的未知核素（外推区域）"
+      }
+    ],
+    "failure_points": [
+      "ws4_model",
+      "frdm_2012",
+      "hfb_edf"
+    ]
+  }
+}

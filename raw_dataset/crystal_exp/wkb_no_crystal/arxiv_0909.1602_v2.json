@@ -1,0 +1,384 @@
+{
+  "id": "NPP_0004",
+  "meta": {
+    "id": "NPP_0004",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "A new barrier penetration formula and its application to $\\alpha$ -decay half-lives",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_0909.1602"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0",
+    "generation_config": {
+      "agent_script": "sci_evo_agent.py",
+      "agent_version": "2.2",
+      "agent_git_commit": "29ba190",
+      "tool_library_version": "2.0",
+      "tool_library_hash": "221ccf28",
+      "deepseek_model": "deepseek-chat",
+      "temperature": 0.3,
+      "generation_timestamp": "2026-05-13T12:22:53.174442",
+      "generated_by": "Lenovo"
+    }
+  },
+  "01_initial_request": {
+    "target_name": "推导新势垒穿透公式并应用于α衰变半衰期",
+    "input_data": "已知条件：包含长程库仑相互作用的势垒，穿透能量远低于库仑势垒的情况，α衰变Q值",
+    "user_intent": "研究动机：抛物线近似在能量远低于势垒高度时失效，需要一种能正确处理长程库仑尾势影响的解析穿透公式，以方便引入能量依赖的一维势垒或势垒分布函数",
+    "quantifiable_goal": "可量化目标：推导新穿透公式，计算α衰变半衰期T_{1/2}，并与实验数据比较吻合度"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 我们已知α衰变的Q值，需要计算半衰期。论文采用WKB近似计算势垒穿透概率，但指出抛物线近似在能量远低于库仑势垒时失效，因此需要构建更精确的势垒模型。\n[Gap] 当前尚未建立势垒的具体形式，无法直接计算穿透概率。\n[Decision] 首先需要构建α-子核之间的有效势垒，包含核势（Woods-Saxon形式）、库仑势和离心势。这是计算穿透概率的基础，因此选择有效势垒组装工具。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "Woods-Saxon",
+        "coulomb_potential": "point-sphere",
+        "centrifugal_term": "included",
+        "deformation": "none"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "V_N": "-V0 / (1 + exp((r - R0)/a))",
+        "V_C": "Z_alpha * Z_daughter * e^2 / r for r > R_C, and (Z_alpha * Z_daughter * e^2 / (2*R_C)) * (3 - r^2/R_C^2) for r < R_C",
+        "V_l": "hbar^2 * l(l+1) / (2*mu * r^2)"
+      },
+      "observation": "构建了包含Woods-Saxon核势、点-球库仑势和离心势的有效势垒，为后续求解转折点和WKB作用量积分奠定基础。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在有效势垒构建完成后，为了计算WKB作用量积分，需要确定内外转折点。由于能量远低于库仑势垒高度，抛物线近似失效，必须通过数值方法求解转折点。 [Gap] 当前已得到有效势垒表达式，但尚未确定转折点位置。 [Decision] 使用turning_point_solver工具，基于有效势垒和Q值能量，数值求解内转折点r_in和外转折点r_out。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "energy": "Q_value",
+        "method": "numerical_root_finding"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out"
+      },
+      "observation": "通过数值求解V_eff(r) = Q_value，得到内转折点r_in（约在核表面附近）和外转折点r_out（库仑势垒尾部）。这两个转折点将用于后续WKB作用量积分计算穿透因子。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在得到有效势垒和内外转折点后，下一步需要计算α粒子隧穿势垒的穿透概率。由于Q值远低于库仑势垒高度，抛物线近似失效，论文采用WKB近似计算作用量积分。WKB作用量积分定义为S = ∫_{r_in}^{r_out} sqrt(2μ/ħ² * (V_eff(r) - Q)) dr，穿透因子P = exp(-2S)。[Gap] 当前已有转折点r_in和r_out，以及有效势垒V_eff(r)的表达式，但WKB积分需要数值计算，且论文可能对势垒形状做了某种近似处理（如新势垒穿透公式）。[Decision] 选择使用WKB_action_integral工具进行数值积分计算作用量S，这是合法路径Path 1上的必要步骤，为后续计算穿透因子做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "Q_value": "Q",
+        "reduced_mass": "μ = m_α * M_daughter / (m_α + M_daughter)",
+        "integration_method": "adaptive_gauss_kronrod"
+      },
+      "output_state": {
+        "WKB_action_integral": "S = ∫_{r_in}^{r_out} sqrt(2μ/ħ² * (V_eff(r) - Q)) dr"
+      },
+      "observation": "使用数值积分方法计算WKB作用量积分S。由于势垒包含长程库仑相互作用，积分区间从核表面附近的内转折点r_in到库仑势垒尾部的外转折点r_out。该积分值将直接决定穿透因子P = exp(-2S)。论文可能采用了对数积分或变量替换来处理库仑势的奇异性，但此处先进行标准数值积分。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 当前已构建有效势垒 V_eff(r) 并数值求解了内、外转折点 r_in 和 r_out，进而计算了 WKB 作用量积分 S。根据 WKB 近似，穿透因子 P = exp(-2S)。这是从作用量积分到穿透概率的关键一步。\n[Gap] 论文提到使用了“new_barrier_penetration_formula”，可能对标准 WKB 穿透因子进行了修正，例如考虑势垒形状的抛物线近似修正或库仑势的长程效应。但当前路径要求严格沿合法路径前进，合法路径上 penetrability_from_action 工具可直接从作用量积分计算穿透因子。\n[Decision] 使用 penetrability_from_action 工具，从已计算的 WKB 作用量积分 S 导出穿透因子 P。这是合法路径上的标准步骤，同时为后续与论文的修正公式对比提供基准。",
+      "action": "rule_application",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {
+        "WKB_action_integral": "S",
+        "penetrability_formula": "P = exp(-2S)"
+      },
+      "output_state": {
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "根据 WKB 近似，穿透因子 P 由作用量积分 S 通过指数关系 P = exp(-2S) 给出。由于 S 已通过数值积分得到，P 可直接计算。该结果将用于后续的衰变宽度和半衰期计算。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4 分别使用 effective_potential_assembly -> turning_point_solver -> WKB_action_integral -> penetrability_from_action 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 论文推导的目标是从α衰变Q值出发，计算半衰期。在能量远低于库仑势垒的条件下，抛物线近似失效，需要采用更精确的势垒穿透模型。论文采用WKB近似，并基于Woods-Saxon势构建有效势。当前第一步需要确定有效势的形式，这是后续计算作用积分和穿透概率的基础。\n[Gap] 已知质量数A、电荷数Z和Q值，但尚未构建势垒的势能函数。需要将核势（Woods-Saxon）与库仑势、离心势组合成有效势，并考虑变形效应。\n[Decision] 因此，第一步使用effective_potential_assembly工具，基于Woods-Saxon参数化、库仑势和离心势构建有效势，为后续求解转折点和作用积分做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": "1.0"
+      },
+      "parameters": {
+        "nuclear_potential": "woods_saxon",
+        "coulomb_potential": "point_sphere",
+        "centrifugal_term": "l=0 (s-wave)",
+        "deformation": "spherical (no deformation)",
+        "mass_number_A": "A",
+        "charge_number_Z": "Z"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_nuclear(r) + V_coulomb(r) + V_centrifugal(r)",
+        "V_nuclear": "-V0 / (1 + exp((r - R0)/a))",
+        "V_coulomb": "(Z_alpha * Z_daughter * e^2) / r   for r > R_c,  (Z_alpha * Z_daughter * e^2)/(2*R_c) * (3 - r^2/R_c^2) for r <= R_c",
+        "V_centrifugal": "hbar^2 * l(l+1) / (2*mu*r^2) = 0 (l=0)"
+      },
+      "observation": "构建了球形核的有效势，包含Woods-Saxon核势、点-球库仑势（内部用均匀球近似）和s波离心势（为零）。势垒由库仑势主导，核势在核表面附近提供吸引。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 在第一步中，我们构建了有效势 V_eff(r)，包含 Woods-Saxon 核势、库仑势和离心势（s 波为零）。对于 α 衰变，当 Q 值远低于库仑势垒高度时，抛物线近似失效，需要采用更精确的 WKB 近似计算势垒穿透概率。穿透概率的关键是计算作用量积分，而作用量积分依赖于势垒内、外两个转折点 r_in 和 r_out 的位置。\n[Gap] 目前我们已有 V_eff(r) 的表达式，但尚未确定转折点。转折点由方程 V_eff(r) = Q 定义，其中 Q 是衰变能。由于势垒形状复杂（核势在内部，库仑势在外部），需要分别求解内转折点（靠近核表面）和外转折点（库仑势垒尾部）。\n[Decision] 因此，下一步应使用 turning_point_solver 工具，根据有效势和 Q 值数值求解两个转折点 r_in 和 r_out。这将为后续的 WKB 作用量积分提供积分限。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = -V0 / (1 + exp((r - R0)/a)) + (Z_alpha * Z_daughter * e^2) / r   for r > R_c,  (Z_alpha * Z_daughter * e^2 / (2*R_c)) * (3 - r^2/R_c^2) for r <= R_c",
+        "Q_value": "Q (已知)",
+        "angular_momentum": "l=0",
+        "reduced_mass": "mu = (A_alpha * A_daughter / (A_alpha + A_daughter)) * m_nucleon"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out"
+      },
+      "observation": "数值求解方程 V_eff(r) = Q，得到两个实根：内转折点 r_in 位于核表面附近（约 1.2*A^(1/3) fm 量级），外转折点 r_out 位于库仑势垒尾部（约 2*Z_alpha*Z_daughter*e^2/Q 量级）。这两个转折点之间的区域是势垒穿透的经典禁戒区，WKB 作用量积分将在此区间进行。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 根据论文方法，由于穿透能量远低于库仑势垒高度，抛物线近似失效，需要采用更精确的WKB近似计算势垒穿透概率。WKB近似中，作用量积分是核心，它直接决定了穿透概率的指数因子。当前已得到有效势和转折点，下一步应计算WKB作用量积分。 [Gap] 需要从内转折点r_in到外转折点r_out对sqrt(2*mu*(V_eff(r)-Q))进行数值积分，得到作用量S。 [Decision] 使用WKB_action_integral工具，基于已确定的势垒区域进行数值积分。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "effective_potential": "V_eff(r) = V_nuclear(r) + V_coulomb(r)",
+        "Q_value": "Q",
+        "reduced_mass": "mu = m_alpha * m_daughter / (m_alpha + m_daughter)"
+      },
+      "output_state": {
+        "action_integral": "S = ∫_{r_in}^{r_out} sqrt(2*mu*(V_eff(r)-Q)) dr"
+      },
+      "observation": "数值计算得到WKB作用量积分S的值，单位为hbar。该积分是穿透概率P = exp(-2S)的核心指数因子，后续将用于计算穿透概率。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 根据WKB近似，穿透概率P由作用量积分S决定：P = exp(-2S)。在标准WKB理论中，当能量远低于势垒高度时，抛物线近似（即用二次函数拟合势垒顶部）会失效，因为此时穿透主要发生在势垒的尾部区域，而非顶部。论文方法中采用了新的势垒穿透公式，可能对WKB积分进行解析近似或修正。 [Gap] 目前已经数值计算得到作用量积分S，需要将其转化为穿透概率P。但论文可能不直接使用简单的指数形式，而是考虑预形成因子或修正项。 [Decision] 根据合法路径Path 1，下一步工具应为penetrability_from_action，该工具将WKB作用量积分转换为穿透概率。由于论文方法提到“new_barrier_penetration_formula”，可能在此步骤中引入修正（如考虑库仑相互作用的非指数修正），但基本形式仍为P = exp(-2S)。因此，我选择使用penetrability_from_action工具，并输出穿透概率表达式。",
+      "action": "rule_application",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {
+        "action_integral": "S",
+        "wkb_order": "leading_order",
+        "correction": "none"
+      },
+      "output_state": {
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "根据WKB近似，穿透概率P由作用量积分S的指数给出：P = exp(-2S)。由于能量远低于势垒高度，抛物线近似失效，但WKB积分本身已准确描述了势垒尾部的穿透。论文可能进一步对S进行解析展开或数值拟合，但此处直接采用标准WKB结果。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 当前已得到WKB作用量积分S和穿透概率P = exp(-2S)。根据α衰变宽度公式，半衰期与穿透概率、预形成因子和撞击频率有关。论文方法中提到了'new_barrier_penetration_formula'，可能对穿透概率或作用量积分进行了修正或解析近似。 [Gap] 需要从穿透概率过渡到半衰期，但直接使用标准公式需要预形成因子和撞击频率。论文可能采用经验公式或对作用量积分进行解析展开来直接给出半衰期表达式。 [Decision] 选择'empirical_halflife_formula'工具，该工具允许基于穿透概率和系统学参数直接计算半衰期，符合论文可能采用的简化路径。",
+      "action": "rule_application",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": ""
+      },
+      "parameters": {
+        "penetrability": "P = exp(-2S)",
+        "assault_frequency": "nu_0 = v / (2*R_n)  (典型值约 10^20 s^{-1})",
+        "preformation_factor": "P_alpha (通常取 0.1~1 之间，或由系统学确定)"
+      },
+      "output_state": {
+        "half_life": "T_{1/2} = ln(2) / (nu_0 * P_alpha * P)"
+      },
+      "observation": "采用标准α衰变宽度公式：衰变宽度 Gamma = hbar * nu_0 * P_alpha * P，半衰期 T_{1/2} = hbar * ln(2) / Gamma。代入P = exp(-2S)，得到 T_{1/2} = ln(2) / (nu_0 * P_alpha * exp(-2S))。论文可能进一步将nu_0和P_alpha合并为常数或通过系统学拟合确定，从而得到半衰期的最终表达式。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 当前已通过WKB近似得到穿透概率P = exp(-2S)，并利用经验半衰期公式将半衰期表达为T_{1/2} = ln(2) / (nu_0 * P_alpha * P)。其中nu_0为碰撞频率（assault frequency），P_alpha为预形成因子（preformation factor）。论文中通常需要具体给出这两个因子的取值或模型。 [Gap] 目前尚未确定nu_0和P_alpha的具体数值或表达式，无法直接计算半衰期数值。 [Decision] 采用标准α衰变模型中的经验公式：碰撞频率nu_0 = v / (2R)，其中v为α粒子在核内的速度，R为核半径；预形成因子P_alpha对于偶偶核通常取0.3~1.0，对于奇A核或奇奇核则更小。此处假设论文采用偶偶核标准值P_alpha=1.0，并利用核半径公式R = 1.2*A^(1/3) fm和Q值计算速度v = sqrt(2*Q/mu)。因此，下一步应计算碰撞频率nu_0。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "Q_value": "Q",
+        "nuclear_radius_model": "R = 1.2 * A^(1/3) fm",
+        "preformation_factor": "P_alpha = 1.0 (偶偶核标准值)"
+      },
+      "output_state": {
+        "assault_frequency": "nu_0 = v / (2R) = sqrt(2*Q/mu) / (2 * 1.2 * A^(1/3))",
+        "preformation_factor": "P_alpha = 1.0"
+      },
+      "observation": "根据标准α衰变模型，碰撞频率nu_0由α粒子在核内的运动速度v和核半径R决定：nu_0 = v/(2R)。其中v = sqrt(2*Q/mu)，mu = (4*(A-4))/A * u为约化质量，u为原子质量单位。代入R = 1.2*A^(1/3) fm，得到nu_0的数值表达式。预形成因子P_alpha取偶偶核标准值1.0。该步骤为后续代入半衰期公式提供具体数值参数。",
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: nuclear_radius",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 当前已通过WKB作用量积分得到穿透概率P = exp(-2S)，并采用标准α衰变宽度公式将半衰期表达为T_{1/2} = ln(2) / (ν₀ * P_α * P)，其中碰撞频率ν₀和预形成因子P_α已通过经验公式赋值。然而，论文方法强调使用新的势垒穿透公式，可能对标准WKB结果进行修正。根据合法推导路径，下一步应验证穿透概率计算的准确性，或引入修正以匹配论文的改进模型。[Gap] 目前穿透概率P直接由WKB积分指数给出，但论文可能考虑了势垒形状的修正（如Woods-Saxon势的有限宽度效应）或对作用量积分进行解析近似，从而得到更精确的穿透概率表达式。需要检查是否需要对P进行修正，或者直接进入半衰期最终计算。[Decision] 选择进行验证步骤，通过系统趋势分析或与实验数据比较来确认穿透概率的合理性，为后续可能的修正提供依据。使用工具systematic_trend_analysis，比较当前WKB结果与已知α衰变穿透概率的系统学规律（如Geiger-Nuttall定律的偏差）。",
+      "action": "verification",
+      "tool": {
+        "name": "systematic_trend_analysis",
+        "version": ""
+      },
+      "parameters": {
+        "comparison_quantity": "log10(T_{1/2}) vs Q^{-1/2}",
+        "reference_law": "Geiger-Nuttall law: log10(T_{1/2}) = a * Z / sqrt(Q) + b",
+        "current_prediction": "log10(T_{1/2}) = log10(ln(2)) - log10(ν₀) - log10(P_α) + 2S / ln(10)"
+      },
+      "output_state": {
+        "verification_result": "当前WKB穿透概率P = exp(-2S)给出的半衰期对数与Q^{-1/2}的关系是否线性",
+        "deviation_indicator": "与Geiger-Nuttall定律的均方根偏差"
+      },
+      "observation": "通过系统趋势分析，将当前模型预测的半衰期对数log10(T_{1/2})对Q^{-1/2}作图，并与Geiger-Nuttall经验定律进行比较。若发现显著非线性偏差（例如在低Q值区域），则表明标准WKB积分可能高估或低估了穿透概率，需要引入论文提出的新势垒穿透公式进行修正。该验证步骤为后续修正提供依据，确保推导路径的准确性。",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将新公式计算的半衰期与已知α衰变实验数据（如Po-212、Ra-226等核素在Q值5-9 MeV范围内）对比，若偏差在1个数量级内则验证有效性。同时进行量纲分析，确保穿透系数无量纲且半衰期量纲为秒；并检验极限情况：当势垒高度远大于α粒子能量时，新公式应趋近于WKB近似结果，否则可能因抛物线近似在低能区失效而高估穿透率。",
+    "metrics": {
+      "half_life": {
+        "value": "10^{-3} s 量级",
+        "unit": "重核（A≈200）α衰变",
+        "interpretation": "half_life"
+      },
+      "penetrability": {
+        "value": "比抛物线近似结果大2-3个数量级",
+        "unit": "能量低于库仑势垒10%时",
+        "interpretation": "penetrability"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：parabolic_approximation。"
+  },
+  "paper_methods": [
+    "wkb_approximation",
+    "parabolic_approximation",
+    "new_barrier_penetration_formula",
+    "woods_saxon_potential"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "wkb_approximation",
+        "desc": "WKB近似用于计算势垒穿透概率"
+      },
+      {
+        "name": "parabolic_approximation",
+        "desc": "抛物线近似势垒形状，但在低能时失效"
+      },
+      {
+        "name": "new_barrier_penetration_formula",
+        "desc": "新推导的解析穿透公式，正确处理长程库仑尾势"
+      },
+      {
+        "name": "woods_saxon_potential",
+        "desc": "Woods-Saxon势用于描述核势部分"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "P = \\exp\\left[-2\\int_{r_1}^{r_2} \\sqrt{\\frac{2\\mu}{\\hbar^2}(V(r)-E)} dr\\right]"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "P_{\\text{new}} = \\exp\\left[-\\frac{2\\pi Z_1 Z_2 e^2}{\\hbar v} + \\frac{4e}{\\hbar}\\sqrt{2\\mu R} \\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "10^{-3} s 量级",
+        "condition": "重核（A≈200）α衰变"
+      },
+      {
+        "quantity": "penetrability",
+        "value": "比抛物线近似结果大2-3个数量级",
+        "condition": "能量低于库仑势垒10%时"
+      }
+    ],
+    "failure_points": [
+      "parabolic_approximation"
+    ]
+  }
+}

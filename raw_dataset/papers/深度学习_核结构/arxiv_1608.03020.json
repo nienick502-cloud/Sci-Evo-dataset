@@ -1,0 +1,412 @@
+{
+  "id": "NPP_0112",
+  "meta": {
+    "id": "NPP_0112",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear charge radii: Density functional theory meets Bayesian neural networks",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_1608.03020"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "原子核电荷半径的预测",
+    "input_data": "已知条件：实验电荷半径数据；使用基于相对论能量密度泛函（Relativistic Energy Density Functionals）的理论预测作为输入；核素范围覆盖整个核素图。",
+    "user_intent": "现有模型（如液滴模型LDM及其扩展ELD模型）对轻核或表面效应显著的核素电荷半径描述不佳，需要提高理论预测的精度和可靠性。",
+    "quantifiable_goal": "预测原子核的均方根电荷半径 R_ch（单位：fm），并提供理论误差估计。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是预测原子核的均方根电荷半径 R_ch，已知条件包括实验数据和基于相对论能量密度泛函（REDF）的理论预测作为输入。研究动机是改进液滴模型等对轻核或表面效应显著核素的描述。[Gap] 需要建立一个能够从核子数（Z, N）或核结构输入量（如密度分布）出发，高精度预测 R_ch 的理论框架。直接使用 REDF 计算每个核素的电荷半径是基础但计算量大，且可能存在系统偏差。[Decision] 首先，使用 relativistic_mean_field 方法，基于特定的有效拉氏量（如 NL3、DD-ME2 等参数组），自洽求解核子 Dirac 方程和介子场方程，计算大量核素（覆盖整个核素图）的基态性质，特别是质子密度分布。这是提供理论预测输入的关键步骤。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "relativistic_mean_field",
+        "version": ""
+      },
+      "parameters": {
+        "interaction": "Effective Lagrangian (e.g., with meson fields)",
+        "nuclei_range": "Across the nuclear chart",
+        "output_quantity": "Proton density distribution rho_p(r)"
+      },
+      "observation": "预期得到大量核素（Z, N）的自洽基态解，包括质子密度分布函数 $\\rho_p(r)$。这是后续计算电荷半径的原始输入。预期 RMF 计算本身会引入模型近似，如特定的有效相互作用形式、无配对或固定配对近似、球形对称假设（对大部分核）等。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 通过 RMF 计算获得了质子密度分布 $\\rho_p(r)$。[Gap] 需要从质子密度分布计算出理论预测的均方根电荷半径 $R_{ch, \\text{th}}$。电荷半径不仅包含质子分布，还需考虑质子的有限大小（内禀电荷分布）和相对论修正（如 Darwin-Foldy 项）。[Decision] 应用核物理中标准的电荷半径计算公式。首先计算质子分布的均方根半径 $R_p$，然后与质子的均方根电荷半径 $R_{ch,p}$（约为 0.87 fm）卷积，并可能加上已知的修正项。这一步是确定性的后处理计算。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "relativistic_mean_field",
+        "version": ""
+      },
+      "parameters": {
+        "charge_radius_formula": "R_ch^2 = R_p^2 + R_ch,p^2 + (correction terms)",
+        "proton_rms_radius": "From integrating rho_p(r)"
+      },
+      "observation": "预期得到每个核素的理论预测电荷半径值 $R_{ch, \\text{th}}(Z,N)$，其形式为 $R_{ch, \\text{th}} = \\sqrt{\\langle r^2 \\rangle_p + \\langle r^2 \\rangle_{ch,p} + C}$，其中 $\\langle r^2 \\rangle_p$ 来自 RMF 的质子密度分布，$\\langle r^2 \\rangle_{ch,p}$ 是质子的内禀均方电荷半径，$C$ 可能包含小的修正项（如中子电荷分布贡献、Darwin-Foldy 项）。这构成了理论预测的数据集。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 现在拥有两个数据集：1) 实验电荷半径数据 $R_{ch, \\text{exp}}$；2) 从 RMF 理论计算得到的预测值 $R_{ch, \\text{th}}$。[Gap] RMF 预测与实验值之间存在系统偏差和随机误差，尤其是在轻核和表面效应显著的核素区域。直接使用 RMF 预测精度不足。需要建立一个模型来学习“理论预测”与“实验真值”之间的复杂映射关系，并能够外推预测未知核素的半径。[Decision] 采用 bayesian_neural_network 来构建这个映射。输入特征可能包括核子数 (Z, N)、RMF 预测的 $R_{ch, \\text{th}}$，可能还有从 RMF 计算中提取的其他特征（如结合能、密度分布参数等）。输出是预测的电荷半径 $R_{ch, \\text{pred}}$ 及其不确定性。BNN 的权重是概率分布，可以量化模型不确定性。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "bayesian_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "[Z, N, R_ch_th, (optional) other RMF observables]",
+        "output": "Predicted charge radius R_ch_pred and its uncertainty",
+        "network_structure": "Multi-layer perceptron with probabilistic weights"
+      },
+      "observation": "预期得到一个训练好的贝叶斯神经网络模型。该模型能够将输入特征（以 RMF 理论预测为核心）映射到一个概率分布 $P(R_{ch} | \\text{input}, \\mathcal{D})$，其中 $\\mathcal{D}$ 是训练数据（实验数据）。对于给定输入，模型输出是预测电荷半径的均值（点估计）和标准差（认知不确定性）。训练过程旨在最小化预测值与实验值之间的差异，同时通过先验约束网络权重。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤错误地将贝叶斯神经网络（BNN）的输入特征描述为'以RMF理论预测为核心'。论文实际使用质子数Z和质量数A作为神经网络输入，而不是RMF理论预测值本身。BNN学习的是实验与理论残差，其输入是核素的基本标识符，而非理论计算结果。这种对模型输入物理含义的理解错误会导致对校正机制的根本误解。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已经设计了 BNN 模型架构，并定义了似然函数（如高斯似然，以模型输出均值为预测值，标准差为噪声尺度）和权重的先验分布（如高斯先验）。[Gap] 需要对 BNN 的后验分布 $P(\\mathbf{w} | \\mathcal{D})$（即给定训练数据后网络权重的分布）进行推断。这是一个高维、非凸的积分问题，解析求解不可行。[Decision] 使用 markov_chain_monte_carlo 方法，具体如哈密顿蒙特卡洛（HMC）或 No-U-Turn Sampler（NUTS），从网络权重的后验分布中采样。MCMC 将提供一组权重样本，每个样本对应一个确定的神经网络。这些样本的预测集合将给出最终的预测分布。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "markov_chain_monte_carlo",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Hamiltonian Monte Carlo / NUTS",
+        "target_distribution": "Posterior distribution of BNN weights P(w|D)",
+        "likelihood": "Gaussian (prediction vs experiment)",
+        "prior": "Gaussian prior on weights"
+      },
+      "observation": "预期通过 MCMC 采样获得一系列（例如数千个）BNN 权重向量样本 $\\{\\mathbf{w}^{(i)}\\}$。每个权重样本 $\\mathbf{w}^{(i)}$ 对应一个具体的神经网络函数 $f_{\\mathbf{w}^{(i)}}(\\text{input})$。对于新的核素输入，用所有样本网络进行前向传播，得到一组预测值 $\\{R_{ch, \\text{pred}}^{(i)}\\}$。这组预测值的均值和标准差分别作为最终的点预测和总不确定性（结合了认知不确定性和可能的偶然不确定性）。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 通过 MCMC 采样获得了 BNN 后验分布的样本，从而可以对整个核素图上的核素进行预测。[Gap] 需要评估模型的性能，并提供理论误差估计。这包括在训练集（可能通过交叉验证）和测试集（已知实验数据但未参与训练的部分）上的表现，以及对没有实验数据的核素的外推预测。[Decision] 使用采样得到的网络集合进行预测。对于每个核素（包括训练集、测试集和未知核素），计算预测分布的统计量：均值 $\\mu_{R_{ch}}$ 作为最终预测值，标准差 $\\sigma_{R_{ch}}$ 作为预测的不确定性（误差估计）。同时，可以分析预测值与实验值的残差，检查系统偏差。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "bayesian_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "prediction_mode": "Ensemble prediction using MCMC weight samples",
+        "evaluation_metrics": "Mean Absolute Error, Root Mean Square Error, coverage of uncertainty intervals"
+      },
+      "observation": "预期得到一张覆盖整个核素图的电荷半径预测图，每个核素对应一个预测值 $\\mu_{R_{ch}}(Z,N)$ 和一个不确定性 $\\sigma_{R_{ch}}(Z,N)$。对于有实验数据的核素，可以计算残差 $\\delta R = R_{ch,exp} - \\mu_{R_{ch}}$，并验证其是否在 $\\pm \\sigma_{R_{ch}}$ 范围内。预期在训练区域（有丰富实验数据的区域）不确定性较小，在外推区域（如滴线附近）不确定性会增大。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经获得了基于“RMF+BNN+MCMC”框架的电荷半径预测及其不确定性。[Gap] 需要理解模型学到了什么，以及 RMF 输入与最终预测之间的关系。此外，需要验证关键假设：BNN 是否有效修正了 RMF 的系统偏差？模型的不确定性估计是否可靠？[Decision] 进行模型验证和解释性分析。例如：1) 比较纯 RMF 预测、BNN 修正后预测与实验值的差异，量化改进程度。2) 分析对于特定核素（如轻核、幻数核），BNN 的修正量大小。3) 进行消融实验，检查输入特征中 RMF 预测 $R_{ch,th}$ 的重要性。4) 检查 MCMC 采样的收敛性（如 Gelman-Rubin 统计量）。",
+      "action": "verification",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "analysis_type": "Model interpretation and validation",
+        "comparisons": "RMF vs BNN-corrected vs Experimental",
+        "convergence_check": "MCMC diagnostics"
+      },
+      "observation": "预期通过分析得到结论：BNN 模型成功学习了 RMF 系统误差的模式，显著降低了预测的均方根误差，尤其是在液滴模型描述不佳的区域。预期 BNN 的修正项 $\\Delta R = R_{ch, pred} - R_{ch, th}$ 会显示出与核子数相关的系统性模式。MCMC 诊断应显示采样已收敛。不确定性区间应能合理覆盖实验数据（例如，约68%的数据点落在 $\\pm 1\\sigma$ 区间内）。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤错误地假设BNN模型会输出一个'修正项Δ'来修正RMF系统误差。论文中BNN直接预测电荷半径的残差（实验值-理论值），而不是学习一个与RMF预测相加的修正项。BNN的预测输出是整个残差，而非针对RMF的修正项，这种理解差异会影响对模型物理机制的正确解释。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文使用基于Walecka模型的相对论能量密度泛函来描述核子-介子相互作用，其有效拉格朗日量包含了介子场的非线性自相互作用和混合相互作用项。[Gap] 需要从该理论框架出发，计算原子核的基态性质，特别是电荷半径的理论预测值。[Decision] 论文采用相对论能量密度泛函方法，通过求解相应的运动方程（如狄拉克方程和介子场方程）来获得核的基态，进而计算电荷半径。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "relativistic_energy_density_functionals",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "理论预测的电荷半径值 R_ch^th，作为后续神经网络校正的输入。",
+      "observation_source": "inferred",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 相对论能量密度泛函的理论预测与实验数据存在残差。[Gap] 需要建立一个模型来学习和预测理论残差，以改进电荷半径的预测精度。[Decision] 论文采用一个具有单个隐藏层的前馈神经网络作为模拟器，其函数形式由 Eq.11 给出，输入为质子数 Z 和质量数 A，输出为理论预测的残差。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "feed-forward_neural_network",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "神经网络函数 f(x, \\omega) = a + \\sum_{j=1}^{H} b_j \\tanh \\left(c_j + \\sum_{i=1}^{I} d_{ji} x_i\\right)，其中 x_i 为输入特征（如 Z, A），\\omega 为网络参数集合 {a, b_j, c_j, d_{ji}}。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 定义了神经网络模型 f(x, \\omega)。[Gap] 需要确定网络参数 \\omega 的最佳值，使得网络输出能最好地拟合实验数据与理论预测之间的残差。[Decision] 采用贝叶斯方法，通过最大化后验概率 p(\\omega | x, t) 来学习参数，其中似然函数 p(x, t | \\omega) 由 Eq.7 和 Eq.8 定义，与残差的 \\chi^2 相关。",
+      "action": "rule_application",
+      "tool": {
+        "name": "bayesian_neural_networks",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "后验概率 p(\\omega | x, t) = \\frac{p(x , t | \\omega) p(\\omega)}{p(x , t)}，其中似然函数 p(x, t | \\omega) = \\exp (- \\chi^{2} (\\omega) / 2)，而 \\chi^{2} (\\omega) = \\sum_{i = 1}^{N} \\left(\\frac{t_{i} - f(x_{i} , \\omega)}{\\Delta t_{i}}\\right)^{2}。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 参数的后验分布 p(\\omega | x, t) 已定义。[Gap] 需要从后验分布中采样以进行预测和不确定性量化。[Decision] 使用马尔可夫链蒙特卡罗采样方法从后验分布中生成大量参数样本 \\omega_k。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "Markov_Chain_Monte_Carlo_sampling",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "获得 K 个参数样本 \\{\\omega_1, \\omega_2, ..., \\omega_K\\}，这些样本服从后验分布 p(\\omega | x, t)。",
+      "observation_source": "inferred",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 已通过MCMC采样获得后验参数样本 \\omega_k。[Gap] 需要对新的输入 x_n 进行预测，并给出预测值的平均值和不确定性。[Decision] 使用 Eq.9 和 Eq.10 计算贝叶斯模型平均预测值及其标准差。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "bayesian_neural_networks",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "预测平均值 \\langle f_{n} \\rangle = \\frac{1}{K} \\sum_{k=1}^{K} f(x_{n}, \\omega_{k})，预测不确定性 \\Delta f_{n} = \\sqrt{\\left\\langle f_{n}^{2} \\right\\rangle - \\left\\langle f_{n} \\right\\rangle^{2}}。最终的电荷半径预测为 R_ch^{pred} = R_ch^{th} + \\langle f_{n} \\rangle，并带有误差 \\Delta f_{n}。",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：决定采用贝叶斯神经网络，并假设其输入特征以RMF理论预测值（如R_ch_th）为核心。[Gap] 错过的信号：神经网络学习的是理论残差（实验值-理论值），其输入理应是决定核素身份的最基本、最独立的物理量。将理论预测值本身作为输入，会引入循环依赖（用理论值去预测理论值的误差），这在物理建模中通常是不合理的，因为这会混淆误差的来源，并可能导致模型学习到的是理论计算本身的噪声而非系统偏差。。[Decision] 正确判断方式：经验丰富的物理学家会思考：要校正一个理论模型的系统偏差，校正模型的输入应该独立于该理论模型的输出。最自然的独立变量是核素的基本标识符（如Z, A或N），它们直接决定了核结构，而理论预测值R_ch_th是这些基本量的函数。因此，校正模型应从基本量出发，学习理论预测与实验值之间的残差模式。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：混淆了模型校正的目标（残差）与模型输入的来源，误将待校正的理论输出本身当作校正模型的输入，违反了建立独立校正模型的基本原则。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤6：假设BNN模型会输出一个与RMF预测相加的修正项ΔR，并计划分析这个修正项的模式。[Gap] 错过的信号：在步骤3的决策中，已经错误地将RMF预测值设为输入。如果BNN的输入是Z和A，那么它的输出自然就是基于这些基本量预测的“残差”本身，而不是一个针对另一个理论值（R_ch_th）的“修正项”。“修正项”的提法隐含了BNN输出与RMF预测值有直接的函数关系，但这与使用Z和A作为独立输入的设定在逻辑上不一致。。[Decision] 正确判断方式：面对“输入是Z和A”这一信息（即使当时未明确，但这是构建校正模型的合理选择），经验丰富的物理学家会预期BNN直接输出一个完整的“残差预测值”。最终的电荷半径预测是“理论值 + 残差预测值”。分析时应关注BNN预测的残差本身与核素性质（如Z, N,壳层）的关系，而不是去分析一个不存在的、针对RMF输出的“修正函数”。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：基于步骤3的错误前提（RMF值为输入）进行了延续性推理，导致对模型输出物理意义的理解出现偏差，将“残差预测模型”错误解读为“理论值的修正函数”。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "物理理论校正模型的设计，其输入应独立于被校正理论的具体输出，通常使用更基本的物理量；校正模型的输出是对“理论-实验”残差的直接预测，而非一个作用于理论值的运算符。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "completeness": {
+        "value": "paper_derivation 提取完成",
+        "unit": "",
+        "interpretation": "论文推导步骤已成功提取"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "relativistic_mean_field",
+    "bayesian_neural_network",
+    "markov_chain_monte_carlo"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 研究目标是预测原子核的均方根电荷半径 R_ch，已知条件包括实验数据和基于相对论能量密度泛函（REDF）的理论预测作为输入。研究动机是改进液滴模型等对轻核或表面效应显著核素的描述。[Gap] 需要建立一个能够从核子数（Z, N）或核结构输入量（如密度分布）出发，高精度预测 R_ch 的理论框架。直接使用 REDF 计算每个核素的电荷半径是基础但计算量大，且可能存在系统偏差。[Decision] 首先，使用 relativistic_mean_field 方法，基于特定的有效拉氏量（如 NL3、DD-ME2 等参数组），自洽求解核子 Dirac 方程和介子场方程，计算大量核素（覆盖整个核素图）的基态性质，特别是质子密度分布。这是提供理论预测输入的关键步骤。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "relativistic_mean_field",
+        "version": ""
+      },
+      "parameters": {
+        "interaction": "Effective Lagrangian (e.g., with meson fields)",
+        "nuclei_range": "Across the nuclear chart",
+        "output_quantity": "Proton density distribution rho_p(r)"
+      },
+      "observation": "预期得到大量核素（Z, N）的自洽基态解，包括质子密度分布函数 $\\rho_p(r)$。这是后续计算电荷半径的原始输入。预期 RMF 计算本身会引入模型近似，如特定的有效相互作用形式、无配对或固定配对近似、球形对称假设（对大部分核）等。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 通过 RMF 计算获得了质子密度分布 $\\rho_p(r)$。[Gap] 需要从质子密度分布计算出理论预测的均方根电荷半径 $R_{ch, \\text{th}}$。电荷半径不仅包含质子分布，还需考虑质子的有限大小（内禀电荷分布）和相对论修正（如 Darwin-Foldy 项）。[Decision] 应用核物理中标准的电荷半径计算公式。首先计算质子分布的均方根半径 $R_p$，然后与质子的均方根电荷半径 $R_{ch,p}$（约为 0.87 fm）卷积，并可能加上已知的修正项。这一步是确定性的后处理计算。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "relativistic_mean_field",
+        "version": ""
+      },
+      "parameters": {
+        "charge_radius_formula": "R_ch^2 = R_p^2 + R_ch,p^2 + (correction terms)",
+        "proton_rms_radius": "From integrating rho_p(r)"
+      },
+      "observation": "预期得到每个核素的理论预测电荷半径值 $R_{ch, \\text{th}}(Z,N)$，其形式为 $R_{ch, \\text{th}} = \\sqrt{\\langle r^2 \\rangle_p + \\langle r^2 \\rangle_{ch,p} + C}$，其中 $\\langle r^2 \\rangle_p$ 来自 RMF 的质子密度分布，$\\langle r^2 \\rangle_{ch,p}$ 是质子的内禀均方电荷半径，$C$ 可能包含小的修正项（如中子电荷分布贡献、Darwin-Foldy 项）。这构成了理论预测的数据集。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 现在拥有两个数据集：1) 实验电荷半径数据 $R_{ch, \\text{exp}}$；2) 从 RMF 理论计算得到的预测值 $R_{ch, \\text{th}}$。[Gap] RMF 预测与实验值之间存在系统偏差和随机误差，尤其是在轻核和表面效应显著的核素区域。直接使用 RMF 预测精度不足。需要建立一个模型来学习“理论预测”与“实验真值”之间的复杂映射关系，并能够外推预测未知核素的半径。[Decision] 采用 bayesian_neural_network 来构建这个映射。输入特征可能包括核子数 (Z, N)、RMF 预测的 $R_{ch, \\text{th}}$，可能还有从 RMF 计算中提取的其他特征（如结合能、密度分布参数等）。输出是预测的电荷半径 $R_{ch, \\text{pred}}$ 及其不确定性。BNN 的权重是概率分布，可以量化模型不确定性。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "bayesian_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "input_features": "[Z, N, R_ch_th, (optional) other RMF observables]",
+        "output": "Predicted charge radius R_ch_pred and its uncertainty",
+        "network_structure": "Multi-layer perceptron with probabilistic weights"
+      },
+      "observation": "预期得到一个训练好的贝叶斯神经网络模型。该模型能够将输入特征（以 RMF 理论预测为核心）映射到一个概率分布 $P(R_{ch} | \\text{input}, \\mathcal{D})$，其中 $\\mathcal{D}$ 是训练数据（实验数据）。对于给定输入，模型输出是预测电荷半径的均值（点估计）和标准差（认知不确定性）。训练过程旨在最小化预测值与实验值之间的差异，同时通过先验约束网络权重。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已经设计了 BNN 模型架构，并定义了似然函数（如高斯似然，以模型输出均值为预测值，标准差为噪声尺度）和权重的先验分布（如高斯先验）。[Gap] 需要对 BNN 的后验分布 $P(\\mathbf{w} | \\mathcal{D})$（即给定训练数据后网络权重的分布）进行推断。这是一个高维、非凸的积分问题，解析求解不可行。[Decision] 使用 markov_chain_monte_carlo 方法，具体如哈密顿蒙特卡洛（HMC）或 No-U-Turn Sampler（NUTS），从网络权重的后验分布中采样。MCMC 将提供一组权重样本，每个样本对应一个确定的神经网络。这些样本的预测集合将给出最终的预测分布。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "markov_chain_monte_carlo",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Hamiltonian Monte Carlo / NUTS",
+        "target_distribution": "Posterior distribution of BNN weights P(w|D)",
+        "likelihood": "Gaussian (prediction vs experiment)",
+        "prior": "Gaussian prior on weights"
+      },
+      "observation": "预期通过 MCMC 采样获得一系列（例如数千个）BNN 权重向量样本 $\\{\\mathbf{w}^{(i)}\\}$。每个权重样本 $\\mathbf{w}^{(i)}$ 对应一个具体的神经网络函数 $f_{\\mathbf{w}^{(i)}}(\\text{input})$。对于新的核素输入，用所有样本网络进行前向传播，得到一组预测值 $\\{R_{ch, \\text{pred}}^{(i)}\\}$。这组预测值的均值和标准差分别作为最终的点预测和总不确定性（结合了认知不确定性和可能的偶然不确定性）。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 通过 MCMC 采样获得了 BNN 后验分布的样本，从而可以对整个核素图上的核素进行预测。[Gap] 需要评估模型的性能，并提供理论误差估计。这包括在训练集（可能通过交叉验证）和测试集（已知实验数据但未参与训练的部分）上的表现，以及对没有实验数据的核素的外推预测。[Decision] 使用采样得到的网络集合进行预测。对于每个核素（包括训练集、测试集和未知核素），计算预测分布的统计量：均值 $\\mu_{R_{ch}}$ 作为最终预测值，标准差 $\\sigma_{R_{ch}}$ 作为预测的不确定性（误差估计）。同时，可以分析预测值与实验值的残差，检查系统偏差。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "bayesian_neural_network",
+        "version": ""
+      },
+      "parameters": {
+        "prediction_mode": "Ensemble prediction using MCMC weight samples",
+        "evaluation_metrics": "Mean Absolute Error, Root Mean Square Error, coverage of uncertainty intervals"
+      },
+      "observation": "预期得到一张覆盖整个核素图的电荷半径预测图，每个核素对应一个预测值 $\\mu_{R_{ch}}(Z,N)$ 和一个不确定性 $\\sigma_{R_{ch}}(Z,N)$。对于有实验数据的核素，可以计算残差 $\\delta R = R_{ch,exp} - \\mu_{R_{ch}}$，并验证其是否在 $\\pm \\sigma_{R_{ch}}$ 范围内。预期在训练区域（有丰富实验数据的区域）不确定性较小，在外推区域（如滴线附近）不确定性会增大。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经获得了基于“RMF+BNN+MCMC”框架的电荷半径预测及其不确定性。[Gap] 需要理解模型学到了什么，以及 RMF 输入与最终预测之间的关系。此外，需要验证关键假设：BNN 是否有效修正了 RMF 的系统偏差？模型的不确定性估计是否可靠？[Decision] 进行模型验证和解释性分析。例如：1) 比较纯 RMF 预测、BNN 修正后预测与实验值的差异，量化改进程度。2) 分析对于特定核素（如轻核、幻数核），BNN 的修正量大小。3) 进行消融实验，检查输入特征中 RMF 预测 $R_{ch,th}$ 的重要性。4) 检查 MCMC 采样的收敛性（如 Gelman-Rubin 统计量）。",
+      "action": "verification",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "analysis_type": "Model interpretation and validation",
+        "comparisons": "RMF vs BNN-corrected vs Experimental",
+        "convergence_check": "MCMC diagnostics"
+      },
+      "observation": "预期通过分析得到结论：BNN 模型成功学习了 RMF 系统误差的模式，显著降低了预测的均方根误差，尤其是在液滴模型描述不佳的区域。预期 BNN 的修正项 $\\Delta R = R_{ch, pred} - R_{ch, th}$ 会显示出与核子数相关的系统性模式。MCMC 诊断应显示采样已收敛。不确定性区间应能合理覆盖实验数据（例如，约68%的数据点落在 $\\pm 1\\sigma$ 区间内）。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "relativistic_energy_density_functionals",
+        "desc": "使用受Walecka模型启发的有效相对论模型，通过交换介子和光子来描述核子相互作用，并包含介子场的非线性自相互作用和混合相互作用。"
+      },
+      {
+        "name": "bayesian_neural_networks",
+        "desc": "采用贝叶斯学习神经网络，通过训练神经网络来拟合理论预测与实验数据之间的残差，以改进核电荷半径的预测。"
+      },
+      {
+        "name": "Markov_Chain_Monte_Carlo_sampling",
+        "desc": "使用马尔可夫链蒙特卡罗采样从后验参数分布中生成大量参数估计，用于计算贝叶斯预测的平均值和不确定性。"
+      },
+      {
+        "name": "feed-forward_neural_network",
+        "desc": "使用具有单个隐藏层的前馈神经网络作为模拟器，其函数形式为 f(x, ω) = a + Σ b_j tanh(c_j + Σ d_ji x_i)，输入为质子数和质量数，输出为电荷半径残差。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.5",
+        "content": "\\mathcal {L} _ {\\mathrm {i n t}} = \\bar {\\psi} \\left[ g _ {\\mathrm {s}} \\phi - \\left(g _ {\\mathrm {v}} V _ {\\mu} + \\frac {g _ {\\rho}}{2} \\pmb {\\tau} \\cdot \\mathbf {b} _ {\\mu} + \\frac {e}{2} (1 + \\tau_ {3}) A _ {\\mu}\\right) \\gamma^ {\\mu} \\right] \\psi - \\frac {\\kappa}{3 !} \\left(g _ {\\mathrm {s}} \\phi\\right) ^ {3} - \\frac {\\lambda}{4 !} \\left(g _ {\\mathrm {s}} \\phi\\right) ^ {4} + \\frac {\\zeta}{4 !} g _ {\\mathrm {v}} ^ {4} \\left(V _ {\\mu} V ^ {\\mu}\\right) ^ {2} + \\Lambda_ {\\mathrm {v}} \\left(g _ {\\rho} ^ {2} \\mathbf {b} _ {\\mu} \\cdot \\mathbf {b} ^ {\\mu}\\right) \\left(g _ {\\mathrm {v}} ^ {2} V _ {\\nu} V ^ {\\nu}\\right)"
+      },
+      {
+        "label": "Eq.6",
+        "content": "p (\\omega | x, t) = \\frac {p (x , t | \\omega) p (\\omega)}{p (x , t)}"
+      },
+      {
+        "label": "Eq.7",
+        "content": "p (x, t | \\omega) = \\exp (- \\chi^ {2} (\\omega) / 2)"
+      },
+      {
+        "label": "Eq.8",
+        "content": "\\chi^ {2} (\\omega) = \\sum_ {i = 1} ^ {N} \\left(\\frac {t _ {i} - f (x _ {i} , \\omega)}{\\Delta t _ {i}}\\right) ^ {2}"
+      },
+      {
+        "label": "Eq.9",
+        "content": "\\langle f _ {n} \\rangle = \\int f (x _ {n}, \\omega) p (\\omega | x, t) d \\omega = \\frac {1}{K} \\sum_ {k = 1} ^ {K} f (x _ {n}, \\omega_ {k})"
+      },
+      {
+        "label": "Eq.10",
+        "content": "\\Delta f _ {n} = \\sqrt {\\left\\langle f _ {n} ^ {2} \\right\\rangle - \\left\\langle f _ {n} \\right\\rangle^ {2}}"
+      },
+      {
+        "label": "Eq.11",
+        "content": "f (x, \\omega) = a + \\sum_ {j = 1} ^ {H} b _ {j} \\tanh  \\left(c _ {j} + \\sum_ {i = 1} ^ {I} d _ {j i} x _ {i}\\right)"
+      }
+    ],
+    "key_results": [],
+    "failure_points": []
+  }
+}

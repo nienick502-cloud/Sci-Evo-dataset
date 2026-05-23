@@ -1,0 +1,461 @@
+{
+  "id": "NPP_0087",
+  "meta": {
+    "id": "NPP_0087",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_cluster_model",
+    "source": {
+      "type": "paper",
+      "title": "Systematic Study on the $\\alpha$ -particle preformation factor in the theory of $\\alpha$ -decay based on the Tabular Prior-data Fitted Network (TabPFN)",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2511.14705"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "α衰变预成形因子与半衰期",
+    "input_data": "已知实验数据的498个核素；Coulomb and Proximity Potential Model (CPPM) 模型框架；超重核区域 Z=117–120 的核素。",
+    "user_intent": "现有α衰变理论中，预成形因子P_α的物理机制尚不明确，且传统方法对其描述存在不足，影响了半衰期预测的精度。需要更准确地理解并提取预成形因子，以改进α衰变半衰期的理论预测。",
+    "quantifiable_goal": "预测α衰变预成形因子 P_α（无量纲）；计算α衰变半衰期 T_{1/2}（单位：s）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知研究目标是预测α衰变预成形因子P_α和半衰期T_{1/2}，并拥有498个核素的实验数据作为基准。研究在Coulomb and Proximity Potential Model (CPPM)框架下进行。[Gap] 需要为每个核素（包括已知和超重核）计算α粒子在核势垒中隧穿的物理量，这是计算半衰期的核心步骤，但尚未进行。[Decision] 首先运用CPPM模型为每个核素构造α粒子与子核之间的相互作用势能V(r)。这包括库仑势、核势（邻近势）和离心势（如果考虑角动量）。预期得到每个核素对应的势能曲线V(r)。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "coulomb_proximity_potential_model",
+        "version": ""
+      },
+      "parameters": {
+        "potential_components": "Coulomb potential, proximity potential, centrifugal potential (if l != 0)",
+        "input_data": "Nuclear charges (Z_parent, Z_alpha), mass numbers, experimental Q_alpha values (for known nuclei), estimated Q_alpha (for superheavy nuclei)"
+      },
+      "observation": "预期得到每个核素（包括已知和Z=117-120超重核）的α-子核相互作用势能V(r)的解析或数值形式。V(r)在短程由核势主导（吸引），在长程由库仑势主导（排斥），形成一个势垒。对于已知核素，Q_α值从实验数据输入；对于超重核，Q_α可能通过质量公式或趋势外推获得。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得每个核素的势能曲线V(r)和衰变能Q_α。[Gap] 需要计算α粒子穿透该势垒的隧穿概率（穿透因子P），这是半衰期公式中的关键量子力学因子。[Decision] 应用WKB近似来计算穿透因子P。这需要数值积分计算作用量积分G，公式为 P = exp(-2G)。G的积分限由经典转折点r1和r2（满足V(r)=Q_α）决定。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "penetrability_formula": "P = exp(-2G), where G = (1/\\hbar) \\int_{r1}^{r2} \\sqrt{2\\mu (V(r) - Q_\\alpha)} dr",
+        "inputs_from_previous_step": "V(r) function, Q_alpha value, reduced mass \\mu"
+      },
+      "observation": "预期得到每个核素的穿透因子P（无量纲，远小于1）。对于已知核素，这将是一个数值结果；对于超重核，这将是一个预测值。计算过程涉及寻找转折点和数值积分，是半衰期对势垒形状敏感的部分。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已计算出穿透因子P。根据标准α衰变半衰期公式 T_{1/2} = (\\ln 2) / (\\nu P P_\\alpha)，其中ν是α粒子在势阱内的碰撞频率（~10^21/s量级），P_α是预成形因子。[Gap] 对于已知核素，其实验半衰期T_{1/2}^{exp}和计算出的穿透因子P是已知的，因此可以反推出“实验提取的”预成形因子 P_α^{exp} = (\\ln 2) / (\\nu P T_{1/2}^{exp})。但P_α^{exp}的物理机制和系统学规律未知，需要建模。[Decision] 利用已知的498个核素的数据集，将计算出的P_α^{exp}作为目标变量，并选取相关的核物理量（如母核质子数Z、中子数N、衰变能Q_α、穿透因子P本身、壳修正能等）作为特征，构建一个数据驱动的模型来学习P_α的系统性行为。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "tabular_prior_data_fitted_network",
+        "version": ""
+      },
+      "parameters": {
+        "target_variable": "P_alpha_exp (derived from T_1/2_exp, P, and \\nu)",
+        "input_features": "Nuclear properties (Z, N, Q_alpha, shell correction, deformation parameters, etc.)",
+        "data_source": "498 known nuclei with derived P_alpha_exp"
+      },
+      "observation": "预期得到一个训练好的机器学习模型（如神经网络），该模型能够根据输入的核素特征，输出预测的预成形因子P_α^{pred}。模型捕捉了P_α与核结构之间的复杂、非线性的依赖关系，这是传统解析公式难以做到的。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤错误地将碰撞频率ν视为固定常数（~10^21/s量级）。在论文的实际推导中，ν是作为理论计算半衰期T_α^{cal}时的一个参数（论文中设为1.0×10^22 s⁻¹），用于从实验半衰期反推P_α^{exp}。预测步骤将ν视为已知物理常数直接用于计算半衰期，忽略了ν在理论模型中是一个需要与势阱模型自洽确定的参数，其值的选择会影响P_α的提取，不能简单地当作固定值代入标准公式计算最终半衰期。"
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已有一个在498个已知核素上训练好的P_α预测模型。[Gap] 需要将该模型应用于目标超重核区域（Z=117-120），以预测这些未知核素的P_α。然而，超重核区域可能处于训练数据分布的边缘或之外（外推问题），直接应用模型可能不可靠。[Decision] 采用上下文学习（In-Context Learning）策略来增强模型的泛化能力。具体做法是：在预测某个超重核时，不仅输入其特征，还在模型的“上下文”中提供一组最相关的已知核素（例如，在核素图上邻近的、或具有相似壳结构的核素）的（特征，P_α^{exp}）对作为示例，让模型基于这些示例进行类比推理。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "in_context_learning",
+        "version": ""
+      },
+      "parameters": {
+        "base_model": "Trained tabular_prior_data_fitted_network",
+        "query_nuclei": "Superheavy nuclei (Z=117-120)",
+        "context_examples": "Selected known nuclei with similar properties to the query nuclei"
+      },
+      "observation": "预期得到超重核区域每个核素的预测预成形因子P_α^{pred-SH}。这个结果结合了从大数据集学到的全局规律和从相似核素示例中获得的局部调整，预期比直接外推更稳健。P_α^{pred-SH}的值预计在10^{-2}到10^{-10}量级，具体取决于核素。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 对于超重核，现已拥有：1）从步骤1和2计算出的穿透因子P；2）从步骤4预测出的预成形因子P_α^{pred-SH}。[Gap] 需要计算最终的α衰变半衰期T_{1/2}。[Decision] 将P和P_α^{pred-SH}代入标准半衰期公式 T_{1/2} = (\\ln 2) / (\\nu P P_α^{pred-SH}) 进行计算。其中碰撞频率ν通常取经验值或通过简单模型估算（如ν ~ v/(2R)，v是α粒子在核内的速度）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "half_life_formula": "T_1/2 = \\ln 2 / (\\nu * P * P_alpha)",
+        "inputs": "P (from step 2), P_alpha^{pred-SH} (from step 4), estimated \\nu"
+      },
+      "observation": "预期得到超重核区域（Z=117-120）每个核素的α衰变半衰期T_{1/2}的预测值，单位是秒。由于P和P_α都非常小，T_{1/2}的数值范围可能跨越许多个数量级（从微秒到数年）。这是研究的最终可量化目标之一。",
+      "valid": false,
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "observation_source": "inferred",
+      "error_reason": "预测步骤延续了步骤3的错误，直接使用标准公式T_{1/2} = (ln2)/(ν P P_α)计算半衰期，并将ν视为固定常数。这与论文方法不一致。论文中，对于超重核的预测，是先利用训练好的模型预测P_α^{pred}，然后通过公式P_α^{exp} = T_α^{cal}/T_α^{exp}的逻辑关系，利用预测的P_α^{pred}和计算出的T_α^{cal}来推算T_α^{exp}（即半衰期）。预测步骤忽略了理论计算半衰期T_α^{cal}（它本身包含了ν和P）在整个预测链条中的核心桥梁作用，错误地认为可以直接将P和P_α代入一个包含固定ν的公式得到最终半衰期。"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经完成了对超重核半衰期的预测流程。[Gap] 需要验证整个方法框架的可靠性和内部一致性。一个关键的验证点是：对于那498个已知核素，如果使用模型预测的P_α（而不是反推的P_α^{exp}）再结合计算出的P来重新计算半衰期，其结果应与实验半衰期符合得如何？[Decision] 对已知核素进行“留一法”或交叉验证：用训练好的模型预测已知核素的P_α^{pred}，然后计算T_{1/2}^{calc}，并与T_{1/2}^{exp}比较。计算对数误差或均方根误差来量化模型性能。",
+      "action": "verification",
+      "tool": {
+        "name": "tabular_prior_data_fitted_network",
+        "version": ""
+      },
+      "parameters": {
+        "validation_protocol": "Cross-validation on the 498 known nuclei",
+        "comparison_metric": "log10(T_1/2_calc / T_1/2_exp)"
+      },
+      "observation": "预期得到模型在已知数据上的预测精度指标，例如平均对数偏差和标准差。这用于证明所提出的“CPPM+WKB计算P + 数据驱动模型预测P_α”的混合方法是有效的，并且其预测误差在可接受范围内（例如，对数误差在1-2个数量级内），从而支持将其用于超重核外推的合理性。",
+      "valid": true,
+      "phase": "prediction",
+      "error_tag": null,
+      "observation_source": "inferred"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文的目标是改进α衰变半衰期的理论预测，关键在于更准确地理解并提取预成形因子P_α。论文已建立了α衰变半衰期T_{1/2}与衰变常数λ的关系（Eq.1）。[Gap] 需要将衰变常数λ分解为可计算的物理量，以建立理论框架。[Decision] 论文根据标准α衰变理论，将衰变常数λ表达为预成形因子P_α、碰撞频率ν和穿透概率P的乘积。",
+      "action": "rule_application",
+      "tool": {
+        "name": "CPPM",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "\\lambda = P_{\\alpha} \\nu P",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 衰变常数λ已分解为P_α、ν和P。实验上可以测量半衰期T_{1/2}^{exp}，从而得到λ_exp。[Gap] 为了从实验数据中提取出物理上难以直接测量的预成形因子P_α^{exp}，需要建立一个连接理论计算与实验测量的桥梁。[Decision] 在统一衰变理论框架（CPPM）下，将理论预成形因子P_α^{cal}设为1，通过比较理论计算半衰期T_{α}^{cal}与实验半衰期T_{α}^{exp}来定义实验预成形因子。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "CPPM",
+        "version": ""
+      },
+      "parameters": {
+        "assumption": "P_α^{cal} = 1"
+      },
+      "observation": "P_{\\alpha}^{\\mathrm{exp}} = \\frac{T_{\\alpha}^{\\mathrm{cal}}}{T_{\\alpha}^{\\mathrm{exp}}}",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 实验预成形因子P_α^{exp}的提取公式（Eq.5）依赖于理论计算半衰期T_{α}^{cal}。计算T_{α}^{cal}需要知道穿透概率P。[Gap] 需要计算α粒子穿透母核与子核之间势垒的概率P。[Decision] 论文采用半经典的Wentzel-Kramers-Brillouin (WKB)近似来计算穿透概率P。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_approximation",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "P = - \\frac{2}{\\hbar} \\int_{R_{\\mathrm{in}}}^{R_{\\mathrm{out}}} \\sqrt{2 \\mu (V(r) - Q_{\\alpha})} d r",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] WKB公式（Eq.6）中的穿透概率P依赖于α粒子与子核之间的总相互作用势V(r)。[Gap] 需要具体化总势能V(r)的形式以进行积分计算。[Decision] 论文将总势能V(r)分解为核势V_N(r)、库仑势V_C(r)和离心势V_ℓ(r)三项之和，并采用基于邻近势的形式来描述核势。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "CPPM",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "V(r) = V_{N}(r) + V_{C}(r) + V_{\\ell}(r)",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 总势能V(r)已分解。核势V_N(r)采用邻近势形式。[Gap] 需要给出核势V_N(r)的具体表达式，其中包含表面能参数。[Decision] 论文使用Blocki等人提出的邻近势公式，并指定了表面能常数γ₀和表面不对称系数k_s的数值。",
+      "action": "rule_application",
+      "tool": {
+        "name": "CPPM",
+        "version": ""
+      },
+      "parameters": {
+        "γ₀": "0.9517 MeV/fm²",
+        "k_s": "1.7826"
+      },
+      "observation": "V_{N}(r) = 4 \\pi \\gamma b \\overline{R} \\Phi(\\xi), 其中 \\gamma = \\gamma_0 [1 - k_s ((N_p - Z_p)/(N_p + Z_p))^2]",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 基于CPPM框架和设定的参数（如ν=1.0×10²² s⁻¹），论文对498个核素计算了理论半衰期T_{α}^{cal}，并利用Eq.5提取了其实验预成形因子P_α^{exp}。[Gap] 需要评估使用TabPFN模型基于这些提取的P_α^{exp}进行学习的效果。[Decision] 论文计算了TabPFN模型预测的log₁₀ p_α与实验值log₁₀ p_α^{exp}之间的均方根误差（RMSD）作为性能指标。",
+      "action": "verification",
+      "tool": {
+        "name": "TabPFN",
+        "version": ""
+      },
+      "parameters": {
+        "num_nuclides": 498
+      },
+      "observation": "\\sigma_{\\mathrm{rms}} = \\sqrt{\\frac{1}{n} \\sum_{i=1}^{n} \\left(\\log_{10} p_{\\alpha i}^{\\mathrm{TabPFN}} - \\log_{10} p_{\\alpha i}^{\\mathrm{exp}}\\right)^{2}}",
+      "observation_source": "paper",
+      "valid": true,
+      "phase": "paper_derivation",
+      "error_tag": null
+    },
+    {
+      "step_index": 13,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：将碰撞频率ν视为固定常数（~10^21/s量级），并直接用于公式P_α^{exp} = (\\ln 2) / (ν P T_{1/2}^{exp})来从实验数据中提取预成形因子。。[Gap] 错过的信号：在α衰变理论中，ν（碰撞频率）与α粒子在母核势阱内的运动状态（如速度、势阱宽度）直接相关，而势阱宽度又与核的尺寸和形状（如变形）有关。这意味着ν不是一个普适常数，而是依赖于具体核素性质的参数。将ν固定，相当于假设所有核素（从轻核到重核）的α粒子在核内的动力学行为完全相同，这与已知的核结构随核子数变化的物理事实相悖。。[Decision] 正确判断方式：一个经验丰富的物理学家会意识到，ν是理论模型中的一个关键参数，其值应与所采用的势阱模型自洽。在构建从实验数据提取P_α的桥梁时，必须明确ν是作为理论计算半衰期T_α^{cal}的一部分而引入的。因此，更严谨的做法是：先定义一个包含ν的理论模型来计算T_α^{cal}，然后通过比较T_α^{cal}与T_α^{exp}来提取P_α^{exp}（即P_α^{exp} = T_α^{cal}/T_α^{exp}），而不是将ν直接代入一个看似“标准”的公式去反算P_α。这样，ν的取值被封装在理论计算T_α^{cal}的过程中，其影响是可控且自洽的。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：混淆了理论模型参数与可直接测量的物理常数，忽略了ν作为模型参数与核结构的内在关联性，错误地将其简化为一个固定值用于数据反演。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 14,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤5：将步骤2的穿透因子P和步骤4预测的P_α^{pred-SH}直接代入公式T_{1/2} = (\\ln 2) / (ν P P_α^{pred-SH})来计算超重核的半衰期，并试图单独估算ν。。[Gap] 错过的信号：在步骤3中提取P_α^{exp}时，已经隐含地使用了某个ν值（尽管是错误的固定值）。如果预测时使用不同的ν值，整个预测链条的逻辑将不自洽。更重要的是，穿透因子P本身是通过WKB积分在特定势垒下计算得到的，这个计算过程与理论半衰期T_α^{cal}的计算是绑定的。直接使用P和另一个来源的ν去拼凑最终半衰期，割裂了P、ν和理论模型T_α^{cal}之间的内在统一性。。[Decision] 正确判断方式：面对“已有P和预测的P_α”这一信息，正确的推理链条应回溯到建立P_α定义的理论框架。既然P_α被定义为P_α = T_α^{cal} / T_α^{exp}，那么要预测未知核的T_α^{exp}，逻辑上就需要先计算该核的T_α^{cal}（这自然包含了使用统一模型计算的P和设定的ν），然后利用预测的P_α^{pred}，通过T_α^{exp} = T_α^{cal} / P_α^{pred}来得到最终半衰期。这样，ν作为T_α^{cal}计算模型的一部分，其取值在整个训练和预测过程中保持一致，保证了方法的自洽性。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "observation": "根因：根因：未能理解P_α在理论框架中的定义式（P_α = T_α^{cal}/T_α^{exp}）所确立的变量关系，错误地将半衰期计算拆解为独立变量（P, P_α, ν）的简单乘积，破坏了理论模型的自洽性。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "本论文揭示的教训是：在构建连接理论与实验的桥梁时，必须严格保持理论模型内部参数的自洽性。一个中间量（如P_α）的定义决定了它在预测链条中的使用方式，不能脱离其定义所在的方程体系而孤立地代入其他公式。"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "对比预测轨迹与论文实际推导，标注物理推理错误",
+    "metrics": {
+      "assault_frequency": {
+        "value": "1.0 × 10^22 s^{-1}",
+        "unit": "设置为常数",
+        "interpretation": "assault frequency ν"
+      },
+      "surface_energy_constant": {
+        "value": "0.9517 MeV/fm²",
+        "unit": "在核势公式中使用",
+        "interpretation": "surface energy constant γ₀"
+      },
+      "surface_asymmetry_coefficient_k_s": {
+        "value": "1.7826",
+        "unit": "在核势公式中使用",
+        "interpretation": "surface asymmetry coefficient k_s"
+      },
+      "number_of_nuclides": {
+        "value": "498",
+        "unit": "用于提取实验预形成因子，包括172个偶偶核、261个奇A核和65个奇奇核",
+        "interpretation": "number of nuclides"
+      }
+    },
+    "final_verdict": "推导步骤和数值结果已从论文中提取，见 paper_derivation 阶段。"
+  },
+  "paper_methods": [
+    "coulomb_proximity_potential_model",
+    "wkb_approximation",
+    "tabular_prior_data_fitted_network",
+    "in_context_learning"
+  ],
+  "predicted_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 已知研究目标是预测α衰变预成形因子P_α和半衰期T_{1/2}，并拥有498个核素的实验数据作为基准。研究在Coulomb and Proximity Potential Model (CPPM)框架下进行。[Gap] 需要为每个核素（包括已知和超重核）计算α粒子在核势垒中隧穿的物理量，这是计算半衰期的核心步骤，但尚未进行。[Decision] 首先运用CPPM模型为每个核素构造α粒子与子核之间的相互作用势能V(r)。这包括库仑势、核势（邻近势）和离心势（如果考虑角动量）。预期得到每个核素对应的势能曲线V(r)。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "coulomb_proximity_potential_model",
+        "version": ""
+      },
+      "parameters": {
+        "potential_components": "Coulomb potential, proximity potential, centrifugal potential (if l != 0)",
+        "input_data": "Nuclear charges (Z_parent, Z_alpha), mass numbers, experimental Q_alpha values (for known nuclei), estimated Q_alpha (for superheavy nuclei)"
+      },
+      "observation": "预期得到每个核素（包括已知和Z=117-120超重核）的α-子核相互作用势能V(r)的解析或数值形式。V(r)在短程由核势主导（吸引），在长程由库仑势主导（排斥），形成一个势垒。对于已知核素，Q_α值从实验数据输入；对于超重核，Q_α可能通过质量公式或趋势外推获得。",
+      "valid": true
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已获得每个核素的势能曲线V(r)和衰变能Q_α。[Gap] 需要计算α粒子穿透该势垒的隧穿概率（穿透因子P），这是半衰期公式中的关键量子力学因子。[Decision] 应用WKB近似来计算穿透因子P。这需要数值积分计算作用量积分G，公式为 P = exp(-2G)。G的积分限由经典转折点r1和r2（满足V(r)=Q_α）决定。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "wkb_approximation",
+        "version": ""
+      },
+      "parameters": {
+        "penetrability_formula": "P = exp(-2G), where G = (1/\\hbar) \\int_{r1}^{r2} \\sqrt{2\\mu (V(r) - Q_\\alpha)} dr",
+        "inputs_from_previous_step": "V(r) function, Q_alpha value, reduced mass \\mu"
+      },
+      "observation": "预期得到每个核素的穿透因子P（无量纲，远小于1）。对于已知核素，这将是一个数值结果；对于超重核，这将是一个预测值。计算过程涉及寻找转折点和数值积分，是半衰期对势垒形状敏感的部分。",
+      "valid": true
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 已计算出穿透因子P。根据标准α衰变半衰期公式 T_{1/2} = (\\ln 2) / (\\nu P P_\\alpha)，其中ν是α粒子在势阱内的碰撞频率（~10^21/s量级），P_α是预成形因子。[Gap] 对于已知核素，其实验半衰期T_{1/2}^{exp}和计算出的穿透因子P是已知的，因此可以反推出“实验提取的”预成形因子 P_α^{exp} = (\\ln 2) / (\\nu P T_{1/2}^{exp})。但P_α^{exp}的物理机制和系统学规律未知，需要建模。[Decision] 利用已知的498个核素的数据集，将计算出的P_α^{exp}作为目标变量，并选取相关的核物理量（如母核质子数Z、中子数N、衰变能Q_α、穿透因子P本身、壳修正能等）作为特征，构建一个数据驱动的模型来学习P_α的系统性行为。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "tabular_prior_data_fitted_network",
+        "version": ""
+      },
+      "parameters": {
+        "target_variable": "P_alpha_exp (derived from T_1/2_exp, P, and \\nu)",
+        "input_features": "Nuclear properties (Z, N, Q_alpha, shell correction, deformation parameters, etc.)",
+        "data_source": "498 known nuclei with derived P_alpha_exp"
+      },
+      "observation": "预期得到一个训练好的机器学习模型（如神经网络），该模型能够根据输入的核素特征，输出预测的预成形因子P_α^{pred}。模型捕捉了P_α与核结构之间的复杂、非线性的依赖关系，这是传统解析公式难以做到的。",
+      "valid": true
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 已有一个在498个已知核素上训练好的P_α预测模型。[Gap] 需要将该模型应用于目标超重核区域（Z=117-120），以预测这些未知核素的P_α。然而，超重核区域可能处于训练数据分布的边缘或之外（外推问题），直接应用模型可能不可靠。[Decision] 采用上下文学习（In-Context Learning）策略来增强模型的泛化能力。具体做法是：在预测某个超重核时，不仅输入其特征，还在模型的“上下文”中提供一组最相关的已知核素（例如，在核素图上邻近的、或具有相似壳结构的核素）的（特征，P_α^{exp}）对作为示例，让模型基于这些示例进行类比推理。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "in_context_learning",
+        "version": ""
+      },
+      "parameters": {
+        "base_model": "Trained tabular_prior_data_fitted_network",
+        "query_nuclei": "Superheavy nuclei (Z=117-120)",
+        "context_examples": "Selected known nuclei with similar properties to the query nuclei"
+      },
+      "observation": "预期得到超重核区域每个核素的预测预成形因子P_α^{pred-SH}。这个结果结合了从大数据集学到的全局规律和从相似核素示例中获得的局部调整，预期比直接外推更稳健。P_α^{pred-SH}的值预计在10^{-2}到10^{-10}量级，具体取决于核素。",
+      "valid": true
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 对于超重核，现已拥有：1）从步骤1和2计算出的穿透因子P；2）从步骤4预测出的预成形因子P_α^{pred-SH}。[Gap] 需要计算最终的α衰变半衰期T_{1/2}。[Decision] 将P和P_α^{pred-SH}代入标准半衰期公式 T_{1/2} = (\\ln 2) / (\\nu P P_α^{pred-SH}) 进行计算。其中碰撞频率ν通常取经验值或通过简单模型估算（如ν ~ v/(2R)，v是α粒子在核内的速度）。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "numerical_computation",
+        "version": ""
+      },
+      "parameters": {
+        "half_life_formula": "T_1/2 = \\ln 2 / (\\nu * P * P_alpha)",
+        "inputs": "P (from step 2), P_alpha^{pred-SH} (from step 4), estimated \\nu"
+      },
+      "observation": "预期得到超重核区域（Z=117-120）每个核素的α衰变半衰期T_{1/2}的预测值，单位是秒。由于P和P_α都非常小，T_{1/2}的数值范围可能跨越许多个数量级（从微秒到数年）。这是研究的最终可量化目标之一。",
+      "valid": true
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 已经完成了对超重核半衰期的预测流程。[Gap] 需要验证整个方法框架的可靠性和内部一致性。一个关键的验证点是：对于那498个已知核素，如果使用模型预测的P_α（而不是反推的P_α^{exp}）再结合计算出的P来重新计算半衰期，其结果应与实验半衰期符合得如何？[Decision] 对已知核素进行“留一法”或交叉验证：用训练好的模型预测已知核素的P_α^{pred}，然后计算T_{1/2}^{calc}，并与T_{1/2}^{exp}比较。计算对数误差或均方根误差来量化模型性能。",
+      "action": "verification",
+      "tool": {
+        "name": "tabular_prior_data_fitted_network",
+        "version": ""
+      },
+      "parameters": {
+        "validation_protocol": "Cross-validation on the 498 known nuclei",
+        "comparison_metric": "log10(T_1/2_calc / T_1/2_exp)"
+      },
+      "observation": "预期得到模型在已知数据上的预测精度指标，例如平均对数偏差和标准差。这用于证明所提出的“CPPM+WKB计算P + 数据驱动模型预测P_α”的混合方法是有效的，并且其预测误差在可接受范围内（例如，对数误差在1-2个数量级内），从而支持将其用于超重核外推的合理性。",
+      "valid": true
+    }
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "CPPM",
+        "desc": "作为统一的衰变理论框架，用于准确描述核聚变、裂变和α衰变，并用于提取实验预形成因子。"
+      },
+      {
+        "name": "WKB_approximation",
+        "desc": "用于计算α粒子穿透势垒的穿透概率P。"
+      },
+      {
+        "name": "TabPFN",
+        "desc": "一种基于Transformer的表格数据基础模型，用于通过间接学习策略学习α粒子预形成因子。"
+      },
+      {
+        "name": "indirect_learning",
+        "desc": "通过分析实验值与理论值之间的偏差来优化理论计算模型，本研究用于基于TabPFN学习预形成因子。"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.2",
+        "content": "\\lambda = P_{\\alpha} \\nu P"
+      },
+      {
+        "label": "Eq.5",
+        "content": "P_{\\alpha}^{\\mathrm{exp}} = \\frac{T_{\\alpha}^{\\mathrm{cal}}}{T_{\\alpha}^{\\mathrm{exp}}}"
+      },
+      {
+        "label": "Eq.6",
+        "content": "P = - \\frac{2}{\\hbar} \\int_{R_{\\mathrm{in}}}^{R_{\\mathrm{out}}} \\sqrt{2 \\mu (V(r) - Q_{\\alpha})} d r"
+      },
+      {
+        "label": "Eq.7",
+        "content": "V(r) = V_{N}(r) + V_{C}(r) + V_{\\ell}(r)"
+      },
+      {
+        "label": "Eq.8",
+        "content": "V_{N}(r) = 4 \\pi \\gamma b \\overline{R} \\Phi(\\xi)"
+      },
+      {
+        "label": "Eq.16",
+        "content": "\\sigma_{\\mathrm{rms}} = \\sqrt{\\frac{1}{n} \\sum_{i=1}^{n} \\left(\\log_{10} p_{\\alpha i}^{\\mathrm{TabPFN}} - \\log_{10} p_{\\alpha i}^{\\mathrm{exp}}\\right)^{2}}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "assault frequency ν",
+        "value": "1.0 × 10^22 s^{-1}",
+        "condition": "设置为常数"
+      },
+      {
+        "quantity": "surface energy constant γ₀",
+        "value": "0.9517 MeV/fm²",
+        "condition": "在核势公式中使用"
+      },
+      {
+        "quantity": "surface asymmetry coefficient k_s",
+        "value": "1.7826",
+        "condition": "在核势公式中使用"
+      },
+      {
+        "quantity": "number of nuclides",
+        "value": "498",
+        "condition": "用于提取实验预形成因子，包括172个偶偶核、261个奇A核和65个奇奇核"
+      }
+    ],
+    "failure_points": []
+  }
+}
