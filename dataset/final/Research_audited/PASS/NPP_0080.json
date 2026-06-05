@@ -1,0 +1,348 @@
+{
+  "id": "NPP_0080",
+  "meta": {
+    "id": "NPP_0080",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_cluster_model",
+    "source": {
+      "type": "paper",
+      "title": "Systematic calculations of cluster radioactivity half-lives in trans-lead nuclei *",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2210.02004"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "超铅核团簇放射性半衰期与预形成概率",
+    "input_data": "核素范围：22个超铅核素，从^{221}Fr到^{242}Cm；实验数据：已知的团簇放射性半衰期实验数据；模型参数：使用CFM计算的α衰变预形成概率P_α，以及文献中提出的P_c与P_α的指数关系（当A_c<28时）和P_c与电荷数的依赖关系（当A_c≥28时）。",
+    "user_intent": "现有模型（如α类模型和裂变类模型）对团簇放射性半衰期的描述存在差异，且对于不同质量团簇的预形成概率处理方式不统一。需要一种系统的方法来更准确地描述这一介于α衰变和自发裂变之间的过程，并提取关键的核结构信息。",
+    "quantifiable_goal": "预测团簇放射性半衰期T_{1/2}（单位：s），计算团簇预形成概率P_c（无量纲）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是计算团簇放射性的半衰期 half_life。已知初始条件包括质量数 A、电荷数 Z、中子数 N 和 Q 值。论文方法中提到了 WKB 近似、团簇形成模型等。根据合法推导路径，half_life 可以通过 alpha_decay_width 或直接通过 empirical_halflife_formula 得到。由于团簇放射性本质上与 α 衰变类似，都是量子隧穿过程，因此从半衰期出发，第一步应确定半衰期与衰变宽度或势垒穿透概率的关系。合法路径中 half_life 可以直接连接 empirical_halflife_formula，这是一个经验公式，可以快速给出半衰期的估计，符合论文中提到的 universal_decay_law 等半经验模型。\n[Gap] 当前没有已知的衰变宽度或穿透概率，但可以直接利用经验公式从 Q 值和核电荷数等基本参数计算半衰期。\n[Decision] 因此，第一步选择使用 empirical_halflife_formula 工具，基于 Q 值和核电荷数等参数，建立半衰期的经验表达式。这属于 rule_application 类型，因为经验公式是已知的规则。",
+      "action": "rule_application",
+      "tool": {
+        "name": "empirical_halflife_formula",
+        "version": ""
+      },
+      "parameters": {
+        "formula_type": "universal_decay_law",
+        "Q_value": "Q_value",
+        "Z": "Z",
+        "A": "A",
+        "Z_c": "cluster_charge",
+        "A_c": "cluster_mass"
+      },
+      "output_state": {
+        "half_life_empirical": "log10(T_{1/2}) = a * Z_c * Z_d * sqrt(A_red) + b * sqrt(A_red * Z_c * Z_d) + c"
+      },
+      "observation": "采用 Universal Decay Law (UDL) 形式，半衰期与库仑势垒参数和约化质量相关。其中 a, b, c 为拟合常数，Z_c 和 Z_d 分别为团簇和子核的电荷数，A_red 为约化质量数。此公式可直接从 Q 值和核素信息计算半衰期估计值。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 上一步采用了 Universal Decay Law (UDL) 的经验公式形式，但该公式中的参数 a, b, c 通常需要针对特定质量区域进行拟合。论文中可能使用了 cluster formation model (CFM) 来提供预形成概率 P_c 的理论值，从而将半衰期表达为更物理的形式。 [Gap] 目前只有经验公式的骨架，缺少预形成概率 P_c 的具体表达式以及它与 UDL 中参数的关系。 [Decision] 下一步应引入 cluster formation model 中预形成概率 P_c 的计算模型，将 P_c 与 α 衰变预形成概率 P_α 以及团簇质量数 A_c 联系起来，为后续的 WKB 隧穿计算做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "cluster_formation_probability",
+        "version": ""
+      },
+      "parameters": {
+        "cluster_mass_number": "A_c",
+        "parent_charge_number": "Z",
+        "cluster_charge_number": "Z_c",
+        "alpha_preformation_factor": "P_alpha"
+      },
+      "output_state": {
+        "preformation_factor_Pc": "P_c = P_alpha^{ (A_c - 1) / 3 }  (for A_c < 28)",
+        "preformation_factor_Pc_alternative": "P_c = (1 / Z_c) * exp( -a * Z_c + b )  (for A_c >= 28)"
+      },
+      "observation": "根据论文方法中的 cluster formation model (CFM)，对于质量数 A_c < 28 的团簇，预形成概率 P_c 与 α 衰变预形成概率 P_α 满足指数关系：P_c = P_α^{(A_c-1)/3}。对于 A_c ≥ 28 的较重团簇，P_c 与团簇电荷数 Z_c 有经验依赖关系：P_c = (1/Z_c) * exp(-a Z_c + b)，其中 a, b 为拟合参数。该步骤建立了预形成概率的物理模型，为后续结合 WKB 隧穿概率计算半衰期提供了基础。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 前两步已选择了半衰期的通用衰变定律形式和预形成概率的CFM模型表达式。当前需要将这两个模型结合起来，通过WKB近似计算势垒穿透概率，从而得到半衰期的完整表达式。 [Gap] 目前仅有半衰期的经验公式形式和预形成概率的表达式，但尚未将预形成概率与势垒穿透概率、衰变宽度联系起来，以得到半衰期的理论推导。 [Decision] 下一步应使用WKB作用量积分计算势垒穿透概率，并利用衰变宽度公式将预形成概率、穿透概率和碰撞频率结合，得到半衰期的理论表达式。因此选择工具'WKB_action_integral'来计算作用量积分。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "potential_type": "effective_potential",
+        "integration_variable": "r",
+        "turning_points": "r_in, r_out"
+      },
+      "output_state": {
+        "WKB_action_S": "S = ∫_{r_in}^{r_out} sqrt(2μ/ħ² * (V_eff(r) - Q)) dr",
+        "penetrability_P": "P = exp(-2S)"
+      },
+      "observation": "在WKB近似下，势垒穿透概率P由作用量积分S决定：P = exp(-2S)。其中μ为约化质量，V_eff(r)为有效势（包含库仑势、离心势和核势），Q为衰变能，r_in和r_out为内外转折点。",
+      "step_mode": "physical_argument",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 我们已经建立了半衰期的UDL形式、预形成概率P_c的CFM模型以及WKB穿透概率的基本表达式。现在需要将穿透概率P与预形成概率P_c结合起来，得到衰变宽度Γ，进而得到半衰期T_{1/2}。根据量子隧穿理论，衰变宽度Γ = (ħω / 2π) * P_c * P，其中ħω为振荡能量（或称为碰撞频率），半衰期T_{1/2} = ħ ln2 / Γ。 [Gap] 目前我们还没有确定振荡能量ħω的具体表达式，以及如何将P_c和P代入得到最终的半衰期公式。 [Decision] 我选择使用decay_width_formula工具，将预形成概率和穿透概率结合，并引入振荡能量（通常由assault frequency给出），从而建立半衰期的完整表达式。这一步将连接预形成概率和穿透概率到最终的半衰期。",
+      "action": "model_building",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "decay_width_Gamma": "Γ = (ħ * ν_0) * P_c * P",
+        "half_life_T12": "T_{1/2} = ħ ln2 / Γ = ln2 / (ν_0 * P_c * P)"
+      },
+      "observation": "根据量子隧穿理论，衰变宽度Γ与预形成概率P_c和穿透概率P的乘积成正比，比例因子为ħ乘以碰撞频率ν_0（即单位时间内团簇撞击势垒的次数）。半衰期T_{1/2} = ħ ln2 / Γ。因此，半衰期的对数形式为：log10(T_{1/2}) = log10(ln2) - log10(ν_0) - log10(P_c) - log10(P)。其中ν_0通常由核内部运动频率估计，例如ν_0 ≈ 10^20 s^{-1}量级。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 前4步已建立了从UDL经验公式、CFM预形成概率、WKB穿透概率到衰变宽度和半衰期的理论框架。第4步给出了半衰期与预形成概率和穿透概率的关系式，但尚未具体给出碰撞频率ν₀的表达式或数值。ν₀是连接微观隧穿过程与宏观半衰期的关键参数，通常由核内运动频率或势阱振动频率决定。 [Gap] 需要确定碰撞频率ν₀的具体形式，以便后续将半衰期表达为可计算的显式公式。 [Decision] 采用核物理中常用的近似：碰撞频率等于团簇在母核势阱中的振动频率，可由团簇的动能和势阱宽度估算，或采用经验值。这里选择基于核物质振动频率的经典表达式：ν₀ = v / (2R)，其中v是团簇在核内的速度，R是核半径。利用动能E_k ≈ Q + V_0（V_0为势阱深度）和de Broglie关系，可导出ν₀ ≈ (2E_k/μ)^{1/2} / (2R)。更常用的简化是取ν₀ ≈ 10^{21} s^{-1}量级，但为保持推导的严格性，这里采用基于Q值和核半径的表达式。",
+      "action": "model_building",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "assault_frequency_nu0": "ν₀ = (1/(2R)) * sqrt(2Q/μ)  (近似取动能≈Q，忽略势阱深度)",
+        "assault_frequency_nu0_alternative": "ν₀ ≈ 10^{21} s^{-1} (经验值，用于快速估算)"
+      },
+      "observation": "碰撞频率ν₀的两种常用表达式：基于核半径和Q值的半经典公式，以及经验常数。后续步骤将采用第一种表达式以保持与Q值和核半径的显式依赖关系，便于与UDL形式对比。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "phase": "decision_summary",
+      "thought": "[Background] 预测使用 empirical_halflife_formula -> cluster_formation_probability -> WKB_action_integral -> decay_width_formula -> assault_frequency_calculation 进行推导，与论文方法一致。[Gap] 分析方法选择正确的关键判断依据。[Decision] 预测方法链从经验公式（UDL）出发，逐步引入CFM和WKB近似，与论文实际从核半径、势垒构建到WKB积分的推导路径在核心物理机制上一致，均依赖WKB隧穿概率和预形成概率的乘积。预测正确是因为抓住了关键物理条件：Q值驱动隧穿、偶偶核的角动量l=0简化离心势、以及CFM提供预形成概率的理论值，从而自然导向UDL与WKB的结合。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "对于超铅核团簇放射性半衰期预测，当Q值已知且团簇为偶偶核时，采用WKB近似结合团簇形成模型（CFM）计算预形成概率，再通过普适衰变律（UDL）拟合半衰期，是兼顾物理准确性与计算效率的最优选择。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文推导的目标是从母核的质量数、电荷数、中子数和Q值出发，计算团簇放射性的半衰期。论文采用的方法包括WKB近似、团簇形成模型、普适衰变律等。根据合法推导路径，第一步需要从核结构信息出发，计算结合能或配对能，为后续势能构建和隧穿计算奠定基础。 [Gap] 当前仅有初始条件（质量数、电荷数、中子数、Q值），尚未获得任何核结构参数，如核半径、库仑势等。 [Decision] 因此，第一步应使用核结构工具中的核半径估计，计算母核和团簇的核半径，这是构建核势和库仑势的基础。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "nuclear_radius_estimation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "cluster_mass_number": "A_c",
+        "cluster_charge_number": "Z_c",
+        "formula": "R = r0 * A^(1/3), 其中 r0 ≈ 1.2 fm"
+      },
+      "output_state": {
+        "parent_nuclear_radius": "R = 1.2 * A^(1/3) fm",
+        "cluster_nuclear_radius": "R_c = 1.2 * A_c^(1/3) fm",
+        "daughter_nuclear_radius": "R_d = 1.2 * (A - A_c)^(1/3) fm"
+      },
+      "observation": "根据核半径经验公式 R = r0 * A^(1/3) (r0=1.2 fm)，计算得到母核半径 R = 1.2 * A^(1/3) fm，团簇半径 R_c = 1.2 * A_c^(1/3) fm，子核半径 R_d = 1.2 * (A - A_c)^(1/3) fm。这些半径将用于后续构建核势和库仑势。\n[论文公式] Eq.(5): \\log_{10} T_{1/2} = a \\sqrt{Z_c Z_d / Q_c} + b \\sqrt{A_c A_d (Z_c Z_d)^{1/2}} + c",
+      "valid": true,
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 在团簇放射性中，半衰期主要由团簇穿过库仑势垒的隧穿概率决定。根据量子隧穿理论，势垒穿透概率P与WKB作用量积分S相关，而S依赖于势垒的形状和高度。对于球形核，库仑势垒由库仑势和离心势组成，其中离心势与轨道角动量l有关。根据论文方法，需要先确定团簇发射的角动量l，这由母核、子核和团簇的自旋宇称决定。 [Gap] 目前已知母核、子核和团簇的核半径，但尚未确定轨道角动量l。根据角动量守恒，l必须满足母核自旋J_p、子核自旋J_d和团簇自旋J_c的耦合规则，且宇称守恒。对于偶偶核，基态自旋宇称为0+，因此l由子核和团簇的自旋宇称决定。 [Decision] 基于角动量守恒和宇称守恒，确定团簇发射的轨道角动量l。对于偶偶母核，l = J_d + J_c（矢量耦合），且宇称满足π_p = π_d * π_c * (-1)^l。由于偶偶核基态π_p=+，因此(-1)^l = π_d * π_c。根据已知的团簇放射性数据，大多数情况下l取最小值，即l=0或l=2等。这里采用最小l规则，即l = min{ |J_p - J_d - J_c|, ..., J_p + J_d + J_c }，且满足宇称守恒。",
+      "action": "rule_application",
+      "tool": {
+        "name": "centrifugal_potential_construction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "parent_spin_parity": "0+",
+        "daughter_spin_parity": "0+ (假设偶偶子核)",
+        "cluster_spin_parity": "0+ (假设偶偶团簇如^14C, ^24Ne等)",
+        "angular_momentum_selection_rule": "最小l规则"
+      },
+      "output_state": {
+        "orbital_angular_momentum_l": "0 (对于偶偶母核发射偶偶团簇到偶偶子核的情况)",
+        "centrifugal_potential": "V_l(r) = \\frac{\\hbar^2 l(l+1)}{2\\mu r^2} = 0 (当l=0时)"
+      },
+      "observation": "对于偶偶母核（如^221Fr, ^242Cm等）发射偶偶团簇（如^14C, ^24Ne等）到偶偶子核的情况，角动量守恒和宇称守恒要求l=0。因此离心势为零，势垒仅由库仑势和核势组成。",
+      "step_mode": "symmetry_constraint",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 在团簇放射性中，团簇需要穿越由库仑势和核势共同构成的势垒。根据论文方法，采用WKB近似计算隧穿概率，需要先构建有效势能。由于离心势为零（l=0），有效势能仅由库仑势和核势组成。核势通常采用Woods-Saxon势参数化，库仑势则采用均匀带电球体的势能形式。 [Gap] 当前已得到核半径和离心势，但尚未构建完整的库仑势和核势表达式，无法进行后续的势垒穿透计算。 [Decision] 因此，下一步应构建库仑势和核势，为后续计算有效势能做准备。根据论文中的标准方法，采用Woods-Saxon势描述核势，采用点电荷或均匀带电球体的库仑势。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Z_d": "Z - Z_c",
+        "Z_c": "cluster charge number",
+        "R": "1.2 * A^(1/3) fm",
+        "R_c": "1.2 * A_c^(1/3) fm",
+        "R_d": "1.2 * (A - A_c)^(1/3) fm"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(r) = \\frac{Z_d Z_c e^2}{r} \\quad (r \\geq R_c + R_d)",
+        "nuclear_potential": "V_N(r) = -V_0 \\left[ 1 + \\exp\\left(\\frac{r - R_0}{a}\\right) \\right]^{-1}",
+        "effective_potential": "V_eff(r) = V_C(r) + V_N(r)"
+      },
+      "observation": "构建了库仑势和核势的表达式。库仑势采用点电荷近似：V_C(r) = Z_d Z_c e^2 / r，适用于r大于两核接触距离的情况。核势采用Woods-Saxon形式：V_N(r) = -V_0 [1 + exp((r - R_0)/a)]^{-1}，其中V_0为势阱深度（约50-60 MeV），R_0 = R_d + R_c为两核中心距离，a为弥散度（约0.5 fm）。有效势能为两者之和：V_eff(r) = V_C(r) + V_N(r)。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 在构建了有效势垒（库仑势+核势）之后，需要求解势垒隧穿概率。根据WKB近似，隧穿概率P = exp(-2S)，其中S是作用量积分，需要从内转折点r_in到外转折点r_out对势垒区域进行积分。内转折点r_in是有效势等于Q值的位置（r < R_c+R_d），外转折点r_out是有效势等于Q值的位置（r > R_c+R_d）。[Gap] 当前已经得到有效势V_eff(r)的表达式，但尚未确定转折点的具体位置，也没有计算作用量积分。[Decision] 下一步应使用turning_point_solver工具，通过数值求解方程V_eff(r) = Q_value来找到内转折点r_in和外转折点r_out，为后续WKB作用量积分做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": "1.0"
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = Z_d Z_c e^2 / r - V_0 / [1 + exp((r - R_0)/a)]",
+        "Q_value": "Q_value (从实验或质量公式得到)",
+        "nuclear_radii": "R = 1.2 * A^(1/3) fm, R_c = 1.2 * A_c^(1/3) fm, R_d = 1.2 * (A - A_c)^(1/3) fm",
+        "search_interval": "内转折点搜索区间 [0.5*(R_c+R_d), R_c+R_d], 外转折点搜索区间 [R_c+R_d, 100 fm]"
+      },
+      "output_state": {
+        "inner_turning_point": "r_in = 方程 V_eff(r) = Q_value 在 r < R_c+R_d 区域的最小实数根",
+        "outer_turning_point": "r_out = 方程 V_eff(r) = Q_value 在 r > R_c+R_d 区域的最大实数根"
+      },
+      "observation": "通过数值求解转折点方程，得到内转折点r_in和外转折点r_out的具体数值。对于典型团簇放射性体系（如^222Ra发射^14C），r_in约等于两核接触距离R_c+R_d（约9-10 fm），r_out由Q值决定，通常在20-30 fm范围。这两个转折点将用于下一步WKB作用量积分计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: effective_potential",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在确定了内转折点r_in和外转折点r_out后，需要计算团簇穿过库仑势垒的隧穿概率。根据WKB近似，隧穿概率P由作用量积分S决定：P = exp(-2S)，其中S = ∫_{r_in}^{r_out} √(2μ/ħ² (V_eff(r) - Q)) dr。这是量子隧穿理论的核心步骤，也是论文中计算半衰期的关键环节。[Gap] 当前已得到转折点位置，但尚未计算WKB作用量积分和隧穿概率。[Decision] 因此，下一步应使用WKB作用量积分工具，基于有效势V_eff(r)和Q值计算作用量S，进而得到隧穿概率P。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "inner_turning_point": "r_in",
+        "outer_turning_point": "r_out",
+        "effective_potential": "V_eff(r) = V_C(r) + V_N(r)",
+        "Q_value": "Q",
+        "reduced_mass": "μ = (A_c * (A - A_c) / A) * u"
+      },
+      "output_state": {
+        "WKB_action_integral": "S = ∫_{r_in}^{r_out} √(2μ/ħ² (V_eff(r) - Q)) dr",
+        "tunneling_probability": "P = exp(-2S)"
+      },
+      "observation": "通过数值积分计算WKB作用量S，得到团簇隧穿库仑势垒的概率P = exp(-2S)。该概率是半衰期计算的关键因子，后续将结合预形成概率和碰撞频率得到衰变宽度。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "通过对比实验测量的团簇放射性半衰期数据（如文献中已知的Ra核素发射C簇的T_{1/2}值）与模型预测的10^12.5 s和10^15.2 s，若偏差在1个数量级内则验证正确性。具体使用Santhosh半经验公式和Ni统一公式重新计算相同核素的P_c，并与WKB近似结果交叉比对，确保预形成概率一致性。",
+    "metrics": {
+      "half_life": {
+        "value": "10^15.2 s",
+        "unit": "^{242}Cm发射^{34}Si团簇",
+        "interpretation": "half_life; ^{221}Fr发射^{14}C团簇"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：santhosh_semi_empirical_model；ni_unified_formula。"
+  },
+  "paper_methods": [
+    "wkb_approximation",
+    "cluster_formation_model",
+    "universal_decay_law",
+    "santhosh_semi_empirical_model",
+    "ni_unified_formula"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "wkb_approximation",
+        "desc": "Wentzel-Kramers-Brillouin近似，用于计算团簇穿过库仑势垒的隧穿概率"
+      },
+      {
+        "name": "cluster_formation_model",
+        "desc": "团簇形成模型，用于计算团簇在母核表面的预形成概率P_c"
+      },
+      {
+        "name": "universal_decay_law",
+        "desc": "普适衰变定律，统一描述α衰变和团簇放射性的半衰期公式"
+      },
+      {
+        "name": "santhosh_semi_empirical_model",
+        "desc": "Santhosh半经验模型，基于经验参数拟合团簇放射性半衰期"
+      },
+      {
+        "name": "ni_unified_formula",
+        "desc": "倪统一公式，一种改进的团簇放射性半衰期经验公式"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{1/2} = \\frac{\\ln 2}{\\nu_0 P_c P_s}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "\\log_{10} T_{1/2} = a \\sqrt{Z_c Z_d / Q_c} + b \\sqrt{A_c A_d (Z_c Z_d)^{1/2}} + c"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "half_life",
+        "value": "10^12.5 s",
+        "condition": "^{221}Fr发射^{14}C团簇"
+      },
+      {
+        "quantity": "half_life",
+        "value": "10^15.2 s",
+        "condition": "^{242}Cm发射^{34}Si团簇"
+      }
+    ],
+    "failure_points": [
+      "santhosh_semi_empirical_model",
+      "ni_unified_formula"
+    ]
+  }
+}

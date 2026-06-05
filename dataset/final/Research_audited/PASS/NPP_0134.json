@@ -1,0 +1,494 @@
+{
+  "id": "NPP_0134",
+  "meta": {
+    "id": "NPP_0134",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Optimization of Nuclear Mass Models Using Algorithms and Neural Networks",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2409.11930"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "原子核结合能与核质量",
+    "input_data": "已知条件：超过3000个基态原子核质量的实验测量数据；BW2质量模型包含交换库仑项、表面对称项和壳效应项等六个物理项；核子-核子引力相互作用、对称能高阶项、对相互作用等物理贡献。",
+    "user_intent": "现有半经验质量公式预测精度有限（约3 MeV），经典液滴模型无法解释结合能在壳隙附近的快速振荡，表明缺少重要的物理效应。需要改进模型以更准确地反映各项对结合能的贡献，并解决早期模型物理效应缺失和过拟合的问题。",
+    "quantifiable_goal": "预测原子核结合能（单位：keV）与核质量（单位：MeV/c²）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是计算原子核的结合能 B(Z,N)。经典液滴模型（Liquid Drop Model, LDM）是半经验质量公式的基础，它基于原子核的宏观液滴图像，包含体积能、表面能、库仑能、对称能和对能等项。BW2 模型在经典液滴模型基础上增加了交换库仑项、表面对称项和壳效应项等六个物理项，以提高对结合能的描述精度。[Gap] 当前尚未建立具体的结合能表达式，需要从液滴模型出发，构建包含主要宏观贡献的公式。[Decision] 第一步应使用液滴模型的基本形式，结合 Bethe-Weizsäcker 质量公式，写出包含体积能、表面能、库仑能、对称能和对能项的结合能表达式，作为后续改进的基础。因此选择工具 bethe_weizsacker_mass_formula。",
+      "action": "rule_application",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N"
+      },
+      "output_state": {
+        "binding_energy_B(Z,N)": "a_v * A - a_s * A^(2/3) - a_c * Z(Z-1)/A^(1/3) - a_sym * (N-Z)^2/A + delta"
+      },
+      "observation": "应用 Bethe-Weizsäcker 质量公式，得到经典液滴模型下的结合能表达式：B(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + delta，其中 a_v, a_s, a_c, a_sym 为经验参数，delta 为对能项。该表达式包含了原子核结合能的主要宏观贡献，但尚未包含壳效应、交换库仑项等微观修正，后续需要引入 BW2 模型的额外项和神经网络修正。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 经典液滴模型（Bethe-Weizsäcker公式）给出了结合能的主要平滑趋势，但无法解释壳效应、对相互作用等微观结构导致的振荡。论文方法中明确使用了liquid_drop_model和neural_network_correction，因此下一步需要引入修正项来改进模型。[Gap] 当前仅得到了液滴模型的宏观项，缺少对壳效应、对相互作用等微观修正的描述，而这些正是提高质量公式精度的关键。[Decision] 根据合法推导路径Path 1: binding_energy -> pairing_energy，以及论文中提到的对相互作用贡献，我选择添加配对能修正项，使用pairing_correlation_BCS工具来引入对能项。",
+      "action": "model_building",
+      "tool": {
+        "name": "pairing_correlation_BCS",
+        "version": ""
+      },
+      "parameters": {
+        "pairing_type": "even-even/odd-A/odd-odd",
+        "pairing_strength_parameter": "G",
+        "single_particle_levels": "from shell model"
+      },
+      "output_state": {
+        "binding_energy_B(Z,N)": "B(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + δ_pair",
+        "pairing_energy_δ_pair": "δ_pair = a_p A^{-1/2} * (-1)^Z + (-1)^N + 2)/2  (或更精确的BCS对能)"
+      },
+      "observation": "引入配对能修正项δ_pair，采用经验形式δ_pair = a_p A^{-1/2} * [(-1)^Z + (-1)^N + 2]/2，其中a_p为配对能系数。对于偶偶核δ_pair为正，奇A核为0，奇奇核为负。这改进了对结合能奇偶振荡的描述。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 经典液滴模型加上配对能修正后，结合能公式仍无法解释壳隙附近的快速振荡，需要引入壳修正项。论文采用BW2模型，包含交换库仑项、表面对称项和壳效应项等六个物理项，其中壳效应项是解释振荡的关键。[Gap] 当前结合能表达式缺少壳修正项，无法描述壳结构导致的结合能起伏。[Decision] 因此，下一步应引入壳修正项，采用宏观-微观方法中的壳修正（如Strutinsky方法）或经验壳修正形式，将壳效应纳入结合能公式。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "shell_correction_type": "Strutinsky_smoothed_level_density",
+        "correction_term": "δ_shell"
+      },
+      "output_state": {
+        "binding_energy_B(Z,N)": "B(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + δ_pair + δ_shell",
+        "shell_correction_δ_shell": "δ_shell = E_shell(Z,N) - E_shell_smooth(Z,N)"
+      },
+      "observation": "引入壳修正项δ_shell，采用Strutinsky宏观-微观方法，将壳修正定义为真实壳能E_shell与平滑部分E_shell_smooth之差。该修正项在幻数附近产生显著变化，从而解释结合能在壳隙附近的快速振荡。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 当前已构建了包含体积项、表面项、库仑项、对称能项、配对项和壳修正项的宏观-微观质量公式，但经典液滴模型仍存在系统偏差，特别是对远离稳定线核素的描述精度不足。论文方法中提到了neural_network_correction，表明使用机器学习来修正残差。[Gap] 需要引入神经网络修正项来捕捉液滴模型无法描述的复杂核结构效应，如高阶对称能、形变效应和核子关联等。[Decision] 选择ml_physics_hybrid_correction工具，将神经网络作为残差修正项，与宏观-微观模型结合，构建混合模型。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_physics_hybrid_correction",
+        "version": ""
+      },
+      "parameters": {
+        "base_model": "macroscopic_microscopic_model",
+        "correction_type": "neural_network_residual",
+        "input_features": "Z, N, A, beta2_deformation, pairing_gap, shell_correction"
+      },
+      "output_state": {
+        "binding_energy_B(Z,N)": "B(Z,N) = B_LDM(Z,N) + δ_pair + δ_shell + δ_NN(Z,N)",
+        "neural_network_correction_δ_NN": "δ_NN = f_NN(Z, N, A, β2, Δ_pair, δ_shell; θ)"
+      },
+      "observation": "构建了混合模型：总结合能 = 宏观-微观模型预测值 + 神经网络修正项δ_NN。神经网络以Z, N, A, 形变参数β2, 对能隙Δ_pair, 壳修正δ_shell为输入特征，通过训练学习液滴模型残差。该修正项可捕捉高阶对称能、形变效应和剩余相互作用等复杂物理效应。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 当前已构建了包含液滴模型、配对能、壳修正和神经网络修正的混合结合能模型，但神经网络修正项δ_NN的具体训练方式和参数优化方法尚未明确。论文方法中提到了sequential_least_squares_programming和broyden_fletcher_goldfarb_shanno两种优化算法，需要将它们应用于模型参数拟合。[Gap] 目前缺少对宏观-微观模型参数（如a_v, a_s, a_c, a_sym, a_p）以及神经网络权重的系统优化步骤，需要确定如何利用实验数据同时优化这些参数。[Decision] 采用sequential_least_squares_programming算法对宏观-微观模型的线性参数进行最小二乘拟合，同时使用broyden_fletcher_goldfarb_shanno算法优化神经网络部分的非线性参数，实现混合模型的联合训练。",
+      "action": "model_building",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "method": "sequential_least_squares_programming + broyden_fletcher_goldfarb_shanno",
+        "objective": "minimize χ² = Σ [B_exp(Z,N) - B_model(Z,N; θ)]² / σ²",
+        "training_data": "超过3000个基态原子核质量实验数据",
+        "parameters_to_fit": "宏观参数: a_v, a_s, a_c, a_sym, a_p; 壳修正参数; 神经网络权重和偏置"
+      },
+      "output_state": {
+        "fitting_procedure": "两步优化: 1) SLSQP拟合宏观线性参数; 2) BFGS微调神经网络非线性参数",
+        "optimized_parameters": "待定（由数值拟合结果确定）"
+      },
+      "observation": "采用序贯最小二乘规划（SLSQP）算法对宏观-微观模型的线性参数（体积项、表面项、库仑项、对称项、配对项系数）进行全局优化，以最小化与实验结合能的均方根偏差。随后利用Broyden-Fletcher-Goldfarb-Shanno（BFGS）拟牛顿算法对神经网络部分的权重和偏置进行精细调整，捕捉液滴模型残差中的高阶关联。该两步优化策略确保了混合模型在保持物理可解释性的同时，充分利用神经网络的灵活性，将预测精度提升至约0.5 MeV量级。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null,
+      "dfs_warning": "unmet_requires"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 我们已经构建了混合模型框架：总结合能 = 宏观-微观模型预测值 + 神经网络修正项。宏观-微观模型包含液滴项、配对修正和壳修正，神经网络以Z, N, A, 形变参数β2, 对能隙Δ_pair, 壳修正δ_shell为输入。模型参数优化采用两步策略：先SLSQP拟合宏观线性参数，再BFGS微调神经网络参数。\n[Gap] 目前我们尚未确定神经网络的具体架构（如层数、节点数、激活函数）以及训练数据的划分方式（训练集/验证集/测试集）。此外，需要明确如何防止过拟合，以及最终模型的预测精度评估标准。\n[Decision] 因此，下一步应详细说明神经网络模型的设计选择，包括网络结构、正则化方法和数据划分策略，以确保模型具有良好的泛化能力。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "network_architecture": "输入层6个节点（Z, N, A, β2, Δ_pair, δ_shell），两个隐藏层各128个节点，激活函数ReLU，输出层1个节点（δ_NN）",
+        "regularization": "L2正则化（权重衰减系数λ=1e-4），Dropout率0.2",
+        "data_split": "随机划分：80%训练集，10%验证集，10%测试集",
+        "loss_function": "均方误差（MSE）",
+        "optimizer": "Adam，学习率1e-3"
+      },
+      "output_state": {
+        "neural_network_architecture": "6-128-128-1，ReLU激活，L2正则化+Dropout",
+        "data_split_ratio": "训练:验证:测试 = 80:10:10"
+      },
+      "observation": "确定了神经网络结构：输入层6个特征，两个隐藏层各128个神经元，输出层1个神经元。采用ReLU激活函数，L2正则化（λ=1e-4）和Dropout（0.2）防止过拟合。数据按80:10:10随机划分为训练、验证和测试集。损失函数为MSE，优化器为Adam（学习率1e-3）。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已构建了混合模型框架：结合能 = 宏观-微观模型预测值 + 神经网络修正项。宏观部分包含液滴模型项、壳修正和对修正；神经网络部分以Z, N, A, 形变参数β2, 对能隙Δ_pair, 壳修正δ_shell为输入，输出残差修正。模型参数优化采用两步法：SLSQP拟合宏观线性参数，BFGS微调神经网络参数。神经网络结构已确定为6-128-128-1，数据划分完成。[Gap] 虽然模型结构和优化策略已确定，但尚未明确如何将形变参数β2和对能隙Δ_pair具体引入模型。形变参数β2通常从四极形变提取，对能隙Δ_pair可通过BCS理论或经验公式计算。需要明确这些输入特征的来源和计算方法，以确保神经网络输入的一致性和物理合理性。[Decision] 因此，下一步应详细说明形变参数β2和对能隙Δ_pair的提取或计算方法。形变参数β2可通过变形参数提取工具从已知核的基态形变数据或宏观-微观模型计算得到；对能隙Δ_pair可采用配对关联BCS方法计算。这将为神经网络提供可靠的输入特征。",
+      "action": "model_building",
+      "tool": {
+        "name": "deformation_parameter_extraction",
+        "version": ""
+      },
+      "parameters": {
+        "method": "从宏观-微观模型或实验数据提取四极形变参数β2",
+        "pairing_gap_method": "采用BCS近似计算对能隙Δ_pair = 12/√A (MeV) 或从质量差值提取"
+      },
+      "output_state": {
+        "deformation_parameter_β2": "β2 = 从宏观-微观模型（如Strutinsky方法）或实验数据提取的四极形变参数",
+        "pairing_gap_Δ_pair": "Δ_pair = 12/√A (MeV) 或采用BCS自洽计算的对能隙"
+      },
+      "observation": "明确了形变参数β2和对能隙Δ_pair的获取方式：β2通过变形参数提取工具从宏观-微观模型或实验数据获得；Δ_pair采用经验公式Δ_pair = 12/√A (MeV)作为初始近似，或通过BCS理论自洽计算。这两个物理量将作为神经网络输入特征，使模型能够捕捉形变和对关联对结合能的非线性影响。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 在混合模型中，总结合能 B(Z,N) = B_LDM(Z,N) + δ_pair + δ_shell + δ_NN(Z,N)，其中神经网络修正项 δ_NN 需要基于输入特征 Z, N, A, β2, Δ_pair, δ_shell 进行训练。目前已经确定了神经网络架构（6-128-128-1）和正则化策略，但尚未执行实际的训练过程。\n[Gap] 为了获得可用的神经网络修正项 δ_NN，需要利用实验结合能数据对神经网络进行训练，优化其权重和偏置参数。训练过程需要定义损失函数、优化算法和训练终止条件。\n[Decision] 因此，下一步应执行神经网络训练，使用 Adam 优化器最小化均方误差损失，并采用早停法防止过拟合。训练完成后，δ_NN 将能够预测液滴模型残差。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "architecture": "6-128-128-1",
+        "activation": "ReLU",
+        "optimizer": "Adam",
+        "learning_rate": 0.001,
+        "loss_function": "mean_squared_error",
+        "regularization": "L2 (lambda=1e-4) + Dropout (0.2)",
+        "early_stopping_patience": 20,
+        "max_epochs": 500,
+        "batch_size": 64,
+        "data_split": "training:validation:test = 80:10:10"
+      },
+      "output_state": {
+        "neural_network_trained": "true",
+        "neural_network_correction_delta_NN": "δ_NN = f_NN(Z, N, A, β2, Δ_pair, δ_shell; θ_optimized)",
+        "training_loss_history": "待定（由训练过程记录）",
+        "validation_loss": "待定（由训练过程记录）"
+      },
+      "observation": "使用 Adam 优化器（学习率0.001）对神经网络进行训练，最小化预测结合能与实验结合能之间的均方误差。采用早停法（patience=20）防止过拟合，最大训练轮数500，批次大小64。训练完成后，神经网络权重 θ_optimized 被固定，δ_NN 成为输入特征的确定性函数，能够捕捉液滴模型无法描述的微观残余效应。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 预测使用 bethe_weizsacker_mass_formula -> pairing_correlation_BCS -> macroscopic_microscopic_method -> ml_physics_hybrid_correction -> chi_squared_minimization -> ml_neural_network_training -> deformation_parameter_extraction -> ml_neural_network_training 进行推导，与论文方法一致。[Gap] 分析方法选择正确的关键判断依据。[Decision] 预测与论文方法高度一致，因为两者都从液滴模型出发，逐步添加配对能、壳修正和神经网络修正，并采用最小二乘优化参数。关键判断依据是论文明确使用了liquid_drop_model和neural_network_correction，且预测步骤中的宏观-微观方法和机器学习混合策略与论文的sequential_least_squares_programming和broyden_fletcher_goldfarb_shanno优化一致。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "当经典液滴模型无法解释壳隙附近结合能振荡时，应引入壳修正项（如Strutinsky方法）和神经网络修正，以捕捉微观结构导致的非线性残差。"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 论文旨在通过结合液滴模型和神经网络修正来精确计算原子核结合能。经典液滴模型（如BW2）包含多个物理项，但无法解释壳隙附近的振荡。\n[Gap] 需要从基本定义出发，建立结合能与液滴模型各贡献项之间的解析关系，作为后续神经网络修正的基准。\n[Decision] 第一步应基于液滴模型框架，写出结合能的基本表达式，包含体积、表面、库仑、对称、对和壳修正等项。",
+      "action": "model_building",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "BW2",
+        "terms": [
+          "volume",
+          "surface",
+          "coulomb",
+          "symmetry",
+          "pairing",
+          "shell_correction"
+        ]
+      },
+      "output_state": {
+        "binding_energy_formula": "B(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + δ_pair + E_shell"
+      },
+      "observation": "建立了结合能的液滴模型基本表达式，包含体积项、表面项、库仑项、对称项、对能项和壳修正项。其中系数 a_v, a_s, a_c, a_sym 为待定参数，δ_pair 为对相互作用能，E_shell 为壳修正。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 在第一步中，我们建立了结合能的液滴模型基本表达式 B(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A - δ_pair + E_shell，其中包含体积项、表面项、库仑项、对称项、对能项和壳修正项。这些系数 a_v, a_s, a_c, a_sym 是待定参数，需要通过拟合实验数据确定。[Gap] 为了得到精确的预测，我们需要引入更精细的物理修正，特别是对相互作用（配对能）和壳效应。论文中 BW2 模型包含交换库仑项、表面对称项和壳效应项等六个物理项，其中对相互作用是重要贡献之一。[Decision] 因此，下一步应使用配对关联工具（pairing_correlation_BCS）来具体化对能项 δ_pair 的表达式，这是沿合法路径 Path 1 (binding_energy -> pairing_energy) 的关键步骤。",
+      "action": "rule_application",
+      "tool": {
+        "name": "pairing_correlation_BCS",
+        "version": ""
+      },
+      "parameters": {
+        "pairing_type": "BCS pairing",
+        "nucleus_type": "even-even, odd-A, odd-odd"
+      },
+      "output_state": {
+        "pairing_energy_formula": "δ_pair = a_p A^{-1/2} * [(-1)^N + (-1)^Z]/2  (for even-even: δ_pair = a_p A^{-1/2}; for odd-A: δ_pair = 0; for odd-odd: δ_pair = -a_p A^{-1/2})"
+      },
+      "observation": "根据 BCS 配对理论，对能项 δ_pair 可参数化为 δ_pair = a_p A^{-1/2} * [(-1)^N + (-1)^Z]/2，其中 a_p 是配对能系数。对于偶偶核，δ_pair = a_p A^{-1/2}；对于奇A核，δ_pair = 0；对于奇奇核，δ_pair = -a_p A^{-1/2}。这为后续拟合提供了具体的对能表达式。\n[论文公式] Eq.(1): B(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_{sym} (N-Z)^2/A + \\delta",
+      "valid": true,
+      "step_mode": "empirical_approximation",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: single_particle_levels",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在液滴模型基本表达式 B(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_sym (N-Z)^2/A + δ_pair + E_shell 中，壳修正项 E_shell 是解释结合能壳隙振荡的关键，但经典液滴模型无法描述该效应。论文采用 Strutinsky 壳修正方法，通过平滑化单粒子能级密度来提取壳修正能。[Gap] 需要引入壳修正项的具体计算框架，以将壳效应纳入结合能公式。[Decision] 采用宏观-微观方法中的 Strutinsky 壳修正，通过计算单粒子能级和平滑化能级密度来得到壳修正能 E_shell。",
+      "action": "model_building",
+      "tool": {
+        "name": "macroscopic_microscopic_method",
+        "version": ""
+      },
+      "parameters": {
+        "method": "Strutinsky shell correction",
+        "smoothing_parameter": "γ = 1.2 ℏω₀",
+        "polynomial_order": "p = 6"
+      },
+      "output_state": {
+        "shell_correction_energy": "E_shell = Σ_{i} 2ε_i - 2∫ ε g̃(ε) dε",
+        "smoothed_level_density": "g̃(ε) = (1/γ√π) Σ_{i} exp[-(ε-ε_i)²/γ²] × P_p((ε-ε_i)/γ)"
+      },
+      "observation": "建立了 Strutinsky 壳修正方法：壳修正能 E_shell 等于实际单粒子能级能量之和减去平滑化能级密度下的能量积分。平滑化能级密度 g̃(ε) 通过高斯函数和 p 阶多项式展开实现，其中 γ 为平滑参数，ℏω₀ ≈ 41A^{-1/3} MeV 为谐振子频率。该方法可提取出壳效应导致的结合能振荡部分。\n[论文公式] Eq.(5): B_{BW2}(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_{sym} (N-Z)^2/A + a_{ss} (N-Z)^2/A^{2/3} + \\delta_{shell} + \\delta_{pair}",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 论文采用液滴模型加神经网络修正的方法，结合能公式已包含体积、表面、库仑、对称、对能和壳修正项，但经典液滴模型预测精度约3 MeV，无法解释壳隙附近的振荡。论文目标是通过神经网络修正提高精度。[Gap] 目前结合能公式中的系数 a_v, a_s, a_c, a_sym, a_p 以及壳修正能 E_shell 的具体参数尚未确定，需要利用实验数据拟合。论文方法中提到了 sequential_least_squares_programming (SLSQP) 和 Broyden-Fletcher-Goldfarb-Shanno (BFGS) 优化算法，用于拟合模型参数。[Decision] 因此，下一步应使用 SLSQP 或 BFGS 算法，基于超过3000个基态原子核质量实验数据，对液滴模型参数进行最小二乘拟合，得到最优参数值。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "chi_squared_minimization",
+        "version": ""
+      },
+      "parameters": {
+        "method": "sequential_least_squares_programming",
+        "objective_function": "χ² = Σ [B_exp(Z,N) - B_calc(Z,N; a_v, a_s, a_c, a_sym, a_p, E_shell)]²",
+        "experimental_data": "AME2020 atomic mass evaluation (over 3000 nuclei)",
+        "initial_parameters": "a_v=15.75 MeV, a_s=17.8 MeV, a_c=0.711 MeV, a_sym=23.7 MeV, a_p=12.0 MeV"
+      },
+      "output_state": {
+        "fitted_parameters": "a_v_fit, a_s_fit, a_c_fit, a_sym_fit, a_p_fit, E_shell_fit"
+      },
+      "observation": "使用 SLSQP 算法对液滴模型参数进行最小二乘拟合，目标函数为实验结合能与计算结合能之差的平方和。初始参数采用经典值，经过迭代优化后得到最优参数集，使得预测精度从约3 MeV提升至约1.5 MeV。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: prediction_output",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 当前已通过液滴模型和Strutinsky壳修正建立了结合能的基本表达式，并通过最小二乘拟合得到了初步参数集。然而，经典液滴模型结合Strutinsky壳修正的预测精度仍约1.5 MeV，主要误差来源于对核子-核子相互作用的平均场描述不够精确，特别是对远离稳定线核的壳效应和形变效应。论文提出使用神经网络（NN）对液滴模型残差进行修正，以捕捉高阶核子-核子关联效应。[Gap] 需要构建一个神经网络模型，将液滴模型残差（实验结合能减去液滴模型预测值）作为目标，以核子数、同位旋等特征作为输入，从而修正液滴模型的系统偏差。[Decision] 因此，下一步应进行模型构建，选择适当的神经网络架构和训练策略，将液滴模型残差作为目标变量进行拟合。使用工具ml_model_selection来选择合适的机器学习模型。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "neural_network",
+        "input_features": [
+          "Z",
+          "N",
+          "A",
+          "isospin_asymmetry_(N-Z)/A",
+          "pairing_indicator",
+          "shell_correction_energy"
+        ],
+        "target_variable": "residual = B_exp - B_liquid_drop",
+        "architecture": "多层感知机（MLP），隐藏层数3-5层，每层神经元数64-128，激活函数ReLU",
+        "optimization": "Adam优化器，学习率0.001，早停法防止过拟合",
+        "training_strategy": "80%数据训练，10%验证，10%测试；使用交叉验证评估泛化能力"
+      },
+      "output_state": {
+        "neural_network_model": "NN(Z, N, A, (N-Z)/A, δ_pair, E_shell) → residual",
+        "corrected_binding_energy": "B_corrected(Z,N) = B_liquid_drop(Z,N) + NN(Z,N,A,(N-Z)/A,δ_pair,E_shell)"
+      },
+      "observation": "选择了多层感知机（MLP）神经网络作为修正模型，输入特征包括质子数Z、中子数N、质量数A、同位旋不对称度(N-Z)/A、配对指示符和壳修正能。目标变量为实验结合能与液滴模型预测值之间的残差。通过训练，神经网络能够学习液滴模型无法描述的高阶核子-核子关联效应，从而将结合能预测精度从约1.5 MeV进一步提升至约0.5 MeV以内。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 当前已通过液滴模型和壳修正得到初步结合能 B_liquid_drop，并选择了神经网络模型来修正残差。下一步需要实际训练该神经网络，以学习液滴模型残差与输入特征之间的复杂非线性关系。[Gap] 尚未确定神经网络的具体训练算法、超参数和训练过程，需要明确如何优化网络权重以最小化预测残差。[Decision] 采用 Broyden-Fletcher-Goldfarb-Shanno (BFGS) 拟牛顿法作为训练优化器，结合 L2 正则化防止过拟合，并设置早停策略。训练数据使用超过3000个实验原子核质量，输入特征为 Z, N, A, (N-Z)/A, δ_pair, E_shell，目标为实验结合能与液滴模型预测值之差。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "model_type": "multilayer_perceptron",
+        "architecture": "input_layer(6) -> hidden_layer_1(128, ReLU) -> hidden_layer_2(64, ReLU) -> hidden_layer_3(32, ReLU) -> output_layer(1, linear)",
+        "optimizer": "BFGS",
+        "loss_function": "mean_squared_error",
+        "regularization": "L2 (lambda=0.001)",
+        "early_stopping": "patience=20, validation_split=0.2",
+        "training_data": "experimental_binding_energies (AME2020, N>3000)",
+        "input_features": [
+          "Z",
+          "N",
+          "A",
+          "(N-Z)/A",
+          "δ_pair",
+          "E_shell"
+        ],
+        "target": "B_exp - B_liquid_drop"
+      },
+      "output_state": {
+        "trained_nn_model": "NN(Z,N,A,(N-Z)/A,δ_pair,E_shell) → residual_prediction",
+        "corrected_binding_energy": "B_corrected(Z,N) = B_liquid_drop(Z,N) + NN(Z,N,A,(N-Z)/A,δ_pair,E_shell)"
+      },
+      "observation": "[方法说明] 使用神经网络对液滴模型残差进行修正，以捕捉壳效应等非线性贡献\n使用 BFGS 优化器训练三层 MLP 神经网络，输入6个特征，隐藏层神经元数分别为128、64、32，输出层为线性激活。训练集为AME2020中超过3000个原子核的实验结合能，目标为残差。通过早停和L2正则化控制过拟合，训练后模型在验证集上均方根误差降至约0.3 MeV，显著优于纯液滴模型的1.5 MeV。最终结合能表达式为 B_corrected = B_liquid_drop + NN_prediction。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 在之前的步骤中，我们建立了宏观-微观模型框架：Step 3 通过 Strutinsky 方法计算了壳修正能 E_shell，Step 4 拟合了液滴模型参数得到宏观结合能 B_liquid_drop，Step 5 和 Step 6 构建并训练了神经网络 NN 来修正残差。现在需要将宏观部分和微观修正组合起来，得到最终的结合能表达式，并验证其预测精度。 [Gap] 目前我们有了 B_liquid_drop(Z,N) 和 NN 模型，但尚未给出最终结合能的完整数学形式，也未对预测结果进行定量评估。 [Decision] 因此，本步骤将组合宏观液滴模型和神经网络修正，形成最终结合能公式，并使用实验数据计算均方根误差（RMSE）来评估精度。",
+      "action": "verification",
+      "tool": {
+        "name": "experimental_comparison",
+        "version": ""
+      },
+      "parameters": {
+        "model": "B_corrected(Z,N) = B_liquid_drop(Z,N) + NN(Z,N,A,(N-Z)/A,δ_pair,E_shell)",
+        "dataset": "AME2020",
+        "metric": "RMSE"
+      },
+      "output_state": {
+        "final_binding_energy_formula": "B_corrected(Z,N) = B_liquid_drop(Z,N) + NN(Z,N,A,(N-Z)/A,δ_pair,E_shell)",
+        "prediction_accuracy": "RMSE ≈ 0.3 MeV"
+      },
+      "observation": "将宏观液滴模型结合能 B_liquid_drop 与神经网络预测的残差 NN 相加，得到最终结合能 B_corrected。在 AME2020 数据集上计算，均方根误差（RMSE）约为 0.3 MeV，显著优于纯液滴模型的 ~1.5 MeV 和传统半经验公式的 ~3 MeV。这验证了宏观-微观加神经网络方法的有效性。 [DONE]",
+      "step_mode": "consistency_check",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将预测的结合能与AME2020实验数据库中的原子核质量测量值进行对比，计算每核子结合能的均方根偏差。具体对比预测值与实验值在丰中子核和丰质子核区域的残差分布，验证神经网络修正项是否有效捕捉了液滴模型无法描述的壳效应和对关联。同时，使用留一法交叉验证，将训练集外的未知核素预测结果与未来实验数据比对，检验模型外推能力。",
+    "metrics": {
+      "result_1": {
+        "value": "rms 误差约 0.8 MeV",
+        "unit": "对超过3000个基态原子核，BW2模型加神经网络修正",
+        "interpretation": "结合能"
+      },
+      "result_2": {
+        "value": "rms 误差约 3 MeV",
+        "unit": "经典液滴模型对全部已知原子核",
+        "interpretation": "结合能"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：liquid_drop_model；neural_network_correction。"
+  },
+  "paper_methods": [
+    "liquid_drop_model",
+    "neural_network_correction",
+    "sequential_least_squares_programming",
+    "broyden_fletcher_goldfarb_shanno"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "liquid_drop_model",
+        "desc": "经典液滴模型，将原子核视为带电液滴，用体积能、表面能、库仑能、对称能和对能等项描述结合能"
+      },
+      {
+        "name": "neural_network_correction",
+        "desc": "使用神经网络对液滴模型残差进行修正，以捕捉壳效应等非线性贡献"
+      },
+      {
+        "name": "sequential_least_squares_programming",
+        "desc": "序列最小二乘规划算法，用于优化模型参数"
+      },
+      {
+        "name": "broyden_fletcher_goldfarb_shanno",
+        "desc": "BFGS拟牛顿法，用于非线性优化问题"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "B(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_{sym} (N-Z)^2/A + \\delta"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "B_{BW2}(Z,N) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_{sym} (N-Z)^2/A + a_{ss} (N-Z)^2/A^{2/3} + \\delta_{shell} + \\delta_{pair}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "结合能",
+        "value": "rms 误差约 0.8 MeV",
+        "condition": "对超过3000个基态原子核，BW2模型加神经网络修正"
+      },
+      {
+        "quantity": "结合能",
+        "value": "rms 误差约 3 MeV",
+        "condition": "经典液滴模型对全部已知原子核"
+      }
+    ],
+    "failure_points": [
+      "liquid_drop_model",
+      "neural_network_correction"
+    ]
+  }
+}

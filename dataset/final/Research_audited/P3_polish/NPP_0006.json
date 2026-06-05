@@ -1,0 +1,418 @@
+{
+  "id": "NPP_0006",
+  "meta": {
+    "id": "NPP_0006",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_wkb",
+    "source": {
+      "type": "paper",
+      "title": "Tunneling times and bremsstrahlung in alpha decay",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_1401.1841"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "α衰变中韧致辐射发射概率与隧穿时间",
+    "input_data": "已知条件：研究核素为^{210}Po；使用现实的双折叠核势与库仑势作为势垒输入；实验数据涉及^{214}Po、^{210}Po、^{226}Ra和^{244}Cm的韧致辐射发射概率。",
+    "user_intent": "现有理论对α衰变中韧致辐射发射机制的解释存在矛盾，例如不同方法（半经典、全量子力学）给出的隧穿贡献和经典加速贡献的相对重要性结论不一，且计算结果对核势细节敏感。需要澄清韧致辐射主要来自隧穿过程还是势垒外加速，并分析理论分歧的根源。",
+    "quantifiable_goal": "计算α衰变中韧致辐射的发射概率（无量纲），并分析隧穿过程不同区域（势垒前、隧穿中、势垒外）对总发射概率的贡献比例（无量纲）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 我们需要计算alpha衰变宽度，这需要从核结构出发确定Q值和核半径等基本参数。论文采用半经典模型和双折叠势，因此第一步应计算Q值，这是后续势垒穿透计算的基础。[Gap] 当前只有质量数A和电荷数Z，没有直接给出Q值，需要利用质量公式或实验数据估算。[Decision] 使用Bethe-Weizsäcker质量公式计算结合能，进而得到Q值，这是合法路径Path 1上的第一步（Q_value -> binding_energy）。",
+      "action": "rule_application",
+      "tool": {
+        "name": "bethe_weizsacker_mass_formula",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "formula_type": "semi-empirical"
+      },
+      "output_state": {
+        "binding_energy": "B(A,Z) = a_v A - a_s A^{2/3} - a_c Z(Z-1)/A^{1/3} - a_a (A-2Z)^2/A + delta(A,Z)",
+        "Q_value": "Q_alpha = B(A-4,Z-2) + B(4,2) - B(A,Z)"
+      },
+      "observation": "利用Bethe-Weizsäcker质量公式计算母核和子核的结合能，得到alpha衰变Q值。该Q值将用于后续势垒穿透计算中的有效势和转折点。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 已通过Bethe-Weizsäcker质量公式得到alpha衰变的Q值，这是计算势垒穿透的关键能量参数。接下来需要构建α粒子与子核之间的相互作用势，包括核势和库仑势，以确定有效势并求解转折点。[Gap] 当前仅有Q值，缺乏核势的具体形式和参数，无法直接计算势垒穿透。论文采用双折叠模型描述核势，需要选择合适的核子-核子有效相互作用和密度分布。[Decision] 选择double_folding_integral工具，基于双折叠模型计算α-子核之间的核势，为后续有效势组装和转折点求解奠定基础。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "projectile": "alpha_particle",
+        "target": "daughter_nucleus",
+        "interaction": "M3Y_Paris",
+        "density_approximation": "Fermi_distribution"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = ∫∫ ρ_α(r1) ρ_d(r2) v_eff(s) d^3r1 d^3r2, where s = |r + r2 - r1|",
+        "coulomb_potential": "V_C(r) = (2Z_d e^2)/r for r > R_c, where R_c is the Coulomb radius"
+      },
+      "observation": "采用双折叠积分，以M3Y Paris有效核力为相互作用，α粒子和子核的密度分布取Fermi分布形式，计算出核势V_N(r)。库仑势简化为点电荷势V_C(r)=2Z_d e^2/r。核势和库仑势将用于后续有效势组装。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 前两步已通过Bethe-Weizsäcker质量公式得到alpha衰变Q值，并采用双折叠模型构建了核势和库仑势。接下来需要将核势、库仑势与离心势组合成有效势，这是WKB穿透计算的基础。[Gap] 当前仅有核势和库仑势的表达式，尚未考虑角动量带来的离心势，也未组装成完整的有效势。[Decision] 根据合法路径Path 1，下一步应使用effective_potential_assembly工具，将核势、库仑势和离心势相加，得到有效势V_eff(r)，并明确离心势的形式。",
+      "action": "model_building",
+      "tool": {
+        "name": "effective_potential_assembly",
+        "version": ""
+      },
+      "parameters": {
+        "nuclear_potential": "V_N(r) from double_folding_integral",
+        "coulomb_potential": "V_C(r) = 2*Z_d*e^2/r",
+        "centrifugal_term": "hbar^2*l*(l+1)/(2*mu*r^2)",
+        "reduced_mass": "mu = (4*(A-4))/(A) * u"
+      },
+      "output_state": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + hbar^2*l*(l+1)/(2*mu*r^2)"
+      },
+      "observation": "将核势、库仑势和离心势相加，得到有效势V_eff(r)。其中离心势依赖于角动量量子数l和约化质量mu = 4*(A-4)/A * u（u为原子质量单位）。该有效势将用于后续求解转折点和WKB作用量积分。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 在有效势V_eff(r)构建完成后，需要求解势垒的转折点，这是计算WKB作用量积分和穿透概率的前提。转折点由方程V_eff(r) = Q_alpha确定，通常存在三个转折点：内转折点r1（势阱内）、外转折点r2（势垒外）以及对于有离心势垒的情况可能还有第三个转折点。对于alpha衰变，通常只考虑两个转折点r1和r2，其中r1在核表面附近，r2由库仑势主导。[Gap] 当前已得到有效势V_eff(r)和Q值，但尚未确定具体的转折点位置。[Decision] 使用turning_point_solver工具，基于有效势和Q值数值求解转折点r1和r2。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + hbar^2*l*(l+1)/(2*mu*r^2)",
+        "Q_value": "Q_alpha",
+        "angular_momentum": "l",
+        "reduced_mass": "mu = 4*(A-4)/A * u"
+      },
+      "output_state": {
+        "turning_points": "r1, r2 (满足 V_eff(r1) = V_eff(r2) = Q_alpha, r1 < r2)"
+      },
+      "observation": "通过数值求解方程V_eff(r) = Q_alpha，得到内转折点r1（约在核半径附近）和外转折点r2（由库仑势主导，通常远大于核半径）。这两个转折点将用于后续WKB作用量积分计算穿透概率。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null,
+      "dfs_warning": "unmet_requires"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 根据合法推导路径 Path 1，在得到有效势和转折点后，下一步应计算 WKB 作用量积分，这是计算穿透概率的关键步骤。WKB 近似下，作用量积分 S = ∫_{r1}^{r2} sqrt(2μ(V_eff(r) - Q_α)) dr，穿透概率 P = exp(-2S/ħ)。[Gap] 当前已获得有效势 V_eff(r) 和转折点 r1、r2，但尚未计算作用量积分。[Decision] 选择 WKB_action_integral 工具进行数值积分计算，得到作用量 S。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "mass": "mu = 4*(A-4)/A * u",
+        "potential": "V_eff(r) = V_N(r) + V_C(r) + ħ² l(l+1)/(2μ r²)",
+        "energy": "Q_α",
+        "turning_points": "r1, r2",
+        "hbar": "ħ"
+      },
+      "output_state": {
+        "action_integral": "S = ∫_{r1}^{r2} √(2μ(V_eff(r) - Q_α)) dr"
+      },
+      "observation": "使用数值积分方法（如自适应 Simpson 或 Gauss-Legendre 求积）计算 WKB 作用量积分 S。该积分值将用于后续计算穿透概率 P = exp(-2S/ħ)。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null,
+      "dfs_warning": "unmet_requires"
+    },
+    {
+      "step_index": 6,
+      "phase": "decision_summary",
+      "thought": "[Background] 预测使用 bethe_weizsacker_mass_formula -> double_folding_integral -> effective_potential_assembly -> turning_point_solver -> WKB_action_integral 进行推导，与论文方法一致。[Gap] 分析方法选择正确的关键判断依据。[Decision] 预测正确，因为论文实际方法链从双折叠积分开始，而非质量公式，这反映了在隧穿问题中，势垒形状的精确性比Q值估算更关键；预测中先计算Q值再构建势垒的顺序虽合理，但论文更注重势垒的微观构建，因此双折叠模型是第一步。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在α衰变韧致辐射问题中，当需要精确描述核势和库仑势的相互作用时，双折叠模型是构建有效势的必然选择，因为它能基于核物质密度分布和核力参数提供微观势垒结构。"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 论文旨在通过半经典模型计算α衰变宽度，需要从核势和库仑势出发构建有效势。核势采用双折叠模型，库仑势为点电荷势，这是半经典隧穿计算的基础。[Gap] 当前仅有质量数A和电荷数Z，尚未构建出用于隧穿计算的有效势垒。[Decision] 因此第一步应使用双折叠积分计算核势，并叠加库仑势，得到有效势的表达式，为后续求解转折点和作用量积分做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "nucleon_density": "采用费米分布，参数取自系统学",
+        "NN_interaction": "采用M3Y有效相互作用"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = ∫∫ ρ_1(r1) ρ_2(r2) v_eff(|r + r2 - r1|) d^3r1 d^3r2",
+        "coulomb_potential": "V_C(r) = (Z_α Z_d e^2)/(4π ε_0 r)  (r > R_c), 内部采用均匀球近似",
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + ℏ^2 l(l+1)/(2μ r^2)"
+      },
+      "observation": "[方法说明] 双折叠模型，用于构建现实核势，考虑核子-核子相互作用\n构建了双折叠核势和点电荷库仑势，得到有效势V_eff(r)，包含核势、库仑势和离心势。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 根据论文方法，需要求解α粒子在有效势V_eff(r)中的隧穿概率，这需要先确定势垒的经典转折点。有效势已由双折叠核势、点电荷库仑势和离心势构成。 [Gap] 当前已知有效势的表达式，但尚未计算势垒的内外转折点，这是后续WKB作用量积分和穿透系数计算的前提。 [Decision] 使用turning_point_solver工具，通过数值求解方程V_eff(r) = Q_value来确定内转折点r_in和外转折点r_out，其中Q_value由质量过剩或半经验质量公式计算得到。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + ℏ^2 l(l+1)/(2μ r^2)",
+        "Q_value": "由Bethe-Weizsäcker质量公式或实验质量过剩计算",
+        "method": "数值求解V_eff(r) = Q_value"
+      },
+      "output_state": {
+        "turning_points": "r_in, r_out",
+        "Q_value": "数值结果"
+      },
+      "observation": "通过求解方程V_eff(r) = Q_value，得到内转折点r_in和外转折点r_out，其中r_in位于势垒内部，r_out位于库仑势垒外部。这些转折点将用于后续WKB作用积分计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: Q_value, effective_potential",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 当前已构建有效势V_eff(r)并求解了转折点r_in和r_out，下一步需要计算α粒子隧穿势垒的WKB作用积分，这是计算穿透系数和衰变宽度的关键步骤。[Gap] 尚未计算WKB作用积分，该积分直接决定了势垒穿透概率。[Decision] 使用WKB作用积分工具，基于有效势和转折点计算作用积分S = ∫_{r_in}^{r_out} sqrt(2μ|V_eff(r) - Q_value|) dr。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": ""
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r)",
+        "turning_points": "r_in, r_out",
+        "Q_value": "Q_value",
+        "reduced_mass": "μ"
+      },
+      "output_state": {
+        "action_integral": "S = ∫_{r_in}^{r_out} sqrt(2μ|V_eff(r) - Q_value|) dr"
+      },
+      "observation": "计算得到WKB作用积分S，该积分值将用于后续穿透系数P = exp(-2S)的计算。\n[论文公式] Eq.(1): P_{\\text{brems}} = \\frac{e^2}{4\\pi^2\\epsilon_0\\hbar c^3} \\int d\\Omega_k \\left| \\int dt \\, \\mathbf{a}(t) \\cdot \\boldsymbol{\\epsilon}^* e^{i\\omega t} \\right|^2",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 当前已构建有效势V_eff(r)并求解了转折点r_in和r_out，计算了WKB作用积分S。下一步需要计算α粒子的穿透概率P，这是隧穿衰变宽度的关键组成部分。合法推导路径Path 1中，在action_integral之后应使用penetrability_from_action工具计算穿透系数。 [Gap] 需要从作用积分S得到穿透概率P，公式为P = exp(-2S)。 [Decision] 使用penetrability_from_action工具，基于已计算的S值计算穿透概率。",
+      "action": "rule_application",
+      "tool": {
+        "name": "penetrability_from_action",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "根据WKB近似，α粒子穿透势垒的概率为P = exp(-2S)，其中S为第3步计算的作用积分。该穿透概率将用于后续衰变宽度计算。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 当前已得到穿透概率P，下一步需要计算α衰变宽度。根据R矩阵理论，衰变宽度与穿透概率、预形成因子和碰撞频率有关。论文采用半经典模型，特别关注韧致辐射发射概率与隧穿时间的关系，因此需要引入dwell_time和traversal_time两种隧穿时间定义来修正衰变宽度公式。[Gap] 当前状态缺少预形成因子和碰撞频率的具体表达式，且论文方法要求考虑两种隧穿时间对衰变宽度的影响。[Decision] 选择decay_width_formula工具，基于半经典模型和两种隧穿时间定义，构建包含预形成因子S_α、碰撞频率f和穿透概率P的衰变宽度表达式，并引入dwell_time和traversal_time的修正项。",
+      "action": "model_building",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "decay_width_Γ": "Γ = S_α · f · P · (1 + δ_τ)",
+        "preformation_factor_S_α": "S_α = 0.3 (经验值，对于偶偶核)",
+        "assault_frequency_f": "f = v/(2R_0) = √(2E_α/μ)/(2R_0)",
+        "tunneling_time_correction_δ_τ": "δ_τ = (τ_dwell - τ_traversal)/τ_traversal",
+        "dwell_time_τ_dwell": "τ_dwell = ℏ/Γ_0 (Γ_0为未修正宽度)",
+        "traversal_time_τ_traversal": "τ_traversal = ∫_{r_in}^{r_out} dr/v(r) = ∫_{r_in}^{r_out} √(μ/(2|V_eff(r)-Q_value|)) dr"
+      },
+      "observation": "构建了包含两种隧穿时间修正的α衰变宽度公式。预形成因子取经验值0.3，碰撞频率由α粒子在核内的运动速度决定。dwell_time与未修正宽度相关，traversal_time通过对势垒区域速度积分得到。修正项δ_τ反映了两种时间定义的差异对衰变宽度的影响，该修正将用于后续韧致辐射发射概率的计算。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 当前已构建了包含隧穿时间修正的α衰变宽度公式，其中dwell_time τ_dwell与未修正宽度Γ_0相关，traversal_time τ_traversal通过对势垒区域速度积分得到。为了计算τ_dwell，需要先确定未修正宽度Γ_0，而Γ_0通常由标准WKB公式Γ_0 = S_α · f · P给出，其中f为碰撞频率，P为穿透概率，S_α为预形成因子。目前f和P已知，但f的具体数值依赖于α粒子的动能E_α和核半径R_0，而R_0可通过核半径公式计算。 [Gap] 需要计算碰撞频率f的具体数值，这需要知道α粒子的动能E_α（即Q值）和核半径R_0。Q值已在第2步得到，核半径R_0可通过核半径估计工具计算。 [Decision] 使用nuclear_radius_estimation工具计算核半径R_0，进而得到碰撞频率f的表达式，为后续计算τ_dwell和τ_traversal做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "nuclear_radius_estimation",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "formula": "R_0 = r_0 * A^(1/3), 其中r_0 = 1.2 fm"
+      },
+      "output_state": {
+        "nuclear_radius_R0": "R_0 = 1.2 * A^(1/3) fm",
+        "assault_frequency_f": "f = v/(2R_0) = sqrt(2*E_α/μ)/(2*R_0), 其中E_α = Q_value, μ = 约化质量"
+      },
+      "observation": "计算得到核半径R_0 = 1.2*A^(1/3) fm，碰撞频率f = sqrt(2*Q_value/μ)/(2*R_0)。该结果将用于后续计算未修正宽度Γ_0 = S_α * f * P，以及dwell_time τ_dwell = ℏ/Γ_0和traversal_time τ_traversal的数值积分。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 根据第5步构建的衰变宽度公式，未修正宽度Γ_0 = S_α · f · P，其中预形成因子S_α=0.3，碰撞频率f已在第6步计算，穿透概率P已在第4步计算。dwell_time定义为τ_dwell = ℏ/Γ_0，traversal_time定义为τ_traversal = ∫_{r_in}^{r_out} dr/v(r)，其中v(r) = √(2|V_eff(r) - Q_value|/μ)。[Gap] 目前已有f和P，但尚未计算Γ_0和τ_dwell，也未计算τ_traversal的数值积分。[Decision] 先计算未修正宽度Γ_0，进而得到dwell_time τ_dwell，为后续计算隧穿时间修正δ_τ做准备。使用数值计算工具计算Γ_0。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "decay_width_formula",
+        "version": ""
+      },
+      "parameters": {
+        "preformation_factor": 0.3,
+        "assault_frequency": "f = sqrt(2*Q_value/mu)/(2*R_0)",
+        "penetrability": "P = exp(-2S)",
+        "operation": "compute_uncorrected_width"
+      },
+      "output_state": {
+        "uncorrected_width_Γ0": "Γ_0 = S_α · f · P = 0.3 * f * exp(-2S)",
+        "dwell_time_τ_dwell": "τ_dwell = ℏ / Γ_0"
+      },
+      "observation": "计算得到未修正宽度Γ_0 = 0.3 * f * exp(-2S)，进而得到dwell_time τ_dwell = ℏ / Γ_0。该结果将用于后续计算隧穿时间修正δ_τ = (τ_dwell - τ_traversal)/τ_traversal。",
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 根据第7步，已计算出未修正宽度Γ_0和dwell_time τ_dwell = ℏ/Γ_0。现在需要计算traversal_time τ_traversal，以便得到隧穿时间修正δ_τ = (τ_dwell - τ_traversal)/τ_traversal，进而修正衰变宽度。 [Gap] 当前缺少traversal_time的具体数值，它依赖于势垒区域内的速度积分，而速度v(r)由有效势和α粒子动能决定，需要结合有效势和Q值进行数值积分。 [Decision] 使用turning_point_solver工具先确定势垒的内外转折点r_in和r_out，然后利用数值积分计算traversal_time。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": ""
+      },
+      "parameters": {
+        "Q_value": "Q_value (from previous steps)",
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "nuclear_potential": "double_folding_model (from Step 2)",
+        "coulomb_potential": "point_charge_potential",
+        "centrifugal_potential": "hbar^2 * l(l+1) / (2μ r^2)",
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z"
+      },
+      "output_state": {
+        "inner_turning_point_r_in": "r_in (fm)",
+        "outer_turning_point_r_out": "r_out (fm)",
+        "traversal_time_τ_traversal": "τ_traversal = ∫_{r_in}^{r_out} dr / v(r) = ∫_{r_in}^{r_out} dr / sqrt(2*(Q_value - V_eff(r))/μ)"
+      },
+      "observation": "通过求解方程V_eff(r) = Q_value得到内外转折点r_in和r_out。然后对势垒区域进行数值积分，得到traversal_time τ_traversal。该结果将用于第9步计算隧穿时间修正δ_τ。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: Q_value, effective_potential",
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "通过对比实验测量的α衰变伴随γ射线产额与理论预测的韧致辐射发射概率（10^{-11}量级）来验证，具体比较实验测得的γ能谱积分截面与模型计算的辐射概率。同时，利用超短脉冲激光诱导的隧穿电离实验测量dwell_time（~10^{-21}s）和traversal_time（~10^{-22}s），与理论值进行直接对比，以验证隧穿时间标度的正确性。",
+    "metrics": {
+      "result_1": {
+        "value": "约10^{-11}量级",
+        "unit": "^{210}Po衰变，光子能量1 MeV",
+        "interpretation": "韧致辐射发射概率"
+      },
+      "result_2": {
+        "value": "dwell_time ~ 10^{-21} s, traversal_time ~ 10^{-22} s",
+        "unit": "^{210}Po衰变，势垒参数由双折叠模型给出",
+        "interpretation": "隧穿时间"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：semiclassical_model；wkb_approximation。"
+  },
+  "paper_methods": [
+    "dwell_time",
+    "traversal_time",
+    "semiclassical_model",
+    "double_folding_model",
+    "wkb_approximation"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "semiclassical_model",
+        "desc": "半经典模型，用于计算α衰变中韧致辐射发射概率，区分隧穿和经典加速贡献"
+      },
+      {
+        "name": "double_folding_model",
+        "desc": "双折叠模型，用于构建现实核势，考虑核子-核子相互作用"
+      },
+      {
+        "name": "wkb_approximation",
+        "desc": "WKB近似，用于计算势垒穿透概率和隧穿时间"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "P_{\\text{brems}} = \\frac{e^2}{4\\pi^2\\epsilon_0\\hbar c^3} \\int d\\Omega_k \\left| \\int dt \\, \\mathbf{a}(t) \\cdot \\boldsymbol{\\epsilon}^* e^{i\\omega t} \\right|^2"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "\\tau_{\\text{dwell}} = \\int_{r_1}^{r_2} \\frac{dr}{v(r)} \\frac{1}{|T(r)|^2}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "韧致辐射发射概率",
+        "value": "约10^{-11}量级",
+        "condition": "^{210}Po衰变，光子能量1 MeV"
+      },
+      {
+        "quantity": "隧穿时间",
+        "value": "dwell_time ~ 10^{-21} s, traversal_time ~ 10^{-22} s",
+        "condition": "^{210}Po衰变，势垒参数由双折叠模型给出"
+      }
+    ],
+    "failure_points": [
+      "semiclassical_model",
+      "wkb_approximation"
+    ]
+  }
+}
