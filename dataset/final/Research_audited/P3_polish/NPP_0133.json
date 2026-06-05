@@ -1,0 +1,366 @@
+{
+  "id": "NPP_0133",
+  "meta": {
+    "id": "NPP_0133",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "deep_learning_nuclear",
+    "source": {
+      "type": "paper",
+      "title": "Nuclear mass predictions using machine learning models",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2401.02824"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "原子核质量过剩的预测",
+    "input_data": "可用的实验核质量数据（如AME2020中的新测量核素），以及基于物理的特征空间。",
+    "user_intent": "现有微观宏观模型（如WS4、FRDM-2012）和自洽平均场理论（基于HFB的EDF）在预测远离稳定线核素的质量时存在不确定性，均方根误差较高（从约0.3 MeV到5.0 MeV不等），且对丰中子区核素的行为预测仍不确定。需要探索更可靠的方法来预测核质量，特别是在实验数据稀缺的区域。",
+    "quantifiable_goal": "预测原子核的质量过剩（单位：MeV）。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 核质量过剩是原子核基本性质之一，定义为原子核实际质量与质量数乘以原子质量单位的差值。论文采用机器学习方法预测核质量过剩，特征空间基于质子数Z、中子数N、质量数A等物理变量构建。初始条件已给定质量数A、电荷数Z、中子数N。\n[Gap] 需要从初始条件出发，构建用于机器学习预测的特征向量。特征工程是机器学习预测的第一步，直接影响模型性能。论文提到使用基于物理的特征空间，因此需要将基础核素变量转化为有物理意义的特征。\n[Decision] 选择使用feature_engineering工具，基于给定的Z、N、A构造一组物理特征，如同位旋T=(N-Z)/2、对能项δ、壳修正指示量等，形成初始特征向量。这是沿合法路径Path 1的第一步：从初始条件到feature_vector。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_variables": [
+          "mass_number_A",
+          "charge_number_Z",
+          "neutron_number_N"
+        ],
+        "constructed_features": [
+          "isotopic_spin_T = (N - Z) / 2",
+          "pairing_indicator_delta = (-1)^N + (-1)^Z",
+          "shell_correction_indicator (based on magic numbers)",
+          "deformation_parameter_beta2 (initial guess from systematics)"
+        ]
+      },
+      "output_state": {
+        "feature_vector": "constructed from Z, N, A with physical features including T, delta, shell indicators, deformation"
+      },
+      "observation": "基于输入变量Z、N、A，构造了包含同位旋T、对能指示量δ、壳修正指示量及形变参数β2的初始特征向量。该特征向量将作为后续机器学习模型的输入。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在核质量预测的机器学习方法中，特征工程完成后，需要选择合适的模型进行训练。论文中明确使用了支持向量回归（SVR）和高斯过程回归（GPR）两种方法，其中GPR特别适合处理小样本数据并提供不确定性估计。 [Gap] 当前已构建了基于物理的特征向量，但尚未确定具体的模型结构和核函数配置。论文提到使用径向基函数核（RBF）和白噪声核（white kernel）的组合，这需要明确模型选择步骤。 [Decision] 因此，下一步应选择高斯过程回归模型，并配置其核函数为RBF与白噪声核的乘积形式，以同时捕捉数据的平滑变化和噪声水平。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_model_selection",
+        "version": "1.0"
+      },
+      "parameters": {
+        "model_type": "Gaussian Process Regression",
+        "kernel": "RBF + WhiteKernel",
+        "kernel_parameters": "length_scale (initial guess), noise_level (initial guess)"
+      },
+      "output_state": {
+        "model": "GaussianProcessRegressor(kernel=RBF(length_scale=1.0) + WhiteKernel(noise_level=1.0))",
+        "kernel_config": "RBF kernel for smooth variation, White kernel for noise modeling"
+      },
+      "observation": "选择了高斯过程回归模型，核函数由径向基函数核（RBF）和白噪声核（WhiteKernel）组合而成。RBF核负责捕捉特征空间中核质量过剩的平滑变化趋势，白噪声核则用于建模实验数据中的测量噪声或模型误差。初始长度尺度和噪声水平均设为1.0，后续将通过训练数据优化。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 我们已经构建了基于物理的特征向量，并选择了高斯过程回归模型，其核函数由RBF核和白噪声核组合而成。接下来需要准备训练数据集，即从AME2020中获取已知核素的质量过剩实验值，并与特征向量对应，形成用于模型训练的数据对。[Gap] 当前尚未明确训练数据集的具体构成方式，包括如何划分训练集和测试集，以及是否对特征进行标准化处理。[Decision] 因此，下一步应进行训练数据准备，从AME2020中提取实验质量过剩值，并与特征向量匹配，构建完整的训练数据集，同时考虑数据标准化和训练/测试集划分策略。",
+      "action": "model_building",
+      "tool": {
+        "name": "training_data_preparation",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "training_dataset": "从AME2020提取Z,N,A对应的实验质量过剩值，与特征向量匹配，形成标准化后的训练集和测试集"
+      },
+      "observation": "从AME2020数据库中获取了已知核素（Z,N,A）的实验质量过剩值，并与步骤1构建的特征向量一一对应。对特征进行了标准化处理（减去均值除以标准差），并将数据集随机划分为训练集（80%）和测试集（20%），用于后续模型训练和评估。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 前序步骤已构建了基于物理的特征向量（包含同位旋T、对能指示量δ、壳修正指示量及形变参数β2），选择了高斯过程回归模型（RBF核+白噪声核），并准备了来自AME2020的训练/测试数据集。当前目标是训练该模型，使其能够学习特征向量到核质量过剩的映射关系。 [Gap] 虽然模型和数据集已就绪，但尚未执行训练过程，无法获得模型权重和预测能力。 [Decision] 因此，下一步应使用训练数据集对高斯过程模型进行训练，通过优化核函数的超参数（如RBF核的长度尺度和白噪声核的噪声水平）来最小化负对数边际似然，从而得到训练后的模型。",
+      "action": "model_building",
+      "tool": {
+        "name": "neural_network_training",
+        "version": ""
+      },
+      "parameters": {
+        "training_algorithm": "最大化对数边际似然（L-BFGS-B优化器）",
+        "kernel_hyperparameters": "RBF长度尺度、白噪声方差",
+        "training_data": "标准化后的特征向量与实验质量过剩值（80%训练集）",
+        "optimization_metric": "负对数边际似然"
+      },
+      "output_state": {
+        "model_weights": "优化后的核超参数：RBF长度尺度、白噪声方差",
+        "loss_function_value": "最小化后的负对数边际似然值"
+      },
+      "observation": "使用训练数据集对高斯过程回归模型进行了训练，通过最大化对数边际似然优化了RBF核的长度尺度和白噪声核的方差。训练完成后，模型能够基于特征向量预测核质量过剩，并给出预测的不确定性（由高斯过程后验方差提供）。",
+      "valid": false,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "高斯过程回归是非参数模型，不存在类似神经网络的'模型权重'；其训练是通过优化核超参数（如长度尺度、噪声方差）来最大化对数边际似然，而非优化权重向量。预测步骤中提到的'模型权重'概念在GPR中不适用，属于对高斯过程回归原理的误解。"
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 当前已构建了基于物理的特征向量（feature_vector），选择了高斯过程回归模型（GaussianProcessRegressor with RBF+WhiteKernel），并利用AME2020数据完成了模型训练，得到了优化后的核超参数（model_weights）和最小化的损失函数值（loss_function_value）。训练后的模型已具备预测能力，能够基于输入特征输出核质量过剩的预测值及其不确定性。\n[Gap] 虽然模型已训练完成，但尚未实际执行预测步骤以生成最终的prediction_output。根据合法推导路径（Path 1: prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector），当前状态位于model_weights和loss_function_value之后，下一步应使用训练好的模型对目标核素（由mass_number_A, charge_number_Z, neutron_number_N指定）进行预测，输出prediction_output。\n[Decision] 因此，第5步应执行模型预测，使用ml_direct_prediction工具，基于训练好的高斯过程回归模型和特征向量，计算目标核素的核质量过剩预测值及其不确定性。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_direct_prediction",
+        "version": "1.0"
+      },
+      "parameters": {
+        "target_nucleus": "由mass_number_A, charge_number_Z, neutron_number_N指定",
+        "feature_vector": "步骤1构建的物理特征向量（包含Z, N, A, T, δ, 壳修正, β2）",
+        "trained_model": "步骤4训练的高斯过程回归模型（含优化后的RBF长度尺度和白噪声方差）"
+      },
+      "output_state": {
+        "prediction_output": "目标核素的核质量过剩预测值（单位：MeV）",
+        "model_uncertainty": "预测值的后验标准差（单位：MeV），由高斯过程后验方差提供"
+      },
+      "observation": "使用训练好的高斯过程回归模型，对目标核素（Z, N, A）进行预测。模型基于步骤1构建的特征向量，输出核质量过剩的均值预测值（prediction_output）和不确定性（model_uncertainty）。该预测值将作为最终结果，并与实验值或文献值进行对比验证。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 当前已通过高斯过程回归模型得到目标核素的核质量过剩预测值（prediction_output）及其不确定性（model_uncertainty）。根据合法推导路径（Path 1: prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector），下一步应沿着路径从 prediction_output 和 model_uncertainty 向后追溯至 model_weights，以验证模型超参数的物理合理性。 [Gap] 需要确认模型权重（即核超参数，如RBF长度尺度和白噪声方差）是否与核物理的预期一致，例如长度尺度应反映特征空间中质量过剩变化的特征标度，白噪声方差应接近实验误差水平。 [Decision] 因此，下一步应执行模型评估步骤，通过分析优化后的核超参数来验证其物理意义，并检查模型是否过拟合或欠拟合。使用工具 ml_model_evaluation 来评估模型权重的合理性。",
+      "action": "verification",
+      "tool": {
+        "name": "ml_model_evaluation",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "model_weights": "优化后的RBF长度尺度（length_scale）和白噪声方差（noise_variance），单位分别为特征空间标度和MeV²",
+        "loss_function_value": "最小化后的负对数边际似然值（单位：无量纲）"
+      },
+      "observation": "对训练好的高斯过程回归模型进行评估。检查优化后的RBF长度尺度：若长度尺度较大（如>10），表明模型认为特征变化平缓，预测主要依赖远处数据点；若较小（如<1），则模型对局部特征敏感。白噪声方差应与AME2020实验数据的典型误差（约0.1-0.3 MeV）可比，若远大于此值则可能模型未能充分解释数据，若远小于则可能过拟合。同时，负对数边际似然值用于比较不同核配置的模型选择。此步骤验证了模型权重的物理合理性，为后续步骤（如回溯至loss_function_value和training_dataset）提供依据。",
+      "valid": true,
+      "step_mode": "consistency_check",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前推导路径为 prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector，已到达 feature_vector 节点。第6步评估了模型超参数，确认了RBF长度尺度和白噪声方差的合理性。现在需要从特征向量出发，进一步验证特征空间的物理合理性，以确保预测的外推能力。 [Gap] 特征向量由物理变量构成（如Z, N, A及其组合），但尚未检查这些特征是否充分捕捉了核质量过剩的物理规律，例如对壳效应、对关联、形变等微观结构的敏感性。 [Decision] 使用 systematic_trend_analysis 工具，分析特征向量与已知核质量过剩系统学趋势（如分离能、奇偶效应、壳层间隙）的关联性，验证特征空间的物理完备性。",
+      "action": "verification",
+      "tool": {
+        "name": "systematic_trend_analysis",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "feature_vector": "由Z, N, A, Z*N, Z^2, N^2, 对关联项（奇偶指示符）等构成的物理特征向量（无量纲标准化后）",
+        "systematic_trend_validation": "特征向量与实验质量过剩系统学趋势（如双中子分离能S_{2n}、壳层间隙）的相关系数及可视化对比"
+      },
+      "observation": "对特征向量进行系统学趋势分析：计算特征向量中与Z、N相关的分量与实验双中子分离能S_{2n}的Pearson相关系数，发现Z*N项与S_{2n}的相关系数为0.85，奇偶指示符与奇偶质量差的相关系数为0.92。在N=82、Z=50等幻数附近，特征向量中的N^2和Z^2项能有效反映壳层间隙导致的突变。验证表明特征空间在物理上合理，能够捕捉核质量过剩的主要系统学趋势。",
+      "step_mode": "consistency_check",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前推导路径为 Path 1: prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector。步骤5已得到prediction_output和model_uncertainty，步骤6和7进行了评估和趋势分析，但尚未完成对training_dataset的显式构建或验证。根据路径要求，下一步应回溯至training_dataset，即明确训练数据集的具体构成、来源及预处理方式，以确保模型预测的可靠性和可复现性。 [Gap] 目前缺少对训练数据集的正式定义：包括数据来源（如AME2020）、核素范围、质量过剩值的单位及精度、是否包含奇偶效应修正、数据划分（训练/验证/测试）比例等。这些细节对于理解模型预测的外推能力和不确定性至关重要。 [Decision] 因此，第8步应使用ml_data_acquisition工具，显式构建并描述训练数据集，将其作为输出状态的一部分，从而满足路径中training_dataset节点的要求。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_data_acquisition",
+        "version": "1.0"
+      },
+      "parameters": {
+        "data_source": "AME2020",
+        "nuclei_range": "Z=8至Z=118，N=8至N=200，包含约2500个已知核素",
+        "target_quantity": "核质量过剩（单位：MeV）",
+        "preprocessing": "去除实验误差大于0.5 MeV的数据点；对质量过剩值进行标准化（减去均值除以标准差）",
+        "train_test_split": "随机80%训练，20%测试；确保测试集包含远离稳定线的核素以评估外推能力"
+      },
+      "output_state": {
+        "training_dataset": "包含约2000个训练核素和500个测试核素，每个样本由特征向量（Z, N, A, Z*N, Z^2, N^2, 奇偶指示符）和对应的标准化质量过剩标签组成，数据来源为AME2020"
+      },
+      "observation": "成功从AME2020获取实验核质量数据，构建了训练数据集。训练集覆盖从轻核到超重核的广泛区域，测试集特意保留了部分远离稳定线的核素（如中子滴线附近），以检验模型的外推性能。数据预处理包括去除高不确定性数据点和标准化，这有助于高斯过程回归的数值稳定性。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤4：选择训练高斯过程回归模型，并认为需要优化'模型权重'，已知条件包括：前序步骤已构建基于物理的特征向量（同位旋T、对能指示量δ、壳修正指示量及形变参数β2），选择了高斯过程回归模型（RBF核+白噪声核），并准备了来自AME2020的训练/测试数据集。。[Gap] 错过的信号：高斯过程回归是一种非参数模型，其核心是通过核函数定义数据点之间的协方差，而不是通过参数化权重向量来拟合数据。决策时已知因为：在步骤4之前，已经明确选择了高斯过程回归模型，并且核函数已指定为RBF核+白噪声核，这本身就暗示了模型的行为由核超参数（如长度尺度、噪声方差）控制，而非权重向量。。[Decision] 正确判断方式：面对选择了高斯过程回归模型且核函数已指定的条件，应首先检查该模型的训练机制：GPR的训练是通过最大化对数边际似然来优化核超参数，而不是优化权重向量。如果模型是非参数的（如GPR），则训练过程不涉及权重向量的更新，而是直接利用训练数据构建核矩阵并求解后验分布。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对高斯过程回归模型本质（非参数模型）的确认，错误地将参数模型（如神经网络）的'权重优化'概念套用到了GPR上。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在应用机器学习模型时，必须首先明确模型的参数化方式（参数模型 vs 非参数模型），避免将一种模型的训练范式（如权重优化）错误地套用到另一种模型上。这要求对模型的基本原理有清晰的理解，而非仅凭名称或表面特征进行推理。"
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 5, 6, 7, 8 分别使用 feature_engineering -> ml_model_selection -> training_data_preparation -> ml_direct_prediction -> ml_model_evaluation -> systematic_trend_analysis -> ml_data_acquisition 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 5, 6, 7, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 论文旨在利用机器学习方法（支持向量回归和高斯过程回归）预测核质量过剩，其核心在于构建一个基于物理的特征空间，以提升预测精度和外推能力。初始条件为质量数A、电荷数Z、中子数N，这些是核素的基本标识。 [Gap] 从初始条件到特征空间构建，需要将原始核素标识转化为具有物理意义的特征变量，这是机器学习预测的第一步。 [Decision] 因此，第一步应进行特征工程，基于物理知识构造特征向量，例如对价核子数、奇偶性、壳层效应等物理量进行编码，形成特征空间。",
+      "action": "model_building",
+      "tool": {
+        "name": "feature_engineering",
+        "version": "1.0"
+      },
+      "parameters": {
+        "input_variables": "mass_number_A, charge_number_Z, neutron_number_N",
+        "feature_list": "Z, N, A, N-Z, Z*N, Z/A, N/A, parity_Z, parity_N, shell_correction_indicator"
+      },
+      "output_state": {
+        "feature_vector": "\\mathbf{x} = (Z, N, A, N-Z, ZN, Z/A, N/A, \\pi_Z, \\pi_N, \\delta_{\\text{shell}})"
+      },
+      "observation": "基于物理的特征空间构建完成，包含质子数、中子数、质量数、中子过剩、质子中子乘积、质子分数、中子分数、质子奇偶性、中子奇偶性以及壳层修正指示符。这些特征将作为机器学习模型的输入。\n[论文公式] Eq.(1): M_{\\text{excess}}(Z,N) = f(Z,N) + \\epsilon",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在构建了基于物理的特征空间后，需要选择合适的机器学习模型来学习核质量过剩与特征之间的映射关系。论文中采用了支持向量回归（SVR）和高斯过程回归（GPR）两种方法，其中GPR能够提供预测的不确定性估计，这对于核物理中的外推预测尤为重要。 [Gap] 当前步骤需要明确选择具体的模型结构，并设定其核函数形式，以便后续进行训练和预测。 [Decision] 根据论文方法，选择高斯过程回归作为模型，并采用径向基函数核（RBF）与白噪声核（White Kernel）的组合，以同时捕捉数据的平滑趋势和噪声水平。",
+      "action": "model_building",
+      "tool": {
+        "name": "ml_gaussian_process_training",
+        "version": ""
+      },
+      "parameters": {
+        "kernel": "RBF(length_scale=1.0) + WhiteKernel(noise_level=1e-6)",
+        "model_type": "GaussianProcessRegressor",
+        "target": "mass_excess"
+      },
+      "output_state": {
+        "model_uncertainty": "GaussianProcessRegressor with kernel: RBF + WhiteKernel",
+        "prediction_output": "待训练后得到预测值 y_pred 和标准差 sigma_pred"
+      },
+      "observation": "[方法说明] 采用高斯过程回归，利用径向基函数核和白噪声核，对核质量过剩进行概率预测，提供不确定性估计\n高斯过程回归模型构建完成，核函数为径向基函数核与白噪声核之和，能够输出预测值及其不确定性（标准差）。\n[论文公式] Eq.(5): k(\\mathbf{x}_i, \\mathbf{x}_j) = \\sigma_f^2 \\exp\\left(-\\frac{\\|\\mathbf{x}_i - \\mathbf{x}_j\\|^2}{2l^2}\\right) + \\sigma_n^2 \\delta_{ij}",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 当前已构建了基于物理的特征空间（Step 1）并选择了高斯过程回归模型（Step 2），模型核函数为RBF + WhiteKernel，能够输出预测值及其不确定性。根据合法推导路径（Path 1: prediction_output -> model_uncertainty -> model_weights -> loss_function_value -> training_dataset -> feature_vector），下一步需要从模型不确定性（model_uncertainty）推导到模型权重（model_weights）。在高斯过程回归中，模型权重对应于训练数据点的系数（即高斯过程后验均值中的权重向量），这些权重由核矩阵和训练标签决定。 [Gap] 当前状态已有模型结构（GPR）和不确定性输出形式，但尚未显式获得模型权重的表达式或数值。需要从高斯过程的后验公式中提取权重向量。 [Decision] 因此，本步通过解析推导高斯过程回归的后验均值表达式，显式写出模型权重向量 w = K(X_train, X_train)^{-1} y_train，其中 K 为核矩阵，y_train 为训练集标签。这对应于从 model_uncertainty 到 model_weights 的推导步骤。",
+      "action": "symbolic_derivation",
+      "tool": {
+        "name": "bayesian_uncertainty_quantification",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {
+        "model_weights": "\\mathbf{w} = K(\\mathbf{X}_{\\text{train}}, \\mathbf{X}_{\\text{train}})^{-1} \\mathbf{y}_{\\text{train}}",
+        "kernel_matrix": "K_{ij} = k(\\mathbf{x}_i, \\mathbf{x}_j) = \\sigma_f^2 \\exp\\left(-\\frac{\\|\\mathbf{x}_i - \\mathbf{x}_j\\|^2}{2l^2}\\right) + \\sigma_n^2 \\delta_{ij}"
+      },
+      "observation": "从高斯过程回归的后验均值公式 f(\\mathbf{x}_*) = \\mathbf{k}_*^T K^{-1} \\mathbf{y}_{\\text{train}} 中提取出权重向量 w = K^{-1} y_train，其中 K 为训练核矩阵，包含RBF核（长度尺度 l、信号方差 σ_f^2）和白噪声核（噪声方差 σ_n^2）。模型权重显式依赖于训练数据集和核超参数。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "首先，将模型预测与AME2020实验数据在Z≥20、N≥20的核素范围内对比，若均方根误差接近0.2 MeV则验证其准确性。其次，对丰中子区预测进行量纲分析，确保单位一致；并检验极限情况（如N=Z或双幻数核）下预测是否与已知系统学趋势（如壳效应）吻合。最后，采用独立方法（如贝叶斯神经网络）交叉验证，若结果一致则增强可信度；但需注意SVR和GPR在远离训练数据的外推区域可能因核素稀缺而失效，导致预测偏差增大。",
+    "metrics": {
+      "result_1": {
+        "value": "0.2 MeV",
+        "unit": "condition",
+        "interpretation": "均方根误差; 对已知核素训练集，使用高斯过程回归"
+      },
+      "result_2": {
+        "value": "趋势：丰中子区预测值比WS4模型更接近实验外推值",
+        "unit": "condition",
+        "interpretation": "预测质量过剩; 对丰中子核素（N>Z+10），预测值与AME2020外推值偏差小于0.5 MeV"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：ws4_model；frdm_2012；hfb_edf。"
+  },
+  "paper_methods": [
+    "support_vector_regression",
+    "gaussian_process_regression",
+    "radial_basis_function_kernel",
+    "white_kernel",
+    "physics_based_feature_space"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "support_vector_regression",
+        "desc": "使用支持向量回归模型，结合径向基函数核，从已知核质量数据中学习并预测未知核素的质量过剩"
+      },
+      {
+        "name": "gaussian_process_regression",
+        "desc": "采用高斯过程回归，利用径向基函数核和白噪声核，对核质量过剩进行概率预测，提供不确定性估计"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "M_{\\text{excess}}(Z,N) = f(Z,N) + \\epsilon"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "k(\\mathbf{x}_i, \\mathbf{x}_j) = \\sigma_f^2 \\exp\\left(-\\frac{\\|\\mathbf{x}_i - \\mathbf{x}_j\\|^2}{2l^2}\\right) + \\sigma_n^2 \\delta_{ij}"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "均方根误差",
+        "value": "0.2 MeV",
+        "condition": "对已知核素训练集，使用高斯过程回归"
+      },
+      {
+        "quantity": "预测质量过剩",
+        "value": "趋势：丰中子区预测值比WS4模型更接近实验外推值",
+        "condition": "对丰中子核素（N>Z+10），预测值与AME2020外推值偏差小于0.5 MeV"
+      }
+    ],
+    "failure_points": [
+      "ws4_model",
+      "frdm_2012",
+      "hfb_edf"
+    ]
+  }
+}

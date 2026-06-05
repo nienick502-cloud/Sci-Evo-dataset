@@ -1,0 +1,520 @@
+{
+  "id": "NPP_0103",
+  "meta": {
+    "id": "NPP_0103",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_double_folding",
+    "source": {
+      "type": "paper",
+      "title": "Competing decay modes and stability analysis of superheavy nuclei with $Z = 1 2 0$ using relativistic mean-field approach",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2601.21317"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "Z=120超重核的α衰变与自发裂变竞争",
+    "input_data": "核素范围 Z=120, 256≤A≤304；使用NL3参数集的RMF计算作为微观输入",
+    "user_intent": "现有许多α衰变模型依赖于实验数据或FRDM等模型提供的结合能，在未知的极端核区可靠性存疑；需要可靠的理论框架来探索实验数据稀缺的超重核区，以预测其衰变性质与稳定性。",
+    "quantifiable_goal": "预测α衰变半衰期 T_{1/2}（单位：s），评估自发裂变概率（无量纲）"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是计算超重核的α衰变半衰期，需要从核结构信息出发。论文采用相对论平均场（RMF）描述基态性质，因此第一步应确定核的基态密度分布，这是后续双折叠模型计算α-核相互作用势的基础。[Gap] 当前已知质量数A、电荷数Z和中子数N，但尚未计算核的密度分布。[Decision] 使用mean_field_density_calculation工具，基于RMF模型（NL3参数集）计算球形或轴对称形变核的基态核子密度分布，为后续势能构建提供输入。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "model": "relativistic_mean_field",
+        "parameter_set": "NL3",
+        "nucleus": {
+          "A": "mass_number_A",
+          "Z": "charge_number_Z",
+          "N": "neutron_number_N"
+        },
+        "deformation": "spherical_or_axial",
+        "output": "proton_and_neutron_density_distributions"
+      },
+      "output_state": {
+        "proton_density": "ρ_p(r) from RMF calculation",
+        "neutron_density": "ρ_n(r) from RMF calculation",
+        "total_density": "ρ(r) = ρ_p(r) + ρ_n(r)"
+      },
+      "observation": "通过RMF模型（NL3参数集）求解Dirac方程和介子场方程，得到目标核的基态质子密度分布ρ_p(r)和中子密度分布ρ_n(r)，以及总核子密度ρ(r)。这些密度分布是球对称或轴对称的，将用于后续双折叠模型计算α-核相互作用势。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 在第一步中，我们通过RMF模型计算了目标核的基态核子密度分布ρ_p(r)和ρ_n(r)。这些密度分布是构建α-核相互作用势的关键输入。对于α衰变，α粒子与子核之间的相互作用势通常包括核势、库仑势和离心势。核势部分可以通过双折叠模型（double folding model）计算，该模型将α粒子的密度分布与子核的密度分布进行折叠积分，并采用有效的核子-核子相互作用（如M3Y或DDM3Y）。[Gap] 目前我们只有子核的密度分布，还需要α粒子的密度分布以及核子-核子相互作用的参数化形式，才能进行双折叠积分计算核势。[Decision] 因此，下一步是采用双折叠模型计算α-子核之间的核势V_N(r)。我们将使用标准的M3Y有效相互作用（例如，零程近似或有限程形式），并假设α粒子为高斯型密度分布。通过数值积分得到核势作为距离r的函数。",
+      "action": "model_building",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "projectile_density": "α粒子密度分布，采用高斯参数化：ρ_α(r) = 0.4229 exp(-0.7024 r^2) (fm^{-3})",
+        "target_density": "子核密度分布ρ_target(r) = ρ_p(r) + ρ_n(r)，由第一步RMF计算得到",
+        "effective_interaction": "M3Y-Paris有效核子-核子相互作用（零程近似）：v(s) = 7999 exp(-4s)/(4s) - 2134 exp(-2.5s)/(2.5s) (MeV)，其中s为核子间距",
+        "exchange_term": "考虑单核子交换的零程近似：J_exchange = -262 MeV·fm^3"
+      },
+      "output_state": {
+        "nuclear_potential": "V_N(r) = ∫∫ ρ_α(r_1) ρ_target(r_2) v(|r + r_2 - r_1|) d^3r_1 d^3r_2 (双折叠积分结果)"
+      },
+      "observation": "通过双折叠模型计算得到α-子核之间的核势V_N(r)作为距离r的函数。该势能将在后续步骤中与库仑势和离心势组合成总相互作用势，用于计算α粒子的穿透概率。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 在获得核势V_N(r)后，需要构建α粒子与子核之间的总相互作用势，包括库仑势和离心势，才能计算势垒穿透概率。库仑势来自质子间的静电排斥，离心势来自α粒子的轨道角动量。[Gap] 当前已有核势V_N(r)，但尚未计算库仑势和离心势，也未将它们组合成有效势。[Decision] 下一步应计算库仑势V_C(r)和离心势V_l(r)，然后组装成有效势V_eff(r)，为后续求解转折点和WKB积分做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Z_daughter": "Z-2",
+        "Z_alpha": 2,
+        "radius_parameter": "R = 1.2 * (A-4)^(1/3) fm",
+        "angular_momentum": "l = 0 (假设s波为主，或根据自旋宇称确定)"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(r) = (Z_daughter * Z_alpha * e^2) / r, 当r > R_c; 内部采用均匀带电球势修正",
+        "centrifugal_potential": "V_l(r) = (hbar^2 * l(l+1)) / (2 * mu * r^2)",
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)"
+      },
+      "observation": "计算了库仑势V_C(r)和离心势V_l(r)，并与核势V_N(r)相加得到有效势V_eff(r)。库仑势采用点电荷近似（外部）和均匀带电球修正（内部），离心势中约化质量mu = m_alpha * m_daughter / (m_alpha + m_daughter)。对于偶偶核基态α衰变，通常取l=0，但需根据子核自旋宇称检查。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 4,
+      "thought": "[Background] 我们已经通过RMF计算得到了核密度分布，并利用双折叠模型构建了α-子核间的核势V_N(r)，同时计算了库仑势V_C(r)和离心势V_l(r)，从而得到了有效势V_eff(r)。为了计算α衰变的穿透概率，需要确定经典转折点，即有效势等于Q值的径向位置。[Gap] 当前缺少Q值，而Q值是计算转折点和穿透概率的关键输入量。Q值可以通过质量过剩或结合能差计算，而结合能可从RMF计算或Bethe-Weizsäcker质量公式获得。[Decision] 因此，下一步应计算α衰变的Q值。根据合法路径Path 1和Path 2，Q_value可通过binding_energy计算，而binding_energy可从RMF结果或质量公式获得。这里选择使用RMF计算得到的结合能来精确计算Q值，因此调用Q_value_calculation工具。",
+      "action": "rule_application",
+      "tool": {
+        "name": "Q_value_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "parent_nucleus": {
+          "Z": "Z",
+          "A": "A"
+        },
+        "daughter_nucleus": {
+          "Z": "Z-2",
+          "A": "A-4"
+        },
+        "alpha_particle": {
+          "Z": 2,
+          "A": 4
+        },
+        "binding_energies": "from RMF calculation (Step 1)"
+      },
+      "output_state": {
+        "Q_value": "Q_alpha = B(Z-2, A-4) + B(2,4) - B(Z, A)",
+        "binding_energy_parent": "B(Z, A) from RMF",
+        "binding_energy_daughter": "B(Z-2, A-4) from RMF",
+        "binding_energy_alpha": "B(2,4) = 28.296 MeV"
+      },
+      "observation": "通过RMF计算得到的母核和子核结合能，以及α粒子的实验结合能（28.296 MeV），计算得到α衰变Q值：Q_alpha = B(Z-2, A-4) + 28.296 - B(Z, A)。该Q值将用于后续转折点求解和穿透概率计算。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "error_tag": null
+    },
+    {
+      "step_index": 5,
+      "thought": "[Background] 当前已通过RMF计算得到核子密度分布（Step 1），通过双折叠模型得到α-子核核势（Step 2），构建了有效势（Step 3），并计算了α衰变Q值（Step 4）。下一步需要计算α粒子在有效势中的穿透概率，这需要先确定经典转折点，然后通过WKB近似计算作用量积分。[Gap] 从有效势和Q值出发，尚未计算转折点和穿透概率。[Decision] 按照合法路径Path 1，下一步应使用turning_point_solver工具求解经典转折点，为后续WKB作用量积分做准备。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": "1.0"
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r) = V_N(r) + V_C(r) + V_l(r)",
+        "Q_value": "Q_alpha",
+        "angular_momentum": "l",
+        "reduced_mass": "mu"
+      },
+      "output_state": {
+        "inner_turning_point": "r1 = 解方程 V_eff(r) = Q_alpha 的最小根",
+        "outer_turning_point": "r2 = 解方程 V_eff(r) = Q_alpha 的最大根",
+        "turning_points": "r1, r2"
+      },
+      "observation": "通过数值求解方程 V_eff(r) = Q_alpha，得到两个经典转折点：内转折点 r1（核表面附近）和外转折点 r2（库仑势垒外部）。这两个转折点之间的区域是α粒子隧穿势垒的经典禁戒区域，将用于下一步WKB作用量积分计算。",
+      "valid": true,
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "error_tag": null,
+      "dfs_warning": "unmet_requires"
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 在之前的步骤中，我们已经构建了有效势 V_eff(r)（包含核势、库仑势和离心势），计算了 Q 值，并求解了内转折点 r1 和外转折点 r2。下一步需要计算 α 粒子隧穿势垒的穿透概率 P，这通常通过 WKB 近似中的作用量积分来实现。[Gap] 当前状态中，我们已有转折点 r1 和 r2，但尚未计算穿透概率。穿透概率 P 与 WKB 作用量积分 S 的关系为 P = exp(-2S)，其中 S = ∫_{r1}^{r2} sqrt(2μ/ħ² * (V_eff(r) - Q_α)) dr。因此需要执行该数值积分。[Decision] 选择使用 WKB_action_integral 工具，输入有效势 V_eff(r)、Q 值、约化质量 μ 和转折点 r1、r2，计算作用量积分 S，进而得到穿透概率 P。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": "1.0"
+      },
+      "parameters": {
+        "effective_potential": "V_eff(r)",
+        "Q_value": "Q_alpha",
+        "reduced_mass": "mu",
+        "inner_turning_point": "r1",
+        "outer_turning_point": "r2"
+      },
+      "output_state": {
+        "action_integral": "S = ∫_{r1}^{r2} sqrt(2μ/ħ² * (V_eff(r) - Q_α)) dr",
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "通过数值积分计算 WKB 作用量积分 S，得到 α 粒子穿透势垒的概率 P = exp(-2S)。该穿透概率将用于后续计算衰变宽度和半衰期。",
+      "step_mode": "numerical_fitting",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null,
+      "dfs_warning": "unmet_requires"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 当前已获得α衰变Q值、有效势V_eff(r)和穿透概率P，下一步需要计算预形成因子P_α和碰撞频率f，才能得到半衰期。论文采用预形成团簇衰变模型，预形成因子通常通过微观模型或经验公式估计。 [Gap] 尚未确定预形成因子P_α的具体取值或计算方法。 [Decision] 根据论文方法，预形成因子P_α可通过经验公式或微观模型（如RMF计算的核表面α团簇概率）得到。这里采用经验值，对于超重核区，P_α通常在0.01~0.1量级，取典型值0.1作为初始估计，后续可通过拟合实验数据调整。",
+      "action": "approximation",
+      "tool": {
+        "name": "preformation_factor_model",
+        "version": ""
+      },
+      "parameters": {
+        "model": "empirical_constant",
+        "value": 0.1,
+        "justification": "超重核区典型预形成因子范围0.01~0.1，取0.1作为初始估计"
+      },
+      "output_state": {
+        "preformation_factor": "P_α = 0.1"
+      },
+      "observation": "采用经验近似，设定预形成因子P_α = 0.1。该值将在后续与实验数据对比时进行优化调整。",
+      "valid": false,
+      "step_mode": "empirical_approximation",
+      "phase": "prediction",
+      "error_tag": "wrong_physical_interpretation",
+      "error_reason": "预测将预形成因子P_α视为一个独立于核结构的经验可调参数（取典型值0.1），但论文的预形成团簇衰变模型中，P_α应通过微观模型（如RMF计算的核表面α团簇概率）或与实验数据拟合得到，而非随意取经验值。在超重核区，P_α对半衰期有指数级影响，取固定经验值会导致物理上不可靠的结果，且与论文方法中强调的微观计算不一致。"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 当前已获得α衰变Q值、穿透概率P和预形成因子P_α，接下来需要计算碰撞频率f以得到衰变宽度和半衰期。碰撞频率通常由α粒子在核内来回运动的频率决定，与核半径和α粒子速度有关。[Gap] 需要从核结构信息（如核半径）和Q值导出α粒子在核内的速度，从而计算碰撞频率。[Decision] 采用经典近似，假设α粒子在核内以恒定速度运动，碰撞频率f = v / (2R)，其中v是α粒子速度，R是核半径。核半径可通过经验公式或RMF计算得到。这里使用经验公式R = r0 * A^(1/3)，取r0 = 1.2 fm。",
+      "action": "approximation",
+      "tool": {
+        "name": "assault_frequency_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "Q_value": "Q_alpha",
+        "nuclear_radius": "R = 1.2 * A^(1/3)",
+        "alpha_particle_mass": "m_alpha = 4 u",
+        "reduced_mass": "μ = (4 * (A-4)) / A * u"
+      },
+      "output_state": {
+        "nuclear_radius": "R = 1.2 * A^(1/3) fm",
+        "alpha_velocity": "v = sqrt(2 * Q_alpha / m_alpha)",
+        "assault_frequency": "f = v / (2R)"
+      },
+      "observation": "采用经典近似计算碰撞频率：核半径R = 1.2 * A^(1/3) fm，α粒子速度v = sqrt(2 * Q_alpha / m_alpha)，碰撞频率f = v / (2R)。该频率表示α粒子每秒撞击势垒的次数，将用于计算衰变宽度。",
+      "step_mode": "empirical_approximation",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null,
+      "dfs_warning": "unmet_requires"
+    },
+    {
+      "step_index": 9,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤7：采用经验值设定预形成因子P_α=0.1，当时已知的条件包括：已通过WKB积分得到穿透概率P（约10⁻³¹量级），且论文方法为预形成团簇衰变模型，但未获得任何关于P_α的微观计算或实验约束。。[Gap] 错过的信号：P_α的物理含义是α团簇在核表面的形成概率，其值应与核结构（如形变、壳效应）强相关，且超重核区P_α通常远小于0.1（典型值10⁻²~10⁻⁴）。决策时已知因为：超重核的α衰变半衰期对P_α极其敏感（指数依赖），且经验值0.1来自轻核区，与超重核的强库仑排斥和壳效应矛盾。本应触发警觉：在未进行任何微观计算或文献调研的情况下，直接取一个与核结构无关的固定经验值，会导致半衰期预测偏差数个数量级。。[Decision] 正确判断方式：面对超重核区且无P_α微观计算时，应首先检查：是否有已知的系统学趋势（如P_α随Z增大而减小）或经验公式（如与Q值或形变参数的关系）。如果无任何约束，则不应取固定值，而应将其作为待定参数，通过拟合已知实验数据（如相邻核的半衰期）来反推，或采用微观模型（如RMF计算的α团簇概率）作为输入。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了对预形成因子物理含义和超重核区系统学趋势的检查，直接套用了轻核区的经验值。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在核衰变模型中，对于指数敏感的物理量（如预形成因子、穿透因子），不能依赖经验值或简单类比，必须基于微观计算或系统学约束，否则预测会偏离数个数量级。"
+    },
+    {
+      "step_index": 10,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2, 3, 4, 5, 6, 8 分别使用 mean_field_density_calculation -> double_folding_integral -> coulomb_potential_calculation -> Q_value_calculation -> turning_point_solver -> WKB_action_integral -> assault_frequency_calculation 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2, 3, 4, 5, 6, 8 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 目标是根据论文方法计算α衰变半衰期，需要从核基态性质出发。论文采用相对论平均场（RMF）描述基态，因此第一步应确定核的基态密度分布，这是后续双折叠势计算的基础。[Gap] 当前仅有质量数A、电荷数Z和中子数N，缺少核密度分布的具体形式。[Decision] 使用mean_field_density_calculation工具，基于RMF理论（NL3参数集）计算基态核子密度分布，得到质子密度ρ_p(r)和中子密度ρ_n(r)。",
+      "action": "model_building",
+      "tool": {
+        "name": "mean_field_density_calculation",
+        "version": "1.0"
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "neutron_number_N": "N",
+        "model": "relativistic_mean_field",
+        "parameter_set": "NL3",
+        "nucleus_shape": "spherical"
+      },
+      "output_state": {
+        "proton_density": "ρ_p(r)",
+        "neutron_density": "ρ_n(r)",
+        "total_density": "ρ(r) = ρ_p(r) + ρ_n(r)"
+      },
+      "observation": "[方法说明] 使用NL3参数集的RMF计算Z=120核素的基态结合能、形变和密度分布\n通过求解RMF方程（NL3参数集）得到基态核子密度分布ρ_p(r)和ρ_n(r)，作为后续双折叠势计算的输入。\n[论文公式] Eq.(1): T_{\\alpha} = \\frac{\\ln 2}{f P_{\\alpha} P}",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 在获得基态核子密度分布后，需要构建α-核相互作用势。论文采用双折叠模型（double folding model）计算α-核相互作用势，该模型通过折叠α粒子的密度分布与靶核的密度分布，并利用有效的核子-核子相互作用（如M3Y或DDM3Y）来得到核势。这是计算α衰变穿透因子的关键输入。[Gap] 当前已有质子密度ρ_p(r)和中子密度ρ_n(r)，但尚未计算α-核相互作用势。需要选择适当的有效核子-核子相互作用并执行双折叠积分。[Decision] 因此，下一步应使用双折叠积分工具，结合α粒子的密度分布（通常取高斯形式）和靶核密度分布，计算α-核相互作用势V_N(R)。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "double_folding_integral",
+        "version": ""
+      },
+      "parameters": {
+        "projectile_density": "α粒子密度分布，取高斯形式：ρ_α(r) = 0.4229 * exp(-0.7024 * r^2) (fm^-3)",
+        "target_density": "ρ(r) = ρ_p(r) + ρ_n(r)，来自RMF计算",
+        "NN_interaction": "M3Y有效核子-核子相互作用，包含直接项和交换项",
+        "exchange_term": "使用零程近似或有限程交换项处理"
+      },
+      "output_state": {
+        "alpha_target_nuclear_potential": "V_N(R) = ∫∫ ρ_α(r_1) ρ(r_2) v_{NN}(|r_1 - r_2 + R|) d^3r_1 d^3r_2"
+      },
+      "observation": "[方法说明] 基于RMF密度分布，用双折叠模型计算α-核相互作用势\n通过双折叠积分得到α-核核势V_N(R)作为距离R的函数。该势能是后续构建总有效势能（包括库仑势和离心势）的基础，用于计算α衰变穿透因子。\n[论文公式] Eq.(5): P = \\exp\\left[-\\frac{2}{\\hbar}\\int_{r_1}^{r_2} \\sqrt{2\\mu (V(r) - Q_{\\alpha})} dr\\right]",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 13,
+      "thought": "[Background] 在获得α-核核势V_N(R)后，需要构建总有效势能V_eff(R)以计算α衰变穿透因子。总有效势能包括核势V_N(R)、库仑势V_C(R)和离心势V_l(R)。库仑势描述α粒子与子核之间的静电排斥，离心势来源于α粒子的轨道角动量l。对于α衰变，通常取l=0（s波）或根据宇称和角动量选择规则确定。 [Gap] 当前已得到核势V_N(R)，但尚未构建库仑势和离心势，无法形成总有效势能。 [Decision] 下一步应计算库仑势V_C(R)和离心势V_l(R)，并组装成总有效势能V_eff(R)。使用coulomb_potential_calculation工具计算库仑势，使用centrifugal_potential_construction工具计算离心势，然后通过effective_potential_assembly工具组装总有效势能。",
+      "action": "model_building",
+      "tool": {
+        "name": "coulomb_potential_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "alpha_charge": 2,
+        "daughter_charge": "Z-2",
+        "radius_variable": "R",
+        "coulomb_type": "uniform_sphere_approximation",
+        "nuclear_radius_parameter": "R_c = 1.2 * (A-4)^(1/3) fm"
+      },
+      "output_state": {
+        "coulomb_potential": "V_C(R) = (2*(Z-2)*e^2)/(4π ε_0 R) for R ≥ R_c, and V_C(R) = (2*(Z-2)*e^2)/(4π ε_0 R_c) * (3/2 - R^2/(2R_c^2)) for R < R_c"
+      },
+      "observation": "采用均匀带电球近似计算库仑势，其中子核电荷数为Z-2，半径R_c=1.2*(A-4)^(1/3) fm。库仑势在R≥R_c时为点电荷库仑势，在R<R_c时考虑有限大小修正。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 14,
+      "thought": "[Background] 前三步已获得核子密度分布、α-核核势和库仑势。要计算α衰变半衰期，需要构建总有效势能，包括核势、库仑势和离心势，然后求解势垒穿透因子。[Gap] 目前已有核势V_N(R)和库仑势V_C(R)，但缺少离心势V_l(R)和总有效势能V_eff(R)。离心势依赖于α粒子携带的轨道角动量l，而l由初末态自旋宇称决定。[Decision] 因此下一步应构建离心势，并组装总有效势能，为后续求解穿透因子做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "centrifugal_potential_construction",
+        "version": ""
+      },
+      "parameters": {
+        "reduced_mass": "μ = (4*(A-4))/A * u (u为原子质量单位)",
+        "angular_momentum": "l = 0 (对于偶偶核基态α衰变，ΔJ=0，l=0)",
+        "hbar": "\\hbar = 197.326 MeV·fm"
+      },
+      "output_state": {
+        "centrifugal_potential": "V_l(R) = \\frac{\\hbar^2 l(l+1)}{2\\mu R^2}",
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R) + V_l(R)"
+      },
+      "observation": "对于偶偶核基态α衰变，角动量l=0，因此离心势V_l(R)=0。总有效势能简化为V_eff(R)=V_N(R)+V_C(R)。该势能用于后续求解势垒穿透因子。",
+      "valid": true,
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 15,
+      "thought": "[Background] 我们已经构建了α-核总有效势能V_eff(R)=V_N(R)+V_C(R)，其中离心势为零（l=0）。下一步需要计算α衰变的穿透因子P，这需要求解WKB作用量积分，而作用量积分的关键是确定势垒的内外转折点。内转折点R_in通常取在核表面附近，外转折点R_out由Q值决定：V_eff(R_out)=Q_α。Q值可通过质量差计算得到。 [Gap] 当前尚未计算Q值，而Q值是决定外转折点和穿透因子的关键输入。 [Decision] 因此，下一步应计算α衰变的Q值。根据论文方法，Q值由母核和子核+α粒子的基态质量差给出，可通过RMF计算的结合能或实验质量公式获得。这里采用RMF计算得到的结合能差值来求Q值。",
+      "action": "rule_application",
+      "tool": {
+        "name": "Q_value_calculation",
+        "version": ""
+      },
+      "parameters": {
+        "parent_nucleus": "Z=120, A=300 (示例)",
+        "daughter_nucleus": "Z=118, A=296",
+        "alpha_particle": "He-4",
+        "method": "RMF_binding_energy_difference"
+      },
+      "output_state": {
+        "Q_value": "Q_α = B(Z-2, A-4) + B(2,4) - B(Z, A) = M(Z,A) - M(Z-2,A-4) - M(2,4)"
+      },
+      "observation": "通过RMF计算得到的母核和子核基态结合能，代入公式Q_α = B_daughter + B_α - B_parent，得到α衰变Q值。该Q值将用于确定外转折点R_out，即求解方程V_eff(R_out)=Q_α。对于超重核区，Q值通常在6-12 MeV量级。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 16,
+      "thought": "[Background] 当前已构建了α衰变的总有效势能V_eff(R) = V_N(R) + V_C(R)（对于l=0），并计算了Q值。下一步需要确定势垒的转折点，这是应用WKB近似计算穿透因子的前提。转折点由方程V_eff(R) = Q_α决定，其中内转折点R_in位于核表面附近，外转折点R_out位于库仑势垒外部。[Gap] 需要求解转折点位置，特别是外转折点R_out，因为Q_α通常小于库仑势垒高度，在势垒外部存在经典允许区域。[Decision] 采用数值求解方法，利用已得到的有效势能和Q_α值，求解方程V_eff(R) = Q_α，得到两个实根R_in和R_out。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "turning_point_solver",
+        "version": "1.0"
+      },
+      "parameters": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R)",
+        "Q_value": "Q_α",
+        "angular_momentum": "l=0",
+        "nuclear_radius_parameter": "R_0 = 1.2*(A-4)^(1/3) fm",
+        "initial_guess": "R_in ≈ 1.0*(A-4)^(1/3) fm, R_out ≈ 2*e^2*(Z-2)/Q_α"
+      },
+      "output_state": {
+        "inner_turning_point": "R_in",
+        "outer_turning_point": "R_out",
+        "turning_points_condition": "V_eff(R_in) = V_eff(R_out) = Q_α"
+      },
+      "observation": "通过数值求解方程V_eff(R) = Q_α，得到内转折点R_in（约在核表面附近，典型值约7-9 fm）和外转折点R_out（约在库仑势垒外部，典型值约15-25 fm，具体取决于Q_α和Z）。这两个转折点定义了WKB积分区间[R_in, R_out]，用于计算α粒子穿透势垒的穿透因子P = exp(-2∫_{R_in}^{R_out} κ(R) dR)，其中κ(R) = sqrt(2μ|V_eff(R)-Q_α|)/ħ。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: effective_potential",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 17,
+      "thought": "[Background] 根据论文推导路径，我们已经构建了有效势能V_eff(R) = V_N(R) + V_C(R)（对于l=0的偶偶核），并计算了Q_α值，进而求解了内转折点R_in和外转折点R_out。下一步需要计算α粒子穿透势垒的几率P，这是预形成团簇衰变模型的核心步骤之一。根据WKB近似，穿透因子P由势垒区域（从R_in到R_out）的WKB作用积分S决定：P = exp(-2S)，其中S = ∫_{R_in}^{R_out} √(2μ/ħ² (V_eff(R) - Q_α)) dR。\n[Gap] 当前状态中已有有效势能V_eff(R)和转折点R_in、R_out，但尚未计算WKB作用积分S和穿透因子P。\n[Decision] 下一步应使用WKB_action_integral工具，对有效势能与Q_α的差值在R_in到R_out区间进行数值积分，得到作用积分S，进而得到穿透因子P。这是严格推导路径上的必要步骤。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "WKB_action_integral",
+        "version": "1.0"
+      },
+      "parameters": {
+        "effective_potential": "V_eff(R) = V_N(R) + V_C(R)",
+        "Q_value": "Q_α",
+        "inner_turning_point": "R_in",
+        "outer_turning_point": "R_out",
+        "reduced_mass": "μ = (4*(A-4))/A * m_n (近似为核子质量m_n=931.5 MeV/c²)",
+        "integration_method": "adaptive Simpson quadrature"
+      },
+      "output_state": {
+        "WKB_action_integral": "S = ∫_{R_in}^{R_out} √(2μ/ħ² (V_eff(R) - Q_α)) dR",
+        "penetrability": "P = exp(-2S)"
+      },
+      "observation": "采用自适应Simpson数值积分方法，在区间[R_in, R_out]上对√(2μ/ħ² (V_eff(R) - Q_α))进行积分。对于典型超重核（如Z=120, A=302），R_in≈8.5 fm，R_out≈22.3 fm，计算得到S≈35.2，因此穿透因子P≈exp(-70.4)≈3.2×10⁻³¹。该值非常小，反映了超重核α衰变势垒的厚度和高度。注意：实际数值依赖于具体的核势参数和Q_α值，此处仅为示意。",
+      "valid": true,
+      "step_mode": "strict_derivation",
+      "phase": "paper_derivation",
+      "dfs_warning": "temporal_logic_break",
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将预测的α衰变半衰期与已知超重核素（如Z=104-118）的实验数据在10^{-6}~10^{3}s范围内对比，检查是否与现有系统学趋势一致；对自发裂变概率进行量纲分析，确保无量纲结果在0~1之间；使用独立方法如宏观-微观模型交叉验证，注意WKB近似在势垒穿透极低时可能失效。",
+    "metrics": {
+      "result_1": {
+        "value": "10^{-6} ~ 10^{3} s",
+        "unit": "condition",
+        "interpretation": "α衰变半衰期; Z=120, A=256~304，不同同位素"
+      },
+      "result_2": {
+        "value": "10^{-3} ~ 10^{10} s",
+        "unit": "condition",
+        "interpretation": "自发裂变半衰期; Z=120, A=256~304，不同同位素"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：universal_decay_law；preformed_cluster_decay_model。"
+  },
+  "paper_methods": [
+    "relativistic_mean_field",
+    "double_folding_model",
+    "preformed_cluster_decay_model",
+    "wkb_approximation",
+    "universal_decay_law"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "relativistic_mean_field",
+        "desc": "使用NL3参数集的RMF计算Z=120核素的基态结合能、形变和密度分布"
+      },
+      {
+        "name": "double_folding_model",
+        "desc": "基于RMF密度分布，用双折叠模型计算α-核相互作用势"
+      },
+      {
+        "name": "preformed_cluster_decay_model",
+        "desc": "考虑α粒子预形成因子，结合穿透概率计算α衰变半衰期"
+      },
+      {
+        "name": "wkb_approximation",
+        "desc": "用于计算α衰变和自发裂变的势垒穿透概率"
+      },
+      {
+        "name": "universal_decay_law",
+        "desc": "作为α衰变半衰期的经验公式，与微观模型结果对比"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "T_{\\alpha} = \\frac{\\ln 2}{f P_{\\alpha} P}"
+      },
+      {
+        "label": "Eq.(5)",
+        "content": "P = \\exp\\left[-\\frac{2}{\\hbar}\\int_{r_1}^{r_2} \\sqrt{2\\mu (V(r) - Q_{\\alpha})} dr\\right]"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "α衰变半衰期",
+        "value": "10^{-6} ~ 10^{3} s",
+        "condition": "Z=120, A=256~304，不同同位素"
+      },
+      {
+        "quantity": "自发裂变半衰期",
+        "value": "10^{-3} ~ 10^{10} s",
+        "condition": "Z=120, A=256~304，不同同位素"
+      }
+    ],
+    "failure_points": [
+      "universal_decay_law",
+      "preformed_cluster_decay_model"
+    ]
+  }
+}

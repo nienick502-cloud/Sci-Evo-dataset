@@ -1,0 +1,388 @@
+{
+  "id": "NPP_0065",
+  "meta": {
+    "id": "NPP_0065",
+    "data_tier": "research",
+    "domain": "nuclear_physics",
+    "subdomain": "alpha_decay_shell_model",
+    "source": {
+      "type": "paper",
+      "title": "Energy dependent ratios of level-density parameters in superheavy nuclei",
+      "chapter_or_section": "",
+      "problem_number_or_doi": "arxiv_2108.12484"
+    },
+    "difficulty": 4,
+    "is_gold": false,
+    "version": "1.0"
+  },
+  "01_initial_request": {
+    "target_name": "超重核能级密度参数比值随激发能变化",
+    "input_data": "核素范围 Z=112-120；使用基于形变Woods-Saxon势对角化的单粒子能级；采用超流形式计算能级密度；考虑了反射和轴对称性破缺；使用微观宏观模型[19]的基态和鞍点结合能、裂变阈及壳修正作为输入。",
+    "user_intent": "为准确计算超重核蒸发剩余截面，需要可靠了解不同衰变模式（中子、质子、α粒子发射及裂变）终态的能级密度。现有基于费米气体模型的平均能级密度参数方法，未充分考虑壳效应随激发能的阻尼变化以及集体增强效应（如α衰变中的团簇自由度）对能级密度参数比值的影响，这限制了在热复核中不同衰变过程竞争分析的可靠性。",
+    "quantifiable_goal": "计算裂变鞍点能级密度参数与中子发射残基能级密度参数的比值 a_f / a_n（无量纲）；计算质子发射残基与中子发射残基的能级密度参数比值 a_p / a_n（无量纲）；计算α粒子发射残基与中子发射残基的能级密度参数比值 a_α / a_n（无量纲）；研究这些比值随复核激发能 E*（单位：MeV）的变化。"
+  },
+  "02_agent_trajectory": [
+    {
+      "step_index": 1,
+      "thought": "[Background] 目标是根据超重核的形变参数和核子数，利用微观-宏观模型和Woods-Saxon势计算单粒子能级，进而得到能级密度参数比值 a_f/a_n。第一步需要构建形变Woods-Saxon势，这是后续求解单粒子能级的基础。[Gap] 当前仅有质量数A、电荷数Z和形变参数，尚未构建势场。[Decision] 因此第一步使用woods_saxon_parameterization工具，根据形变参数构建形变Woods-Saxon势的径向和角向部分，为后续单粒子能级计算做准备。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "A",
+        "charge_number_Z": "Z",
+        "deformation_parameter": "beta_2, beta_4",
+        "potential_type": "deformed_woods_saxon"
+      },
+      "output_state": {
+        "deformed_woods_saxon_potential": "V(r, theta) = V0 / (1 + exp((r - R(theta))/a))",
+        "radius_parameter": "R(theta) = R0 * (1 + beta_2 * Y20(theta) + beta_4 * Y40(theta))",
+        "potential_depth": "V0 = -50 MeV (typical value for neutrons and protons adjusted separately)",
+        "diffuseness": "a = 0.65 fm"
+      },
+      "observation": "形变Woods-Saxon势已根据给定的形变参数构建完成，势场包含中心势、自旋-轨道耦合项和库仑势（对质子）。该势场将用于后续求解单粒子能级。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 2,
+      "thought": "[Background] 我们已经构建了形变Woods-Saxon势，下一步需要求解该势场下的单粒子能级，以获得基态和鞍点的单粒子能级分布，这是后续能级密度计算的基础。[Gap] 目前只有势场表达式，尚未获得单粒子能级和波函数。[Decision] 选择使用schrodinger_equation_solver工具，通过数值求解形变势场下的薛定谔方程（或狄拉克方程）来得到单粒子能级，并记录能级序列用于后续BCS对关联处理和能级密度计算。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "schrodinger_equation_solver",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "deformed_woods_saxon_potential",
+        "nucleus": "Z, A",
+        "deformation": "beta_2, beta_4",
+        "method": "diagonalization in harmonic oscillator basis",
+        "output": "single_particle_energies_and_wavefunctions"
+      },
+      "output_state": {
+        "single_particle_energies": "epsilon_i (list of eigenvalues for neutrons and protons)",
+        "single_particle_wavefunctions": "phi_i(r, theta, phi) (eigenfunctions)",
+        "basis_parameters": "oscillator_frequency_hbar_omega = 41/A^(1/3) MeV, basis_size_N_max = 20"
+      },
+      "observation": "通过谐振子基对角化方法求解形变Woods-Saxon势的薛定谔方程，得到了质子和中子的单粒子能级序列epsilon_i。这些能级将用于后续的BCS对关联处理和能级密度计算。计算中采用了足够的基矢截断以保证收敛。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 3,
+      "thought": "[Background] 我们已经构建了形变Woods-Saxon势并求解了单粒子能级，接下来需要引入对关联效应。超重核的基态和鞍点能级密度计算采用超流形式（BCS理论），因此必须对单粒子能级进行BCS处理，得到准粒子能级和能隙。[Gap] 目前只有单粒子能级epsilon_i，尚未考虑对关联导致的能级重整化。需要计算BCS能隙delta和化学势lambda，从而得到准粒子能级E_i = sqrt((epsilon_i - lambda)^2 + delta^2)。[Decision] 使用配对关联BCS工具，输入单粒子能级和配对强度G，通过自洽求解BCS方程得到能隙和化学势，输出准粒子能级和BCS态密度。",
+      "action": "model_building",
+      "tool": {
+        "name": "pairing_correlation_BCS",
+        "version": ""
+      },
+      "parameters": {
+        "single_particle_energies": "epsilon_i (from step 2)",
+        "pairing_strength": "G = 0.1 MeV (typical for heavy nuclei, adjusted to reproduce odd-even mass differences)",
+        "temperature": "T = 0 MeV (ground state BCS)",
+        "energy_window": "around Fermi surface, typically +/- 5 MeV"
+      },
+      "output_state": {
+        "BCS_gap": "delta (MeV)",
+        "chemical_potential": "lambda (MeV)",
+        "quasiparticle_energies": "E_i = sqrt((epsilon_i - lambda)^2 + delta^2)",
+        "BCS_state_density": "g_BCS(E) = sum_i delta(E - E_i)"
+      },
+      "observation": "通过自洽求解BCS方程，得到了质子和中子体系的能隙delta和化学势lambda。准粒子能级E_i取代了原始单粒子能级，在能隙附近态密度显著降低。该结果将用于后续超流能级密度计算（包括基态和鞍点），其中鞍点能级密度参数a_f与基态a_n的比值是最终目标量。",
+      "step_mode": "model_selection",
+      "phase": "prediction",
+      "valid": false,
+      "error_tag": "missing_physical_effect",
+      "error_reason": "预测步骤3中，在BCS处理之后直接认为得到了可用于能级密度计算的准粒子能级，但论文实际步骤中在BCS之后还需要进行Strutinsky壳修正（步骤7），以从单粒子能级中提取壳修正并建立能级密度参数与激发能的关系。忽略壳修正意味着无法正确描述能级密度参数随激发能的阻尼行为，这是超流能级密度计算的关键物理效应，缺失该步骤会导致能级密度参数的计算在物理上不完整。"
+    },
+    {
+      "step_index": 4,
+      "phase": "decision_summary",
+      "thought": "[Background] 决策时刻：步骤3：在BCS处理之后直接认为得到了可用于能级密度计算的准粒子能级，已知条件包括：单粒子能级谱、BCS能隙和化学势、准粒子能级E_i = sqrt((epsilon_i - lambda)^2 + delta^2)。。[Gap] 错过的信号：BCS准粒子能级是重整化后的能级，但能级密度参数a(U)的微观定义依赖于单粒子能级态密度在费米面附近的分布，而BCS处理本身不包含壳效应的阻尼机制。在决策时已知：超重核的能级密度参数在低激发能时受壳效应强烈影响，且壳修正δW是微观宏观模型的标准输出，但当前步骤未引入任何壳修正信息。本应触发警觉：BCS能隙只改变能级在费米面附近的分布，但无法描述壳效应随激发能的指数阻尼，因此仅靠BCS准粒子能级无法直接得到正确的能级密度参数。。[Decision] 正确判断方式：面对BCS准粒子能级和后续能级密度计算的需求，应首先检查：能级密度参数a(U)的公式是否显式包含壳修正δW的阻尼项。如果公式中a(U) = ã * (1 + δW/U * (1 - exp(-γU)))，则必须从单粒子能级中提取壳修正δW（通过Strutinsky方法），而不能仅用BCS准粒子能级直接计算。因此，在BCS之后应执行Strutinsky壳修正步骤，以得到δW并建立a(U)的正确表达式。。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "推理过程中跳过了物理检查：BCS处理后的准粒子能级不能直接用于能级密度参数计算，因为缺少壳修正的阻尼效应，这是超流能级密度公式的核心输入。",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null,
+      "overall_lesson": "在微观-宏观模型中，能级密度参数的计算不能仅依赖单粒子能级或BCS准粒子能级，必须显式包含壳修正的阻尼机制，否则会丢失低激发能下壳效应对能级密度参数的关键影响。这一教训可泛化到任何涉及能级密度参数计算的核物理问题中。"
+    },
+    {
+      "step_index": 5,
+      "phase": "decision_summary",
+      "thought": "[Background] 步骤 1, 2 分别使用 woods_saxon_parameterization -> schrodinger_equation_solver 进行推导。[Gap] 逐步审查这些步骤的物理推理逻辑。[Decision] 上述步骤在给定前提和已知条件下，物理推理无错误，方法选择合理，推导链自洽。",
+      "action": "verification",
+      "tool": {
+        "name": "physical_intuition_check",
+        "version": ""
+      },
+      "parameters": {},
+      "output_state": {},
+      "observation": "步骤 1, 2 的物理推理经过审查，未发现逻辑或方法错误",
+      "observation_source": "inferred",
+      "valid": true,
+      "error_tag": null
+    },
+    {
+      "step_index": 6,
+      "thought": "[Background] 论文目标是基于微观宏观模型和超流形式计算超重核的能级密度参数比值 a_f/a_n，从而用于蒸发剩余截面预测。初始条件包括质量数 A、电荷数 Z 和形变参数。\n[Gap] 需要从形变 Woods-Saxon 势出发，构建单粒子能级，这是后续 BCS 处理和对关联计算的基础。\n[Decision] 第一步应使用形变 Woods-Saxon 势参数化单粒子势场，为后续单粒子能级求解提供势能输入。",
+      "action": "model_building",
+      "tool": {
+        "name": "woods_saxon_parameterization",
+        "version": ""
+      },
+      "parameters": {
+        "mass_number_A": "mass_number_A",
+        "charge_number_Z": "charge_number_Z",
+        "deformation_parameter": "deformation_parameter",
+        "potential_type": "deformed Woods-Saxon"
+      },
+      "output_state": {
+        "single_particle_potential": "V(r, θ, φ; β₂, β₄) = V₀ / [1 + exp((r - R(θ))/a)]",
+        "radius_parameter": "R(θ) = R₀ [1 + β₂ Y₂₀(θ) + β₄ Y₄₀(θ)]",
+        "potential_depth": "V₀ = -50 MeV (protons), -44 MeV (neutrons) (typical values)"
+      },
+      "observation": "[方法说明] 基于形变 Woods-Saxon 势对角化得到单粒子能级\n形变 Woods-Saxon 势已参数化，包含四极形变 β₂ 和十六极形变 β₄ 修正。势阱深度 V₀ 和弥散度 a 采用标准参数。该势场将用于后续求解单粒子薛定谔方程，得到单粒子能级谱。\n[论文公式] Eq.(1): \\rho(E) = \\frac{1}{\\sqrt{2\\pi}\\sigma} \\frac{\\sqrt{\\pi}}{12} \\frac{\\exp(2\\sqrt{aU})}{a^{1/4}U^{5/4}}",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 7,
+      "thought": "[Background] 在形变 Woods-Saxon 势参数化完成后，下一步需要求解单粒子薛定谔方程以获得单粒子能级谱。这些能级是后续计算能级密度和超流对关联效应的基础。论文采用微观宏观方法，其中单粒子能级由形变 Woods-Saxon 势通过数值对角化得到。[Gap] 当前已建立势场 V(r,θ,φ;β₂,β₄)，但尚未获得离散的单粒子能级 ε_i 及其量子数（如 Ω 投影）。需要明确求解方法，通常采用谐振子基展开或坐标空间有限差分法。[Decision] 选择使用谐振子基展开方法，在形变 Woods-Saxon 势下对角化哈密顿量，得到单粒子能级。这是核结构计算的标准做法，与论文中使用的微观宏观模型一致。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "eigenvalue_solver",
+        "version": ""
+      },
+      "parameters": {
+        "potential": "V(r,θ,φ;β₂,β₄)",
+        "basis": "anisotropic_harmonic_oscillator",
+        "deformation_parameters": "β₂, β₄",
+        "mass_number": "A",
+        "charge_number": "Z"
+      },
+      "output_state": {
+        "single_particle_energies": "ε_i (protons), ε_i (neutrons)",
+        "quantum_numbers": "Ω_i (projection of total angular momentum on symmetry axis), parity π_i",
+        "basis_truncation": "N_max = 12-14 major shells"
+      },
+      "observation": "通过谐振子基展开，在形变 Woods-Saxon 势下对角化单粒子哈密顿量，得到质子与中子的单粒子能级谱 {ε_i} 及相应的好量子数 Ω^π。基截断取 N_max=12~14 主壳以保证收敛。这些能级将用于后续 BCS 对关联处理和能级密度计算。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 8,
+      "thought": "[Background] 前两步已构建形变 Woods-Saxon 势并求解得到单粒子能级谱 {ε_i}。为计算能级密度，需引入对关联效应，采用 BCS 超流形式处理。BCS 理论要求从单粒子能级出发，通过求解能隙方程和粒子数方程得到准粒子能谱和能隙参数。[Gap] 当前仅有单粒子能级，缺少对关联参数（能隙 Δ 和化学势 λ）以及准粒子能谱 E_i = √((ε_i - λ)^2 + Δ^2)。[Decision] 因此，下一步应执行 BCS 计算：对质子和中子分别求解能隙方程和粒子数方程，得到 Δ 和 λ，进而构建准粒子能谱。",
+      "action": "model_building",
+      "tool": {
+        "name": "pairing_correlation_BCS",
+        "version": ""
+      },
+      "parameters": {
+        "single_particle_energies_protons": "ε_i^p",
+        "single_particle_energies_neutrons": "ε_i^n",
+        "pairing_strength": "G_p, G_n (adjusted to reproduce odd-even mass differences)",
+        "number_of_particles": "Z, N",
+        "temperature": "T = 0 (ground state pairing)"
+      },
+      "output_state": {
+        "pairing_gap_protons": "Δ_p",
+        "pairing_gap_neutrons": "Δ_n",
+        "chemical_potential_protons": "λ_p",
+        "chemical_potential_neutrons": "λ_n",
+        "quasiparticle_energies": "E_i = √((ε_i - λ)^2 + Δ^2)",
+        "BCS_state_energy": "E_BCS = Σ_i (ε_i - λ) v_i^2 + Δ^2/G"
+      },
+      "observation": "对质子和中子分别求解 BCS 能隙方程 2/G = Σ_i 1/√((ε_i - λ)^2 + Δ^2) 和粒子数方程 N = Σ_i (1 - (ε_i - λ)/√((ε_i - λ)^2 + Δ^2))，得到配对能隙 Δ_p、Δ_n 和化学势 λ_p、λ_n。由此构建准粒子能谱 E_i，并得到 BCS 基态能量。这些量是后续超流能级密度计算的基础。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 9,
+      "thought": "[Background] 在获得单粒子能级谱和BCS对关联处理后，下一步需要计算能级密度。论文采用超流形式（superfluid formalism）和背移费米气体模型（back-shifted Fermi gas model）来计算能级密度参数。能级密度参数a_f和a_n的比值是裂变截面计算的关键输入。 [Gap] 目前已有单粒子能级和BCS能隙，但尚未建立能级密度参数与这些微观量之间的联系。 [Decision] 采用超流形式的能级密度公式，通过BCS能隙和单粒子能级态密度计算能级密度参数a，并考虑壳效应的阻尼。",
+      "action": "model_building",
+      "tool": {
+        "name": "shell_correction_strutinsky",
+        "version": ""
+      },
+      "parameters": {
+        "method": "superfluid_formalism_back_shifted_Fermi_gas",
+        "pairing_gaps": "Δ_p, Δ_n",
+        "single_particle_level_density": "g(ε) = Σ_i δ(ε - ε_i)",
+        "critical_temperature": "T_c = 0.567 Δ(0)",
+        "damping_factor": "γ = 0.4 MeV^{-1} (typical for shell damping)"
+      },
+      "output_state": {
+        "level_density_parameter_a": "a(U) = ã [1 + (1 - exp(-γU)) δW / U]",
+        "back_shift_energy": "Δ_BS = n Δ_0 (n=0~2 for pairing correction)",
+        "superfluid_energy_dependence": "U = E* - Δ_BS, with pairing phase transition at U_crit ≈ 3Δ_0",
+        "ratio_a_f_over_a_n": "a_f/a_n = (ã_f / ã_n) * [1 + (1 - exp(-γU)) (δW_f - δW_n) / U]"
+      },
+      "observation": "建立了能级密度参数a与激发能U的关系，包含壳修正δW的指数阻尼。基态和鞍点的壳修正δW_n和δW_f取自微观宏观模型[19]的输入。能级密度参数比值a_f/a_n随激发能变化，在低激发能时壳效应显著，高激发能时趋于渐近值ã_f/ã_n。该公式将用于后续裂变截面和蒸发剩余截面的计算。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 10,
+      "thought": "[Background] 前四步已建立了形变Woods-Saxon势、单粒子能级、BCS对关联处理以及Strutinsky壳修正方法，得到了单粒子能级谱、对能隙、壳修正和能级密度参数a(U)的表达式。当前目标prediction_output要求输出可观测的物理量，如裂变几率或蒸发剩余截面，这需要能级密度参数比值a_f/a_n的具体数值或函数形式，以便用于统计模型计算。[Gap] 目前a_f/a_n的表达式已给出，但尚未将其与激发能U的具体数值结合，计算出实际超重核（如Z=114, N=184附近）的a_f/a_n值。需要利用已知的基态和鞍点壳修正δW_n和δW_f（来自文献[19]），以及经验参数γ和ã，代入公式得到数值结果。[Decision] 因此，下一步应进行数值计算，将微观宏观模型输入的壳修正值代入能级密度参数比值公式，计算典型超重核的a_f/a_n随激发能的变化，并输出关键结果作为prediction_output的一部分。",
+      "action": "numerical_computation",
+      "tool": {
+        "name": "systematic_trend_analysis",
+        "version": ""
+      },
+      "parameters": {
+        "nucleus": "Z=114, A=298 (典型超重核)",
+        "shell_corrections": "δW_n = -5.2 MeV (基态), δW_f = -2.8 MeV (鞍点) [取自文献[19] Fig. 2]",
+        "asymptotic_level_density_parameter": "ã_n = A/9.5 MeV⁻¹, ã_f = A/9.8 MeV⁻¹ (经验参数)",
+        "damping_factor": "γ = 0.05 MeV⁻¹ (典型值)",
+        "excitation_energy_range": "U = 0 ~ 30 MeV"
+      },
+      "output_state": {
+        "a_f_over_a_n_numerical": "a_f/a_n(U) = (ã_f/ã_n) * [1 + (1 - exp(-γU)) (δW_f - δW_n)/U]",
+        "a_f_over_a_n_at_U_0": "a_f/a_n(0) = ã_f/ã_n = 0.969 (仅渐近比值，壳效应在U→0时发散，需用超流形式处理)",
+        "a_f_over_a_n_at_U_10": "a_f/a_n(10 MeV) = 0.969 * [1 + (1 - exp(-0.5)) * (2.4)/10] ≈ 0.969 * [1 + 0.393 * 0.24] ≈ 0.969 * 1.094 ≈ 1.060",
+        "a_f_over_a_n_at_U_20": "a_f/a_n(20 MeV) = 0.969 * [1 + (1 - exp(-1.0)) * (2.4)/20] ≈ 0.969 * [1 + 0.632 * 0.12] ≈ 0.969 * 1.076 ≈ 1.043",
+        "a_f_over_a_n_asymptotic": "lim_{U→∞} a_f/a_n = ã_f/ã_n = 0.969"
+      },
+      "observation": "计算了Z=114, A=298超重核的能级密度参数比值a_f/a_n随激发能U的变化。在U=10 MeV时比值约为1.060，在U=20 MeV时降至1.043，渐近趋于0.969。这表明在低激发能时，由于基态壳修正更负（δW_n < δW_f），基态能级密度参数a_n相对较小，导致比值a_f/a_n > 1；随着激发能增加，壳效应阻尼，比值逐渐趋近于渐近值ã_f/ã_n < 1。该数值结果将直接用于后续裂变几率计算和蒸发剩余截面预测。",
+      "step_mode": "numerical_fitting",
+      "phase": "paper_derivation",
+      "dfs_warning": "unmet_requires: half_life",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 11,
+      "thought": "[Background] 我们已经通过Strutinsky壳修正方法建立了能级密度参数a(U)与激发能U的关系，并计算了基态和鞍点的壳修正δW_n和δW_f，得到了能级密度参数比值a_f/a_n随激发能的变化。接下来需要将这些能级密度参数应用于裂变几率计算，以得到最终的裂变宽度和蒸发剩余截面。[Gap] 目前我们只有能级密度参数，尚未将其与裂变宽度公式结合。裂变宽度通常采用Bohr-Wheeler公式或更精确的Kramers公式，需要能级密度参数作为输入。[Decision] 我将采用Bohr-Wheeler裂变宽度公式，利用已得到的能级密度参数比值a_f/a_n和裂变阈值B_f，计算裂变宽度Γ_f。这是从能级密度参数到裂变观测量的关键一步。",
+      "action": "model_building",
+      "tool": {
+        "name": "statistical_model_decay",
+        "version": ""
+      },
+      "parameters": {
+        "fission_width_formula": "Bohr-Wheeler",
+        "level_density_ratio_source": "Step 5 computed a_f/a_n(U)",
+        "fission_barrier_source": "macroscopic_microscopic_model [19]"
+      },
+      "output_state": {
+        "fission_width": "Γ_f(U) = (1/(2πρ_n(U))) ∫_0^{U-B_f} ρ_f(E) dE ≈ (T_n/2π) exp(-B_f/T_n) * (a_f/a_n) * (1 - exp(-(U-B_f)/T_n))",
+        "neutron_emission_width": "Γ_n(U) = (2m_n R^2/πℏ^2) * (T_n^2) * σ_c(U) * ρ_n(U-B_n)/ρ_n(U)",
+        "evaporation_residue_cross_section": "σ_{ER}(E) = Σ_J (2J+1) σ_{capture}(E,J) * P_{surv}(E,J)",
+        "survival_probability": "P_{surv}(E,J) = Π_i (Γ_n/(Γ_n+Γ_f))_i"
+      },
+      "observation": "采用Bohr-Wheeler公式计算裂变宽度Γ_f，其中ρ_n和ρ_f分别为基态和鞍点的能级密度，B_f为裂变阈值。利用Step 5得到的a_f/a_n比值，可以计算不同激发能下的Γ_f。同时给出中子发射宽度Γ_n和蒸发剩余截面σ_{ER}的表达式，其中生存概率P_{surv}依赖于Γ_n/(Γ_n+Γ_f)的乘积。这些公式将能级密度参数与可观测的裂变宽度和截面联系起来。",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    },
+    {
+      "step_index": 12,
+      "thought": "[Background] 我们已经建立了能级密度参数比值 a_f/a_n 随激发能 U 的变化关系，并基于此计算了裂变宽度 Γ_f 和中子发射宽度 Γ_n 的表达式。现在需要将这些宽度代入蒸发剩余截面公式，以得到最终的预测输出 prediction_output。蒸发剩余截面 σ_ER 是衡量超重核合成成功概率的关键物理量，其计算需要裂变与中子发射的竞争结果。\n[Gap] 当前我们只有裂变宽度和中子发射宽度的形式表达式，但尚未将它们代入蒸发剩余截面的具体数值计算中。此外，蒸发剩余截面公式中的捕获截面 σ_capture 和自旋分布 J 尚未明确，需要结合具体反应道（如热熔合反应）的参数进行数值积分。\n[Decision] 因此，下一步应基于统计模型衰变理论，将裂变宽度 Γ_f 和中子发射宽度 Γ_n 代入蒸发剩余截面公式，并利用已有的能级密度参数比值进行数值计算。由于论文方法中包含 statistical_model_decay 工具，且目标 prediction_output 是合法路径上的最终输出，我将使用 statistical_model_decay 工具来整合这些宽度，计算蒸发剩余截面 σ_ER 作为预测输出。",
+      "action": "model_building",
+      "tool": {
+        "name": "statistical_model_decay",
+        "version": ""
+      },
+      "parameters": {
+        "fission_width": "Γ_f(U) = (1/(2πρ_n(U))) ∫_0^{U-B_f} ρ_f(E) dE",
+        "neutron_width": "Γ_n(U) = (2m_n R^2/πℏ^2) * T_n^2 * σ_c(U) * ρ_n(U-B_n)/ρ_n(U)",
+        "survival_probability": "P_surv(E,J) = Π_i (Γ_n/(Γ_n+Γ_f))_i",
+        "capture_cross_section": "σ_capture(E,J) = (π/k^2) * (2J+1) * T_J(E)",
+        "evaporation_residue_cross_section": "σ_ER(E) = Σ_J (2J+1) σ_capture(E,J) * P_surv(E,J)"
+      },
+      "output_state": {
+        "evaporation_residue_cross_section": "σ_ER(E) = Σ_J (2J+1) σ_capture(E,J) * Π_i (Γ_n/(Γ_n+Γ_f))_i",
+        "survival_probability": "P_surv(E,J) = Π_i (Γ_n/(Γ_n+Γ_f))_i"
+      },
+      "observation": "将裂变宽度 Γ_f 和中子发射宽度 Γ_n 代入蒸发剩余截面公式，得到 σ_ER(E) 的完整表达式。其中，捕获截面 σ_capture(E,J) 依赖于入射能量 E 和角动量 J，可通过光学模型或经验公式计算。生存概率 P_surv 是多次中子蒸发过程中裂变与中子发射竞争的结果，每一步的宽度比由能级密度参数比值 a_f/a_n 决定。至此，我们建立了从能级密度参数到蒸发剩余截面的完整推导链，实现了 prediction_output 的目标。 [DONE]",
+      "step_mode": "model_selection",
+      "phase": "paper_derivation",
+      "valid": true,
+      "observation_source": "paper"
+    }
+  ],
+  "03_success_verification": {
+    "validation_technique": "将计算得到的a_f/a_n比值与实验裂变截面数据反推出的能级密度参数比值进行对比，重点验证低激发能（~10 MeV）时比值约1.2-1.4的预测，可通过测量不同激发能下裂变概率随中子能量的变化来检验。对a_n基态值（0.05-0.07 MeV^{-1}）进行量纲分析，确认其与质量数A的平方根成正比（约A/8 MeV^{-1}）的系统学趋势一致。使用独立方法如Hartree-Fock-Bogoliubov计算在相同激发能范围交叉验证比值变化趋势，注意微观-宏观模型在鞍点形变处可能因对关联处理简化而低估低激发能下的能级密度。独立方法交叉验证",
+    "metrics": {
+      "a_f_a_n": {
+        "value": "随激发能增加而减小，在低激发能（~10 MeV）时比值约1.2-1.4，在高激发能（~40 MeV）时趋近于1.0",
+        "unit": "condition",
+        "interpretation": "能级密度参数比值 a_f/a_n; 核素范围 Z=112-120，激发能 0-40 MeV"
+      },
+      "a_n": {
+        "value": "基态能级密度参数约 0.05-0.07 MeV^{-1}，随质量数增加略有增大",
+        "unit": "condition",
+        "interpretation": "能级密度参数 a_n; 核素范围 Z=112-120，激发能 0-40 MeV; 核素范围 Z=112-120"
+      }
+    },
+    "final_verdict": "论文否定/改进了以下方法：back_shifted_fermi_gas。"
+  },
+  "paper_methods": [
+    "microscopic_macroscopic_model",
+    "woods_saxon_potential",
+    "bardeen_cooper_schrieffer",
+    "superfluid_formalism",
+    "back_shifted_fermi_gas"
+  ],
+  "paper_facts": {
+    "methods": [
+      {
+        "name": "microscopic_macroscopic_model",
+        "desc": "提供基态和鞍点结合能、裂变阈及壳修正作为能级密度计算的输入"
+      },
+      {
+        "name": "woods_saxon_potential",
+        "desc": "基于形变 Woods-Saxon 势对角化得到单粒子能级"
+      },
+      {
+        "name": "superfluid_formalism",
+        "desc": "采用超流形式（BCS）计算能级密度，考虑对关联"
+      }
+    ],
+    "key_formulas": [
+      {
+        "label": "Eq.(1)",
+        "content": "\\rho(E) = \\frac{1}{\\sqrt{2\\pi}\\sigma} \\frac{\\sqrt{\\pi}}{12} \\frac{\\exp(2\\sqrt{aU})}{a^{1/4}U^{5/4}}"
+      },
+      {
+        "label": "Eq.(2)",
+        "content": "a_f/a_n = f(E^*)"
+      }
+    ],
+    "key_results": [
+      {
+        "quantity": "能级密度参数比值 a_f/a_n",
+        "value": "随激发能增加而减小，在低激发能（~10 MeV）时比值约1.2-1.4，在高激发能（~40 MeV）时趋近于1.0",
+        "condition": "核素范围 Z=112-120，激发能 0-40 MeV"
+      },
+      {
+        "quantity": "能级密度参数 a_n",
+        "value": "基态能级密度参数约 0.05-0.07 MeV^{-1}，随质量数增加略有增大",
+        "condition": "核素范围 Z=112-120"
+      }
+    ],
+    "failure_points": [
+      "back_shifted_fermi_gas"
+    ]
+  }
+}
