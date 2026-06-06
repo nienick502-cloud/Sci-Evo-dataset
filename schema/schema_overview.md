@@ -208,6 +208,10 @@ During `paper_derivation` phase, tool names are taken from `paper_facts.methods`
 | Foundation (nuclear) | `NP_XXXX` | `NP_0001.json` |
 | Research (nuclear papers) | `NPP_XXXX` | `NPP_0001.json` |
 
+`dataset/final/Research_audited/` contains classified copies of the same `NPP_XXXX.json` Research
+samples. It is an audit artifact and does not introduce a new schema tier, prefix, or sample ID
+namespace.
+
 ---
 
 ## Notes

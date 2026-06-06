@@ -44,6 +44,23 @@ Based on real nuclear physics papers. Each sample encodes a full prediction-comp
 | Nuclear Scattering Cross-Section | `nuclear_scattering` | 39 |
 | ML α Half-life | `ml_alpha_halflife` | 3 |
 
+### Audited Research Copy for Reviewers
+
+The canonical released dataset remains the 219 samples under `dataset/final/foundation/` and
+`dataset/final/Research/`. The additional `dataset/final/Research_audited/` directory is an
+audit-preserving copy of the 159 Research samples, not a replacement for the original release.
+
+This separate directory exists for three reasons:
+
+- It keeps the already published `dataset/final/Research/` files unchanged and traceable.
+- It gives reviewers a classified view of the Research tier: `P0_reject_replace`, `P1_must_fix`,
+  `P2_review_needed`, `P3_polish`, and `PASS`.
+- It records conservative, deterministic fixes in a reviewable location while keeping the raw
+  released samples available for comparison.
+
+The full audit evidence is in `audit/research_layer/`. The per-sample classification manifest is
+`dataset/final/Research_audited/manifest.csv`.
+
 ---
 
 ## Schema
@@ -110,11 +127,12 @@ All 219 final samples are in `dataset/final/`, organized by tier:
 
 ```
 dataset/final/
-├── foundation/   # 60 samples (QN_*.json, NP_*.json)
-└── Research/     # 159 samples (NPP_*.json)
+├── foundation/        # 60 primary samples (QN_*.json, NP_*.json)
+├── Research/          # 159 primary Research samples (NPP_*.json)
+└── Research_audited/  # classified audit copy; not counted in the 219 primary samples
 ```
 
-A summary index is available at `dataset/metadata.jsonl`.
+A summary index for the primary dataset is available at `dataset/metadata.jsonl`.
 
 ---
 
@@ -144,10 +162,10 @@ import json
 from pathlib import Path
 
 def load_sample(sample_id: str, final_dir="dataset/final") -> dict:
-    """Search both tier subdirectories for the sample."""
+    """Search only the primary dataset directories."""
     base = Path(final_dir)
-    for subdir in base.iterdir():
-        path = subdir / f"{sample_id}.json"
+    for subdir_name in ("foundation", "Research"):
+        path = base / subdir_name / f"{sample_id}.json"
         if path.exists():
             with open(path, encoding="utf-8") as f:
                 return json.load(f)
@@ -164,13 +182,15 @@ print(len(sample["02_agent_trajectory"]))   # number of reasoning steps
 from pathlib import Path
 import json
 
-final_dir = Path("dataset/final")
-for path in sorted(final_dir.rglob("*.json")):
-    with open(path, encoding="utf-8") as f:
-        sample = json.load(f)
-    tier = sample["meta"]["data_tier"]
-    steps = sample["02_agent_trajectory"]
-    print(f"{sample['id']} | {tier} | {len(steps)} steps")
+primary_dirs = [Path("dataset/final/foundation"), Path("dataset/final/Research")]
+
+for directory in primary_dirs:
+    for path in sorted(directory.glob("*.json")):
+        with open(path, encoding="utf-8") as f:
+            sample = json.load(f)
+        tier = sample["meta"]["data_tier"]
+        steps = sample["02_agent_trajectory"]
+        print(f"{sample['id']} | {tier} | {len(steps)} steps")
 ```
 
 ---
@@ -179,9 +199,10 @@ for path in sorted(final_dir.rglob("*.json")):
 
 | Directory | Description |
 |-----------|-------------|
-| `dataset/` | Final 219 samples (JSON) + metadata index |
+| `dataset/` | Primary 219 samples, metadata index, and the separate Research audit copy |
+| `audit/` | Research-layer audit reports, per-finding JSONL, summary CSV, and review queues |
 | `schema/` | Full schema specification |
-| `scripts/` | 24 reproduction scripts (parse → generate → postprocess → audit) |
+| `scripts/` | Reproduction and audit scripts (parse → generate → postprocess → audit) |
 | `raw_pdf/` | Original PDF sources (textbooks + 179 papers, 8 subdomains) |
 | `parsed/` | MinerU-parsed Markdown output from raw PDFs |
 | `raw_dataset/` | Intermediate data: extracted paper JSONs, Crystal experiment results, unsolved problems |

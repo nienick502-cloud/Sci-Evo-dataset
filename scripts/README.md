@@ -1,6 +1,7 @@
 # Reproduction Scripts
 
-This directory contains all scripts needed to reproduce the Physics-PreProc-QN dataset.
+This directory contains the scripts needed to reproduce the Physics-PreProc-QN dataset and audit
+the Research tier.
 
 ## Prerequisites
 
@@ -38,12 +39,15 @@ scripts/
 ├── postprocess/                  # Post-processing
 │   ├── format_for_submission.py      # Final formatting (reorder + fusion + polish)
 │   └── gen_metadata.py               # Generate metadata.jsonl index
-└── fix/                          # Data quality fixes
-    ├── fix_tool_names.py             # LLM-based tool name normalization
-    ├── fix_no_solution.py            # Extract solutions from unlabelled problems
-    ├── filter_no_solution.py         # Filter problems without solutions
-    ├── fix_wkb_ids.py                # Fix WKB ID collisions
-    └── audit_topic_match.py          # Check paper-subdomain topic match
+├── fix/                          # Data quality fixes
+│   ├── fix_tool_names.py             # LLM-based tool name normalization
+│   ├── fix_no_solution.py            # Extract solutions from unlabelled problems
+│   ├── filter_no_solution.py         # Filter problems without solutions
+│   ├── fix_wkb_ids.py                # Fix WKB ID collisions
+│   └── audit_topic_match.py          # Check paper-subdomain topic match
+└── audit/                        # Reproducible Research-layer audit
+    ├── research_layer_audit.py       # Full audit report and finding generation
+    └── build_audited_research.py     # Classified Research_audited copy builder
 ```
 
 ## Script Reference
@@ -153,7 +157,21 @@ cd scripts/agent
 python audit_quality.py --subdomain "alpha_decay_wkb"
 ```
 
-### 5. Post-processing
+### 5. Research-layer audit package
+
+The Research-layer audit is intentionally separate from the original published samples. It reads
+`dataset/final/Research/*.json` and local parsed paper Markdown, then writes formal audit artifacts
+under `audit/research_layer/` and a classified copy under `dataset/final/Research_audited/`.
+
+```bash
+python scripts/audit/research_layer_audit.py
+python scripts/audit/build_audited_research.py --force
+```
+
+The audited copy keeps the original Research directory unchanged while giving reviewers a direct
+P0/P1/P2/P3/PASS view of the 159 Research samples.
+
+### 6. Post-processing
 
 Convert raw `_v2.json` files to submission format:
 
