@@ -2,6 +2,17 @@
 
 本目录是 `dataset/final/Research` 的审核后副本，用于在不改动已发布原始数据的前提下保存分类和小修版本。
 
+## 设立原因
+
+`dataset/final/Research/` 是已经发布的原始 Research 层数据，保留原样有利于版本追溯、外部复现和公开数据对照。本目录不替代原始目录，也不改变 `dataset/metadata.jsonl` 中的 219 条主数据集计数。
+
+新增 `Research_audited/` 的目的，是把审核结论和保守修正放在一个独立、可复核的位置：
+
+- 原始样本保持不变，评审者可以直接比较原始版本和审核版本。
+- 每条 Research 样本按风险级别进入对应目录，便于定位 P0/P1/P2/P3/PASS。
+- 少量确定性 schema 修正只应用在副本中，避免对已发布数据做原地覆盖。
+- 完整证据链保存在 `audit/research_layer/`，包括逐问题 JSONL、逐样本 CSV、P0 清单和人工复核清单。
+
 ## 分类目录
 
 - `P0_reject_replace/`：源论文主体错配或列入替换处置的样本。
